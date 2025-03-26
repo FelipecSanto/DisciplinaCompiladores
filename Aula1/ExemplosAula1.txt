@@ -1,0 +1,58 @@
+EXERCÍCIOS:
+
+EX 1:
+(47)99782-1458;
+(11)91234-5678;
+(21)99876-5432;
+(31)98765-4321;
+
+EX 2 (Placa antiga):
+LSN4I49;
+ABC1F34;
+XYZ9K76;
+JKL5B78; 
+
+EX 3:
+978-85-333-0227-3;
+978-0-306-40615-7;
+978-1-566-0497-4;
+978-34-16-438410-0;
+
+EX 4:
+192.168.1.1;
+10.0.0.1;
+172.16.0.1;
+
+EX 6:
+M - mil
+D - quinhentos
+C - cem
+L - cinquenta
+X - dez
+V - cinco
+I - um
+
+MDCLXXIV (1674)
+MMXXIII (2023)
+XCIX (99)
+DLV (555)
+IV (4)
+
+EX 8:
+.0; 
+-1; 
+1;  
+-1.0; 
+1.99; 
+0.99; 
+1.0E05; 
+0.99E-05; 
+9.81E0;
+
+EX 9:
+<p>Texto de exemplo</p>;
+<div>Outro exemplo de texto</div>;
+<span>Mais um exemplo</span>;
+<a href="https://example.com">Link de exemplo</a>;
+<strong>Texto em negrito</strong>;
+<em>Texto em itálico</em>
