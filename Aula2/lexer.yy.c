@@ -459,46 +459,59 @@ char *yytext;
         int topo;
         int tamanho;
     } Pilha;
+    
+    int estaCheia(Pilha* p) {
+        if (p->topo == p->tamanho - 1)
+            return 1;
+        return 0;
+    }
+
+    int estaVazia(Pilha* p) {
+        if (p->topo == -1)
+            return 1;
+        return 0;
+    }
 
     void inicializarPilha(Pilha* p, int tamanho) {
         p->topo = -1;
         p->tamanho = tamanho;
         p->elementos = (double*) malloc(tamanho * sizeof(double));
         if (p->elementos == NULL) {
-            printf("Erro: Falha ao alocar memória!\n");
+            printf("ERRO::inicializarPilha::Falha ao alocar memória!\n");
             exit(EXIT_FAILURE);
         }
     }
 
     void empilhar(Pilha* p, double valor) {
+        if (estaCheia(p)) {
+            printf("ERRO::empilhar::Pilha cheia!\n");
+            return;
+        }
         p->topo++;
         p->elementos[p->topo] = valor;
     }
 
     double desempilhar(Pilha* p) {
+        if (estaVazia(p)) {
+            printf("ERRO::desempilhar::Pilha vazia!\n");
+            return 0;
+        }
         double valor = p->elementos[p->topo];
         p->topo--;
         return valor;
     }
 
     double topo(Pilha* p) {
+        if (estaVazia(p)) {
+            printf("ERRO::topo::Pilha vazia!\n");
+            return 0;
+        }
         return p->elementos[p->topo];
     }
 
-    void estaCheia(Pilha* p) {
-        if (p->topo == p->tamanho - 1) {
-            printf("Pilha cheia!\n");
-        } else {
-            printf("Pilha não cheia!\n");
-        }
-    }
 
-    void estaVazia(Pilha* p) {
-        if (p->topo == -1) {
-            printf("Pilha vazia!\n");
-        } else {
-            printf("Pilha não vazia!\n");
-        }
+    int tamanhoPilha(Pilha* p) {
+        return p->topo + 1;
     }
 
     void destruirPilha(Pilha* p) {
@@ -507,10 +520,10 @@ char *yytext;
 
     Pilha pilha;
     double num1, num2, resultado;
-#line 511 "lexer.yy.c"
+#line 524 "lexer.yy.c"
 /* ------------------------------------------------------------------------------------------------------------------------------------------------------ */
 /* Regras de Produção */
-#line 514 "lexer.yy.c"
+#line 527 "lexer.yy.c"
 
 #define INITIAL 0
 
@@ -727,11 +740,11 @@ YY_DECL
 		}
 
 	{
-#line 69 "calculadora_RPN.l"
+#line 82 "calculadora_RPN.l"
 
 
 
-#line 735 "lexer.yy.c"
+#line 748 "lexer.yy.c"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
@@ -790,7 +803,7 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 72 "calculadora_RPN.l"
+#line 85 "calculadora_RPN.l"
 {
     resultado = atof(yytext); 
     empilhar(&pilha, resultado);
@@ -798,7 +811,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 77 "calculadora_RPN.l"
+#line 90 "calculadora_RPN.l"
 {
     num1 = topo(&pilha);
     desempilhar(&pilha);
@@ -825,13 +838,13 @@ YY_RULE_SETUP
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 101 "calculadora_RPN.l"
+#line 114 "calculadora_RPN.l"
 { printf("\n"); }
 	YY_BREAK
 case 4:
 /* rule 4 can match eol */
 YY_RULE_SETUP
-#line 103 "calculadora_RPN.l"
+#line 116 "calculadora_RPN.l"
 {
     if (topo(&pilha) == (int)topo(&pilha)) {
         printf("\n\tResultado: %d\n", (int)topo(&pilha));
@@ -843,15 +856,15 @@ YY_RULE_SETUP
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 113 "calculadora_RPN.l"
+#line 126 "calculadora_RPN.l"
 {/* Ignora qualquer caractere não reconhecido */}
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 114 "calculadora_RPN.l"
+#line 127 "calculadora_RPN.l"
 ECHO;
 	YY_BREAK
-#line 855 "lexer.yy.c"
+#line 868 "lexer.yy.c"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -1856,7 +1869,7 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 114 "calculadora_RPN.l"
+#line 127 "calculadora_RPN.l"
 
 /* ------------------------------------------------------------------------------------------------------------------------------------------------------ */
 

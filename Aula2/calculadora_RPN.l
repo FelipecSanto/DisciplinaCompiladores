@@ -11,46 +11,59 @@
         int topo;
         int tamanho;
     } Pilha;
+    
+    int estaCheia(Pilha* p) {
+        if (p->topo == p->tamanho - 1)
+            return 1;
+        return 0;
+    }
+
+    int estaVazia(Pilha* p) {
+        if (p->topo == -1)
+            return 1;
+        return 0;
+    }
 
     void inicializarPilha(Pilha* p, int tamanho) {
         p->topo = -1;
         p->tamanho = tamanho;
         p->elementos = (double*) malloc(tamanho * sizeof(double));
         if (p->elementos == NULL) {
-            printf("Erro: Falha ao alocar memória!\n");
+            printf("ERRO::inicializarPilha::Falha ao alocar memória!\n");
             exit(EXIT_FAILURE);
         }
     }
 
     void empilhar(Pilha* p, double valor) {
+        if (estaCheia(p)) {
+            printf("ERRO::empilhar::Pilha cheia!\n");
+            return;
+        }
         p->topo++;
         p->elementos[p->topo] = valor;
     }
 
     double desempilhar(Pilha* p) {
+        if (estaVazia(p)) {
+            printf("ERRO::desempilhar::Pilha vazia!\n");
+            return 0;
+        }
         double valor = p->elementos[p->topo];
         p->topo--;
         return valor;
     }
 
     double topo(Pilha* p) {
+        if (estaVazia(p)) {
+            printf("ERRO::topo::Pilha vazia!\n");
+            return 0;
+        }
         return p->elementos[p->topo];
     }
 
-    void estaCheia(Pilha* p) {
-        if (p->topo == p->tamanho - 1) {
-            printf("Pilha cheia!\n");
-        } else {
-            printf("Pilha não cheia!\n");
-        }
-    }
 
-    void estaVazia(Pilha* p) {
-        if (p->topo == -1) {
-            printf("Pilha vazia!\n");
-        } else {
-            printf("Pilha não vazia!\n");
-        }
+    int tamanhoPilha(Pilha* p) {
+        return p->topo + 1;
     }
 
     void destruirPilha(Pilha* p) {
