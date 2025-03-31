@@ -478,14 +478,14 @@ char *yytext;
         p->elementos = (double*) malloc(tamanho * sizeof(double));
         if (p->elementos == NULL) {
             printf("ERRO::inicializarPilha::Falha ao alocar memória!\n");
-            exit(EXIT_FAILURE);
+            exit(1);
         }
     }
 
     void empilhar(Pilha* p, double valor) {
         if (estaCheia(p)) {
             printf("ERRO::empilhar::Pilha cheia!\n");
-            return;
+            exit(1);
         }
         p->topo++;
         p->elementos[p->topo] = valor;
@@ -494,7 +494,7 @@ char *yytext;
     double desempilhar(Pilha* p) {
         if (estaVazia(p)) {
             printf("ERRO::desempilhar::Pilha vazia!\n");
-            return 0;
+            exit(1);
         }
         double valor = p->elementos[p->topo];
         p->topo--;
@@ -504,7 +504,7 @@ char *yytext;
     double topo(Pilha* p) {
         if (estaVazia(p)) {
             printf("ERRO::topo::Pilha vazia!\n");
-            return 0;
+            exit(1);
         }
         return p->elementos[p->topo];
     }
@@ -852,19 +852,21 @@ YY_RULE_SETUP
         printf("\n\tResultado: %f\n", topo(&pilha));
     }
     desempilhar(&pilha);
+    destruirPilha(&pilha);
+    inicializarPilha(&pilha, 100);
 }
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 126 "calculadora_RPN.l"
+#line 128 "calculadora_RPN.l"
 {/* Ignora qualquer caractere não reconhecido */}
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 127 "calculadora_RPN.l"
+#line 129 "calculadora_RPN.l"
 ECHO;
 	YY_BREAK
-#line 868 "lexer.yy.c"
+#line 870 "lexer.yy.c"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -1869,7 +1871,7 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 127 "calculadora_RPN.l"
+#line 129 "calculadora_RPN.l"
 
 /* ------------------------------------------------------------------------------------------------------------------------------------------------------ */
 

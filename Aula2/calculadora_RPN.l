@@ -30,14 +30,14 @@
         p->elementos = (double*) malloc(tamanho * sizeof(double));
         if (p->elementos == NULL) {
             printf("ERRO::inicializarPilha::Falha ao alocar memória!\n");
-            exit(EXIT_FAILURE);
+            exit(1);
         }
     }
 
     void empilhar(Pilha* p, double valor) {
         if (estaCheia(p)) {
             printf("ERRO::empilhar::Pilha cheia!\n");
-            return;
+            exit(1);
         }
         p->topo++;
         p->elementos[p->topo] = valor;
@@ -46,7 +46,7 @@
     double desempilhar(Pilha* p) {
         if (estaVazia(p)) {
             printf("ERRO::desempilhar::Pilha vazia!\n");
-            return 0;
+            exit(1);
         }
         double valor = p->elementos[p->topo];
         p->topo--;
@@ -56,7 +56,7 @@
     double topo(Pilha* p) {
         if (estaVazia(p)) {
             printf("ERRO::topo::Pilha vazia!\n");
-            return 0;
+            exit(1);
         }
         return p->elementos[p->topo];
     }
@@ -120,6 +120,8 @@ OPERANDOS [\+\-\*\/]
         printf("\n\tResultado: %f\n", topo(&pilha));
     }
     desempilhar(&pilha);
+    destruirPilha(&pilha);
+    inicializarPilha(&pilha, 100);
 }
 
 
