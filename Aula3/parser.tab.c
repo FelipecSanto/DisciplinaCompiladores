@@ -74,87 +74,86 @@ extern int yylineno;
 #line 6 "parser.y"
 
 
-  #include <stdio.h>
-  #include <string.h>
-  #include <math.h>
-  #include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <math.h>
+#include <stdlib.h>
 
-  typedef struct Pilha {
-      double* elementos;
-      int topo;
-      int tamanho;
-  } Pilha;
-  
-  int estaCheia(Pilha* p) {
-      if (p->topo == p->tamanho - 1)
-          return 1;
-      return 0;
-  }
+typedef struct Stack {
+        double* elements;
+        int top;
+        int size;
+} Stack;
 
-  int estaVazia(Pilha* p) {
-      if (p->topo == -1)
-          return 1;
-      return 0;
-  }
+int isFull(Stack* s) {
+        if (s->top == s->size - 1)
+                return 1;
+        return 0;
+}
 
-  void inicializarPilha(Pilha* p, int tamanho) {
-      p->topo = -1;
-      p->tamanho = tamanho;
-      p->elementos = (double*) malloc(tamanho * sizeof(double));
-      if (p->elementos == NULL) {
-          printf("ERRO::inicializarPilha::Falha ao alocar memória!\n");
-          exit(1);
-      }
-  }
+int isEmpty(Stack* s) {
+        if (s->top == -1)
+                return 1;
+        return 0;
+}
 
-  void empilhar(Pilha* p, double valor) {
-      if (estaCheia(p)) {
-          printf("ERRO::empilhar::Pilha cheia!\n");
-          exit(1);
-      }
-      p->topo++;
-      p->elementos[p->topo] = valor;
-  }
+void initializeStack(Stack* s, int size) {
+        s->top = -1;
+        s->size = size;
+        s->elements = (double*) malloc(size * sizeof(double));
+        if (s->elements == NULL) {
+                printf("ERROR::initializeStack::Failed to allocate memory!\n");
+                exit(1);
+        }
+}
 
-  double desempilhar(Pilha* p) {
-      if (estaVazia(p)) {
-          printf("ERRO::desempilhar::Pilha vazia!\n");
-          exit(1);
-      }
-      double valor = p->elementos[p->topo];
-      p->topo--;
-      return valor;
-  }
+void push(Stack* s, double value) {
+        if (isFull(s)) {
+                printf("ERROR::push::Stack is full!\n");
+                exit(1);
+        }
+        s->top++;
+        s->elements[s->top] = value;
+}
 
-  double topo(Pilha* p) {
-      if (estaVazia(p)) {
-          printf("ERRO::topo::Pilha vazia!\n");
-          exit(1);
-      }
-      return p->elementos[p->topo];
-  }
+double pop(Stack* s) {
+        if (isEmpty(s)) {
+                printf("ERROR::pop::Stack is empty!\n");
+                exit(1);
+        }
+        double value = s->elements[s->top];
+        s->top--;
+        return value;
+}
+
+double peek(Stack* s) {
+        if (isEmpty(s)) {
+                printf("ERROR::peek::Stack is empty!\n");
+                exit(1);
+        }
+        return s->elements[s->top];
+}
+
+int stackSize(Stack* s) {
+        return s->top + 1;
+}
+
+void destroyStack(Stack* s) {
+        free(s->elements);
+}
+
+Stack stack;
+
+int yywrap( );
+void yyerror(const char* str);
+
+/* the result variable */
+double termLeft, termRight;
+double symb[26];
+int hasError = 0;
 
 
-  int tamanhoPilha(Pilha* p) {
-      return p->topo + 1;
-  }
-
-  void destruirPilha(Pilha* p) {
-      free(p->elementos);
-  }
-
-  Pilha pilha;
-
-  int yywrap( );
-  void yyerror(const char* str);
-
-  /* the result variable */
-  double termLeft, termRight;
-  double symb[26];
-  int hasError = 0;
-
-
-#line 158 "parser.tab.c"
+#line 157 "parser.tab.c"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -525,7 +524,7 @@ union yyalloc
 /* YYFINAL -- State number of the termination state.  */
 #define YYFINAL  13
 /* YYLAST -- Last index in YYTABLE.  */
-#define YYLAST   40
+#define YYLAST   42
 
 /* YYNTOKENS -- Number of terminals.  */
 #define YYNTOKENS  12
@@ -584,8 +583,8 @@ static const yytype_int8 yytranslate[] =
 /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_uint8 yyrline[] =
 {
-       0,   118,   118,   119,   120,   121,   122,   130,   139,   140,
-     141,   142,   145,   146,   147,   148,   149,   150
+       0,   117,   117,   118,   119,   120,   121,   129,   145,   146,
+     147,   148,   151,   152,   153,   154,   155,   156
 };
 #endif
 
@@ -627,9 +626,9 @@ yysymbol_name (yysymbol_kind_t yysymbol)
    STATE-NUM.  */
 static const yytype_int8 yypact[] =
 {
-       0,    29,     0,    -5,     1,    31,     0,     0,    20,    -6,
+       0,    31,     0,     0,     1,    24,     0,     0,    20,    -6,
       -6,    20,     4,    -6,    -6,    -6,    -6,    -6,    17,    18,
-      16,     3,    -6,    12,    -6,    -6,    -6,    -6,    -6,    -6,
+      -5,     3,    -6,    12,    -6,    -6,    -6,    -6,    -6,    -6,
       -6,    -6
 };
 
@@ -647,7 +646,7 @@ static const yytype_int8 yydefact[] =
 /* YYPGOTO[NTERM-NUM].  */
 static const yytype_int8 yypgoto[] =
 {
-      -6,    27,    -6,    24
+      -6,    29,    -6,    26
 };
 
 /* YYDEFGOTO[NTERM-NUM].  */
@@ -661,20 +660,20 @@ static const yytype_int8 yydefgoto[] =
    number is the opposite.  If YYTABLE_NINF, syntax error.  */
 static const yytype_int8 yytable[] =
 {
-      -2,     1,    11,    10,    26,    20,    16,    16,     2,     3,
+      -2,     1,    11,    25,    26,    20,    16,    16,     2,     3,
        4,    27,    12,    17,    17,    16,    28,    29,    30,    31,
-      16,    16,    17,    16,    25,    22,    24,    17,    17,     9,
-      17,    13,    18,    14,    15,    19,    21,     7,     0,     0,
-       8
+      16,    16,    17,    16,    13,    22,    24,    17,    17,     0,
+      17,     9,    10,     0,    18,    14,    15,    19,    21,     7,
+       0,     0,     8
 };
 
 static const yytype_int8 yycheck[] =
 {
        0,     1,     1,     8,     1,     1,     3,     3,     8,     9,
       10,     8,    11,    10,    10,     3,     4,     5,     6,     7,
-       3,     3,    10,     3,     8,     8,     8,    10,    10,     2,
-      10,     0,     8,     6,     7,    11,    12,     8,    -1,    -1,
-      11
+       3,     3,    10,     3,     0,     8,     8,    10,    10,    -1,
+      10,     2,     3,    -1,     8,     6,     7,    11,    12,     8,
+      -1,    -1,    11
 };
 
 /* YYSTOS[STATE-NUM] -- The symbol kind of the accessing symbol of
@@ -682,7 +681,7 @@ static const yytype_int8 yycheck[] =
 static const yytype_int8 yystos[] =
 {
        0,     1,     8,     9,    10,    13,    14,     8,    11,    13,
-       8,     1,    11,     0,    13,    13,     3,    10,    15,    15,
+      13,     1,    11,     0,    13,    13,     3,    10,    15,    15,
        1,    15,     8,    15,     8,     8,     1,     8,     4,     5,
        6,     7
 };
@@ -1432,110 +1431,117 @@ yyreduce:
   switch (yyn)
     {
   case 2: /* program: %empty  */
-#line 118 "parser.y"
+#line 117 "parser.y"
                      {}
-#line 1438 "parser.tab.c"
+#line 1437 "parser.tab.c"
     break;
 
   case 3: /* program: error DONE program  */
-#line 119 "parser.y"
+#line 118 "parser.y"
                          { yyerrok; yyclearin; }
-#line 1444 "parser.tab.c"
+#line 1443 "parser.tab.c"
     break;
 
   case 4: /* program: line program  */
-#line 120 "parser.y"
+#line 119 "parser.y"
                    {}
-#line 1450 "parser.tab.c"
+#line 1449 "parser.tab.c"
     break;
 
   case 5: /* program: DONE program  */
-#line 121 "parser.y"
+#line 120 "parser.y"
                    {}
-#line 1456 "parser.tab.c"
+#line 1455 "parser.tab.c"
     break;
 
-  case 6: /* program: CLEAR DONE  */
-#line 122 "parser.y"
-                {
+  case 6: /* program: CLEAR program  */
+#line 121 "parser.y"
+                    {
         for (int i = 0; i < 26; i++) {
             symb[i] = 0;
         }
         printf("All variables cleared.\n");
     }
-#line 1467 "parser.tab.c"
+#line 1466 "parser.tab.c"
     break;
 
   case 7: /* line: VARIABLE EQUAL expr DONE  */
-#line 130 "parser.y"
+#line 129 "parser.y"
                                { 
     if (!hasError) {
         symb[(yyvsp[-3].valueInt)] = (yyvsp[-1].value);
-        empilhar(&pilha, (yyvsp[-1].value));
-        printf("Result of %c = %lf\n", 'a' + (yyvsp[-3].valueInt), (yyvsp[-1].value));
+        if(isFull(&stack)) {
+            int size = stackSize(&stack);
+            destroyStack(&stack);
+            initializeStack(&stack, size);
+            push(&stack, (yyvsp[-1].value));
+        }
+        else {
+            push(&stack, (yyvsp[-1].value));
+        }
     } else {
         hasError = 0;
     } 
     }
-#line 1481 "parser.tab.c"
-    break;
-
-  case 8: /* line: VARIABLE EQUAL expr error  */
-#line 139 "parser.y"
-                                { yyerrok; yyclearin; }
 #line 1487 "parser.tab.c"
     break;
 
-  case 9: /* line: VARIABLE EQUAL error DONE  */
-#line 140 "parser.y"
+  case 8: /* line: VARIABLE EQUAL expr error  */
+#line 145 "parser.y"
                                 { yyerrok; yyclearin; }
 #line 1493 "parser.tab.c"
     break;
 
-  case 10: /* line: VARIABLE error expr DONE  */
-#line 141 "parser.y"
-                               { yyerrok; yyclearin; }
+  case 9: /* line: VARIABLE EQUAL error DONE  */
+#line 146 "parser.y"
+                                { yyerrok; yyclearin; }
 #line 1499 "parser.tab.c"
     break;
 
-  case 11: /* line: error EQUAL expr DONE  */
-#line 142 "parser.y"
-                            { yyerrok; yyclearin; }
+  case 10: /* line: VARIABLE error expr DONE  */
+#line 147 "parser.y"
+                               { yyerrok; yyclearin; }
 #line 1505 "parser.tab.c"
     break;
 
-  case 12: /* expr: NUM  */
-#line 145 "parser.y"
-          { (yyval.value) = (yyvsp[0].value); }
+  case 11: /* line: error EQUAL expr DONE  */
+#line 148 "parser.y"
+                            { yyerrok; yyclearin; }
 #line 1511 "parser.tab.c"
     break;
 
-  case 13: /* expr: VARIABLE  */
-#line 146 "parser.y"
-               { (yyval.value) = symb[(yyvsp[0].valueInt)]; }
+  case 12: /* expr: NUM  */
+#line 151 "parser.y"
+          { (yyval.value) = (yyvsp[0].value); }
 #line 1517 "parser.tab.c"
     break;
 
-  case 14: /* expr: expr expr PLUS  */
-#line 147 "parser.y"
-                     { (yyval.value) = (yyvsp[-2].value) + (yyvsp[-1].value); }
+  case 13: /* expr: VARIABLE  */
+#line 152 "parser.y"
+               { (yyval.value) = symb[(yyvsp[0].valueInt)]; }
 #line 1523 "parser.tab.c"
     break;
 
-  case 15: /* expr: expr expr MIN  */
-#line 148 "parser.y"
-                    { (yyval.value) = (yyvsp[-2].value) - (yyvsp[-1].value); }
+  case 14: /* expr: expr expr PLUS  */
+#line 153 "parser.y"
+                     { (yyval.value) = (yyvsp[-2].value) + (yyvsp[-1].value); }
 #line 1529 "parser.tab.c"
     break;
 
-  case 16: /* expr: expr expr MULT  */
-#line 149 "parser.y"
-                     { (yyval.value) = (yyvsp[-2].value) * (yyvsp[-1].value); }
+  case 15: /* expr: expr expr MIN  */
+#line 154 "parser.y"
+                    { (yyval.value) = (yyvsp[-2].value) - (yyvsp[-1].value); }
 #line 1535 "parser.tab.c"
     break;
 
+  case 16: /* expr: expr expr MULT  */
+#line 155 "parser.y"
+                     { (yyval.value) = (yyvsp[-2].value) * (yyvsp[-1].value); }
+#line 1541 "parser.tab.c"
+    break;
+
   case 17: /* expr: expr expr DIV  */
-#line 150 "parser.y"
+#line 156 "parser.y"
                     { 
         if ((yyvsp[-1].value) == 0) {
             fprintf(stderr, "Error: division by zero at line %d.\n", yylineno);
@@ -1545,11 +1551,11 @@ yyreduce:
             (yyval.value) = (yyvsp[-2].value) / (yyvsp[-1].value);
         }
     }
-#line 1549 "parser.tab.c"
+#line 1555 "parser.tab.c"
     break;
 
 
-#line 1553 "parser.tab.c"
+#line 1559 "parser.tab.c"
 
       default: break;
     }
@@ -1773,7 +1779,7 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 160 "parser.y"
+#line 166 "parser.y"
 
 
 int yywrap( ) {
@@ -1790,9 +1796,9 @@ void yyerror(const char* str) {
 
 int main( ) {
     int tamanho = 100;
-    inicializarPilha(&pilha, tamanho);
+    initializeStack(&stack, tamanho);
     yyparse( );
-    printf("\nFinal result: %lf\n\n", desempilhar(&pilha));
-    destruirPilha(&pilha);
+    printf("\nFinal result: %lf\n\n", pop(&stack));
+    destroyStack(&stack);
     return 0;
 }

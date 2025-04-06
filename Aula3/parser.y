@@ -5,84 +5,83 @@ extern int yylineno;
 
 %{
 
-  #include <stdio.h>
-  #include <string.h>
-  #include <math.h>
-  #include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <math.h>
+#include <stdlib.h>
 
-  typedef struct Pilha {
-      double* elementos;
-      int topo;
-      int tamanho;
-  } Pilha;
-  
-  int estaCheia(Pilha* p) {
-      if (p->topo == p->tamanho - 1)
-          return 1;
-      return 0;
-  }
+typedef struct Stack {
+        double* elements;
+        int top;
+        int size;
+} Stack;
 
-  int estaVazia(Pilha* p) {
-      if (p->topo == -1)
-          return 1;
-      return 0;
-  }
+int isFull(Stack* s) {
+        if (s->top == s->size - 1)
+                return 1;
+        return 0;
+}
 
-  void inicializarPilha(Pilha* p, int tamanho) {
-      p->topo = -1;
-      p->tamanho = tamanho;
-      p->elementos = (double*) malloc(tamanho * sizeof(double));
-      if (p->elementos == NULL) {
-          printf("ERRO::inicializarPilha::Falha ao alocar memória!\n");
-          exit(1);
-      }
-  }
+int isEmpty(Stack* s) {
+        if (s->top == -1)
+                return 1;
+        return 0;
+}
 
-  void empilhar(Pilha* p, double valor) {
-      if (estaCheia(p)) {
-          printf("ERRO::empilhar::Pilha cheia!\n");
-          exit(1);
-      }
-      p->topo++;
-      p->elementos[p->topo] = valor;
-  }
+void initializeStack(Stack* s, int size) {
+        s->top = -1;
+        s->size = size;
+        s->elements = (double*) malloc(size * sizeof(double));
+        if (s->elements == NULL) {
+                printf("ERROR::initializeStack::Failed to allocate memory!\n");
+                exit(1);
+        }
+}
 
-  double desempilhar(Pilha* p) {
-      if (estaVazia(p)) {
-          printf("ERRO::desempilhar::Pilha vazia!\n");
-          exit(1);
-      }
-      double valor = p->elementos[p->topo];
-      p->topo--;
-      return valor;
-  }
+void push(Stack* s, double value) {
+        if (isFull(s)) {
+                printf("ERROR::push::Stack is full!\n");
+                exit(1);
+        }
+        s->top++;
+        s->elements[s->top] = value;
+}
 
-  double topo(Pilha* p) {
-      if (estaVazia(p)) {
-          printf("ERRO::topo::Pilha vazia!\n");
-          exit(1);
-      }
-      return p->elementos[p->topo];
-  }
+double pop(Stack* s) {
+        if (isEmpty(s)) {
+                printf("ERROR::pop::Stack is empty!\n");
+                exit(1);
+        }
+        double value = s->elements[s->top];
+        s->top--;
+        return value;
+}
 
+double peek(Stack* s) {
+        if (isEmpty(s)) {
+                printf("ERROR::peek::Stack is empty!\n");
+                exit(1);
+        }
+        return s->elements[s->top];
+}
 
-  int tamanhoPilha(Pilha* p) {
-      return p->topo + 1;
-  }
+int stackSize(Stack* s) {
+        return s->top + 1;
+}
 
-  void destruirPilha(Pilha* p) {
-      free(p->elementos);
-  }
+void destroyStack(Stack* s) {
+        free(s->elements);
+}
 
-  Pilha pilha;
+Stack stack;
 
-  int yywrap( );
-  void yyerror(const char* str);
+int yywrap( );
+void yyerror(const char* str);
 
-  /* the result variable */
-  double termLeft, termRight;
-  double symb[26];
-  int hasError = 0;
+/* the result variable */
+double termLeft, termRight;
+double symb[26];
+int hasError = 0;
 
 %}
 
@@ -119,7 +118,7 @@ program: /* empty */ {}
     | error DONE program { yyerrok; yyclearin; }
     | line program {}
     | DONE program {}
-    | CLEAR DONE{
+    | CLEAR program {
         for (int i = 0; i < 26; i++) {
             symb[i] = 0;
         }
@@ -130,8 +129,15 @@ program: /* empty */ {}
 line: VARIABLE EQUAL expr DONE { 
     if (!hasError) {
         symb[$1] = $3;
-        empilhar(&pilha, $3);
-        printf("Result of %c = %lf\n", 'a' + $1, $3);
+        if(isFull(&stack)) {
+            int size = stackSize(&stack);
+            destroyStack(&stack);
+            initializeStack(&stack, size);
+            push(&stack, $3);
+        }
+        else {
+            push(&stack, $3);
+        }
     } else {
         hasError = 0;
     } 
@@ -173,9 +179,9 @@ void yyerror(const char* str) {
 
 int main( ) {
     int tamanho = 100;
-    inicializarPilha(&pilha, tamanho);
+    initializeStack(&stack, tamanho);
     yyparse( );
-    printf("\nFinal result: %lf\n\n", desempilhar(&pilha));
-    destruirPilha(&pilha);
+    printf("\nFinal result: %lf\n\n", pop(&stack));
+    destroyStack(&stack);
     return 0;
 }
