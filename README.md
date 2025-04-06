@@ -3,7 +3,12 @@ Materiais usados na Disciplina de Linguagens e Compiladores e Códigos feitos du
 
 ## 💻 Como rodar as aulas
 
-Para executar cada uma das aulas, abra o terminal, navegue até o diretório onde está localizado o `Makefile` e digite o seguinte comando:
+Para executar cada uma das aulas:
+
+1. Baixe o arquivo `.zip` deste diretório.
+2. Extraia o conteúdo para uma pasta local.
+3. Abra o terminal e navegue até o diretório da aula desejada (onde está localizado o arquivo `Makefile`).
+4. Execute o seguinte comando:
 
 ```bash
 make
