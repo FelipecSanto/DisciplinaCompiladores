@@ -524,7 +524,7 @@ union yyalloc
 /* YYFINAL -- State number of the termination state.  */
 #define YYFINAL  13
 /* YYLAST -- Last index in YYTABLE.  */
-#define YYLAST   42
+#define YYLAST   40
 
 /* YYNTOKENS -- Number of terminals.  */
 #define YYNTOKENS  12
@@ -583,8 +583,8 @@ static const yytype_int8 yytranslate[] =
 /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_uint8 yyrline[] =
 {
-       0,   117,   117,   118,   119,   120,   121,   129,   145,   146,
-     147,   148,   151,   152,   153,   154,   155,   156
+       0,   117,   117,   118,   119,   120,   123,   139,   140,   141,
+     142,   143,   151,   152,   153,   154,   155,   156
 };
 #endif
 
@@ -626,9 +626,9 @@ yysymbol_name (yysymbol_kind_t yysymbol)
    STATE-NUM.  */
 static const yytype_int8 yypact[] =
 {
-       0,    31,     0,     0,     1,    24,     0,     0,    20,    -6,
+       0,    29,     0,    -5,     1,    31,     0,     0,    20,    -6,
       -6,    20,     4,    -6,    -6,    -6,    -6,    -6,    17,    18,
-      -5,     3,    -6,    12,    -6,    -6,    -6,    -6,    -6,    -6,
+      16,     3,    -6,    12,    -6,    -6,    -6,    -6,    -6,    -6,
       -6,    -6
 };
 
@@ -638,15 +638,15 @@ static const yytype_int8 yypact[] =
 static const yytype_int8 yydefact[] =
 {
        0,     0,     0,     0,     0,     0,     0,     0,     0,     5,
-       6,     0,     0,     1,     4,     3,    12,    13,     0,     0,
-       0,     0,    11,     0,    10,     9,     8,     7,    14,    15,
+      11,     0,     0,     1,     4,     3,    12,    13,     0,     0,
+       0,     0,    10,     0,     9,     8,     7,     6,    14,    15,
       17,    16
 };
 
 /* YYPGOTO[NTERM-NUM].  */
 static const yytype_int8 yypgoto[] =
 {
-      -6,    29,    -6,    26
+      -6,    27,    -6,    24
 };
 
 /* YYDEFGOTO[NTERM-NUM].  */
@@ -660,20 +660,20 @@ static const yytype_int8 yydefgoto[] =
    number is the opposite.  If YYTABLE_NINF, syntax error.  */
 static const yytype_int8 yytable[] =
 {
-      -2,     1,    11,    25,    26,    20,    16,    16,     2,     3,
+      -2,     1,    11,    10,    26,    20,    16,    16,     2,     3,
        4,    27,    12,    17,    17,    16,    28,    29,    30,    31,
-      16,    16,    17,    16,    13,    22,    24,    17,    17,     0,
-      17,     9,    10,     0,    18,    14,    15,    19,    21,     7,
-       0,     0,     8
+      16,    16,    17,    16,    25,    22,    24,    17,    17,     9,
+      17,    13,    18,    14,    15,    19,    21,     7,     0,     0,
+       8
 };
 
 static const yytype_int8 yycheck[] =
 {
        0,     1,     1,     8,     1,     1,     3,     3,     8,     9,
       10,     8,    11,    10,    10,     3,     4,     5,     6,     7,
-       3,     3,    10,     3,     0,     8,     8,    10,    10,    -1,
-      10,     2,     3,    -1,     8,     6,     7,    11,    12,     8,
-      -1,    -1,    11
+       3,     3,    10,     3,     8,     8,     8,    10,    10,     2,
+      10,     0,     8,     6,     7,    11,    12,     8,    -1,    -1,
+      11
 };
 
 /* YYSTOS[STATE-NUM] -- The symbol kind of the accessing symbol of
@@ -681,7 +681,7 @@ static const yytype_int8 yycheck[] =
 static const yytype_int8 yystos[] =
 {
        0,     1,     8,     9,    10,    13,    14,     8,    11,    13,
-      13,     1,    11,     0,    13,    13,     3,    10,    15,    15,
+       8,     1,    11,     0,    13,    13,     3,    10,    15,    15,
        1,    15,     8,    15,     8,     8,     1,     8,     4,     5,
        6,     7
 };
@@ -689,15 +689,15 @@ static const yytype_int8 yystos[] =
 /* YYR1[RULE-NUM] -- Symbol kind of the left-hand side of rule RULE-NUM.  */
 static const yytype_int8 yyr1[] =
 {
-       0,    12,    13,    13,    13,    13,    13,    14,    14,    14,
+       0,    12,    13,    13,    13,    13,    14,    14,    14,    14,
       14,    14,    15,    15,    15,    15,    15,    15
 };
 
 /* YYR2[RULE-NUM] -- Number of symbols on the right-hand side of rule RULE-NUM.  */
 static const yytype_int8 yyr2[] =
 {
-       0,     2,     0,     3,     2,     2,     2,     4,     4,     4,
-       4,     4,     1,     1,     3,     3,     3,     3
+       0,     2,     0,     3,     2,     2,     4,     4,     4,     4,
+       4,     2,     1,     1,     3,     3,     3,     3
 };
 
 
@@ -1454,19 +1454,8 @@ yyreduce:
 #line 1455 "parser.tab.c"
     break;
 
-  case 6: /* program: CLEAR program  */
-#line 121 "parser.y"
-                    {
-        for (int i = 0; i < 26; i++) {
-            symb[i] = 0;
-        }
-        printf("All variables cleared.\n");
-    }
-#line 1466 "parser.tab.c"
-    break;
-
-  case 7: /* line: VARIABLE EQUAL expr DONE  */
-#line 129 "parser.y"
+  case 6: /* line: VARIABLE EQUAL expr DONE  */
+#line 123 "parser.y"
                                { 
     if (!hasError) {
         symb[(yyvsp[-3].valueInt)] = (yyvsp[-1].value);
@@ -1483,30 +1472,41 @@ yyreduce:
         hasError = 0;
     } 
     }
-#line 1487 "parser.tab.c"
+#line 1476 "parser.tab.c"
     break;
 
-  case 8: /* line: VARIABLE EQUAL expr error  */
-#line 145 "parser.y"
+  case 7: /* line: VARIABLE EQUAL expr error  */
+#line 139 "parser.y"
                                 { yyerrok; yyclearin; }
-#line 1493 "parser.tab.c"
+#line 1482 "parser.tab.c"
     break;
 
-  case 9: /* line: VARIABLE EQUAL error DONE  */
-#line 146 "parser.y"
+  case 8: /* line: VARIABLE EQUAL error DONE  */
+#line 140 "parser.y"
                                 { yyerrok; yyclearin; }
-#line 1499 "parser.tab.c"
+#line 1488 "parser.tab.c"
     break;
 
-  case 10: /* line: VARIABLE error expr DONE  */
-#line 147 "parser.y"
+  case 9: /* line: VARIABLE error expr DONE  */
+#line 141 "parser.y"
                                { yyerrok; yyclearin; }
-#line 1505 "parser.tab.c"
+#line 1494 "parser.tab.c"
     break;
 
-  case 11: /* line: error EQUAL expr DONE  */
-#line 148 "parser.y"
+  case 10: /* line: error EQUAL expr DONE  */
+#line 142 "parser.y"
                             { yyerrok; yyclearin; }
+#line 1500 "parser.tab.c"
+    break;
+
+  case 11: /* line: CLEAR DONE  */
+#line 143 "parser.y"
+                 {
+        for (int i = 0; i < 26; i++) {
+            symb[i] = 0;
+        }
+        printf("All variables cleared.\n");
+    }
 #line 1511 "parser.tab.c"
     break;
 

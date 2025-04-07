@@ -118,12 +118,6 @@ program: /* empty */ {}
     | error DONE program { yyerrok; yyclearin; }
     | line program {}
     | DONE program {}
-    | CLEAR program {
-        for (int i = 0; i < 26; i++) {
-            symb[i] = 0;
-        }
-        printf("All variables cleared.\n");
-    }
     ;
 
 line: VARIABLE EQUAL expr DONE { 
@@ -146,6 +140,12 @@ line: VARIABLE EQUAL expr DONE {
     | VARIABLE EQUAL error DONE { yyerrok; yyclearin; }
     | VARIABLE error expr DONE { yyerrok; yyclearin; }
     | error EQUAL expr DONE { yyerrok; yyclearin; }
+    | CLEAR DONE {
+        for (int i = 0; i < 26; i++) {
+            symb[i] = 0;
+        }
+        printf("All variables cleared.\n");
+    }
 ;
 
 expr: NUM { $$ = $1; }
