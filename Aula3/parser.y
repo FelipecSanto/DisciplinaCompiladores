@@ -79,7 +79,6 @@ int yywrap( );
 void yyerror(const char* str);
 
 /* the result variable */
-double termLeft, termRight;
 double symb[26];
 int hasError = 0;
 
