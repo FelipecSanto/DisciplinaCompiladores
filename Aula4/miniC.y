@@ -114,7 +114,7 @@ int ifElse = 0; // Flag to check if we are in an if-else block
 
 /* declare non-terminals */
 %type <number> expression soma_sub mult_div term
-%type <number> expr_log
+%type <number> comparison log_exp
 %type program line assignment if jump else
 
 
@@ -150,6 +150,8 @@ assignment: ID RECEIVE expression DONE {
 expression: soma_sub { $$ = $1; }
 		  | mult_div { $$ = $1; }
           | LEFTPAR expression RIGHTPAR { $$ = $2; }
+          | comparison { $$ = $1; }
+          | log_exp { $$ = $1; }
 		  | term { $$ = $1; }
 		  ;
 
@@ -169,6 +171,19 @@ mult_div: expression MULT expression { $$ = $1 * $3; }
 		}
 		;
 
+comparison: expression LESS   expression { $$ = $1 < $3;  }
+          | expression GREAT  expression { $$ = $1 > $3;  }
+          | expression LEQUAL expression { $$ = $1 <= $3; }
+          | expression GEQUAL expression { $$ = $1 >= $3; }
+          | expression EQUAL  expression { $$ = $1 == $3; }
+          | expression NEQUAL expression { $$ = $1 != $3; }
+          ;
+
+log_exp: expression AND expression { $$ = $1 && $3; }
+       | expression OR  expression { $$ = $1 || $3; }
+       | NOT expression { $$ = !$2; }
+       ;
+
 term: NUMBER { $$ = $1; }
 	| ID { 
 		SymbolTable* symbol = findSymbol(symb, $1);
@@ -183,24 +198,26 @@ term: NUMBER { $$ = $1; }
 	;
 
 
-if: IF LEFTPAR expr_log RIGHTPAR {
+if: IF LEFTPAR expression RIGHTPAR {
         ifElse = $3;
         if(!ifElse) {
             aux_table = copySymbolTable(symb);
         }
-    } jump LEFTKEYS program RIGHTKEYS else {}
+    } jump LEFTKEYS program RIGHTKEYS {
+        if(!ifElse) {
+            freeSymbolTable(symb);
+            symb = copySymbolTable(aux_table);
+            freeSymbolTable(aux_table);
+            aux_table = NULL;
+        }
+    } else {}
+    | IF LEFTPAR error RIGHTPAR jump LEFTKEYS program RIGHTKEYS else { yyerrok; yyclearin; }
     ;
 
 else: /* empty */ {}
     | ELSE jump LEFTKEYS { 
         if(ifElse) {
             aux_table = copySymbolTable(symb);
-        }
-        else {
-            freeSymbolTable(symb);
-            symb = copySymbolTable(aux_table);
-            freeSymbolTable(aux_table);
-            aux_table = NULL;
         }
     } program RIGHTKEYS {
         if(ifElse) {
@@ -215,26 +232,6 @@ else: /* empty */ {}
 jump : /* empty */ {}
      | JUMP jump {}
      ;
-
-
-expr_log: expression LESS   expression { $$ = $1 < $3;  }
-        | expression GREAT  expression { $$ = $1 > $3;  }
-        | expression LEQUAL expression { $$ = $1 <= $3; }
-        | expression GEQUAL expression { $$ = $1 >= $3; }
-        | expression EQUAL  expression { $$ = $1 == $3; }
-        | expression NEQUAL expression { $$ = $1 != $3; }
-        | expr_log AND expr_log { $$ = $1 && $3; }
-        | expr_log OR  expr_log { $$ = $1 || $3; }
-        |          NOT expr_log {    $$ = !$2;   }
-        | expression { 
-            if ($1 == 0.0) {
-                $$ = 0.0;
-            } else {
-                $$ = 1.0;
-            }
-        }
-		;
-
 %%
 
 int yywrap( ) {
