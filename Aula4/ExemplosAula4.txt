@@ -1,1 +1,16 @@
-if ( 1 > 3 ) { abobora = 40 / (5 + 3); } else { laranja = 20; }
+i = 10;
+j = 5;
+if ((i - 7) * 2 > 5 && j * (2 + 2) > i + j) {
+    abobora = 40 / (5 + 3);
+} else {
+    laranja = 20;
+}
+
+x = 15;
+if (x < 10 || x == i) {
+    melancia = 30 / 0; // Erro: divisão por zero
+} else {
+    pera = 50;
+}
+
+y = 5 + ; // Erro: expressão incompleta

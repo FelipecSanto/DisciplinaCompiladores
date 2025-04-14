@@ -86,13 +86,12 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 65 "miniC.y"
+#line 76 "miniC.y"
 
 	double number;
     char* id;
-	int boole;
 
-#line 96 "miniC.tab.h"
+#line 95 "miniC.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;
