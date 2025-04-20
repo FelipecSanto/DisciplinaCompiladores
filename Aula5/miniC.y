@@ -80,7 +80,10 @@ int ifElse = 0; // Flag to check if we are in an if-else block
 
 
 %token IF 
-%token ELSE 
+%token ELSE
+%token <id> INT CHAR FLOAT BOOL
+%token READ
+%token WRITE
 %token <id> ID 
 %token <number> NUMBER
 %token RECEIVE
@@ -115,7 +118,7 @@ int ifElse = 0; // Flag to check if we are in an if-else block
 /* declare non-terminals */
 %type <number> expression soma_sub mult_div term
 %type <number> comparison log_exp
-%type program line assignment if jump else
+%type program declarations declaration comands comand assignment if else write jump
 
 
 /* give us more detailed errors */
@@ -123,29 +126,155 @@ int ifElse = 0; // Flag to check if we are in an if-else block
 
 %%
 
+
 program: /* empty */ {}
-     | error JUMP program { yyerrok; yyclearin; }
-     | line program {}
-     | JUMP program {}
-    ;
+       | declarations comands program {}
+       | error comands program { yyerrok; yyclearin; }
+       | declarations error program { yyerrok; yyclearin; }
+       | error program { yyerrok; yyclearin; }
+       | JUMP program {}
 
-line: assignment
-	| if
-	;
 
-assignment: ID RECEIVE expression DONE { 
-				if (!hasError) {
-                    insertSymbol(&symb, $1, $3);
+
+declarations: /* empty */ {}
+            | declaration {}
+            | declaration declarations {}
+            | error declarations { yyerrok; yyclearin; }
+            | declaration error { yyerrok; yyclearin; }
+
+declaration: INT ID DONE { 
+                if (!hasError) {
+                    insertSymbol(&symb, $2, 0.0);
                 } else {
                     hasError = 0;
                 }
-			}
-            // To catch all errors
-		  	| ID RECEIVE expression error { yyerrok; yyclearin; }
-			| ID RECEIVE error DONE { yyerrok; yyclearin; }
-			| ID error expression DONE { yyerrok; yyclearin; }
-			| error RECEIVE expression DONE { yyerrok; yyclearin; }
-			;
+           }
+           | FLOAT ID DONE { 
+                if (!hasError) {
+                    insertSymbol(&symb, $2, 0.0);
+                } else {
+                    hasError = 0;
+                }
+           }
+           | CHAR ID DONE { 
+                if (!hasError) {
+                    insertSymbol(&symb, $2, 0.0);
+                } else {
+                    hasError = 0;
+                }
+           }
+           | BOOL ID DONE { 
+                if (!hasError) {
+                    insertSymbol(&symb, $2, 0.0);
+                } else {
+                    hasError = 0;
+                }
+           }
+           | error DONE { yyerrok; yyclearin; }
+           ;
+
+
+
+comands: /* empty */ {}
+       | comand {}
+       | comand comands {}
+       | error comands { yyerrok; yyclearin; }
+       | comand error { yyerrok; yyclearin; }
+       ;
+
+comand: assignments {}
+      | if {}
+      | write {}
+      | read {}
+      ;
+
+
+
+assignments: /* empty */ {} 
+           | assignment {}
+           | assignment assignments {}
+           | error assignments { yyerrok; yyclearin; }
+           | assignment error { yyerrok; yyclearin; }
+           ;
+
+assignment: ID RECEIVE expression DONE { 
+                SymbolTable* symbol = findSymbol(symb, $1);
+                if (symbol != NULL) {
+                    symbol->value = $3;
+                } else {
+                    fprintf(stderr, "Error: undefined variable '%s' at line %d.\n", $1, yylineno);
+                    hasError = 1;
+                }
+		  }
+		  | ID RECEIVE error DONE { yyerrok; yyclearin; }
+	      ;
+
+
+
+if: IF LEFTPAR expression RIGHTPAR {
+        if($3 != 0) {
+            ifElse = 1;
+        } else {
+            ifElse = 0;
+        }
+        if(!ifElse) {
+            aux_table = copySymbolTable(symb);
+        }
+    } jump LEFTKEYS program RIGHTKEYS {
+        if(!ifElse) {
+            freeSymbolTable(symb);
+            symb = copySymbolTable(aux_table);
+            freeSymbolTable(aux_table);
+            aux_table = NULL;
+        }
+    } else {}
+    | IF LEFTPAR error RIGHTPAR jump LEFTKEYS program RIGHTKEYS else { yyerrok; yyclearin; }
+    | IF LEFTPAR expression RIGHTPAR jump LEFTKEYS error RIGHTKEYS else { yyerrok; yyclearin; }
+    | IF LEFTPAR expression RIGHTPAR jump LEFTKEYS program RIGHTKEYS error { yyerrok; yyclearin; }
+    ;
+
+else: /* empty */ {}
+    | ELSE jump LEFTKEYS { 
+        if(ifElse) {
+            aux_table = copySymbolTable(symb);
+        }
+    } program RIGHTKEYS {
+        if(ifElse) {
+            freeSymbolTable(symb);
+            symb = copySymbolTable(aux_table);
+            freeSymbolTable(aux_table);
+            aux_table = NULL;
+        }
+    }
+    ;
+
+
+
+write: WRITE LEFTPAR expression RIGHTPAR DONE { 
+        if (!hasError) {
+            printf("%lf\n", $3);
+        } else {
+            hasError = 0;
+        }
+     }
+     | WRITE LEFTPAR error RIGHTPAR DONE { yyerrok; yyclearin; }
+     ;
+
+
+read: READ LEFTPAR expression RIGHTPAR DONE { 
+        if (!hasError) {
+            printf("Enter value for %lf: ", $3);
+            double value;
+            scanf("%lf", &value);
+            insertSymbol(&symb, $3, value);
+        } else {
+            hasError = 0;
+        }
+    }
+    | READ LEFTPAR error RIGHTPAR DONE { yyerrok; yyclearin; }
+    ;
+
+
 
 expression: soma_sub { $$ = $1; }
 		  | mult_div { $$ = $1; }
@@ -197,45 +326,11 @@ term: NUMBER { $$ = $1; }
 	}
 	;
 
-
-if: IF LEFTPAR expression RIGHTPAR {
-        if($3 != 0) {
-            ifElse = 1;
-        } else {
-            ifElse = 0;
-        }
-        if(!ifElse) {
-            aux_table = copySymbolTable(symb);
-        }
-    } jump LEFTKEYS program RIGHTKEYS {
-        if(!ifElse) {
-            freeSymbolTable(symb);
-            symb = copySymbolTable(aux_table);
-            freeSymbolTable(aux_table);
-            aux_table = NULL;
-        }
-    } else {}
-    | IF LEFTPAR error RIGHTPAR jump LEFTKEYS program RIGHTKEYS else { yyerrok; yyclearin; }
-    ;
-
-else: /* empty */ {}
-    | ELSE jump LEFTKEYS { 
-        if(ifElse) {
-            aux_table = copySymbolTable(symb);
-        }
-    } program RIGHTKEYS {
-        if(ifElse) {
-            freeSymbolTable(symb);
-            symb = copySymbolTable(aux_table);
-            freeSymbolTable(aux_table);
-            aux_table = NULL;
-        }
-    }
-    ;
-
 jump : /* empty */ {}
      | JUMP jump {}
      ;
+
+
 %%
 
 int yywrap( ) {
