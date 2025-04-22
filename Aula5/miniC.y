@@ -11,54 +11,98 @@ extern int yylineno;
 #include <stdlib.h>
 #include <ctype.h>
 
-// Estrutura de dados (lista) para a tabela de símbolos
-typedef struct SymbolTable {
+#define HASH_SIZE 211
+
+typedef enum { TYPE_INT, TYPE_FLOAT, TYPE_CHAR, TYPE_BOOL } VarType;
+
+typedef struct Symbol {
     char* id;
     double value;
-    struct SymbolTable* next;
+    VarType type;
+    struct Symbol* next;
+} Symbol;
+
+typedef struct SymbolTable {
+    Symbol* table[HASH_SIZE];
+    struct SymbolTable* prev; // points to the previous scope
 } SymbolTable;
 
 
-SymbolTable* findSymbol(SymbolTable* table, const char* id) {
-    while (table != NULL) {
-        if (strcmp(table->id, id) == 0) {
-            return table;
+unsigned int hash(const char* id) {
+    unsigned int h = 0;
+    for (; *id; id++) {
+        h = (h << 4) + *id;
+    }
+    return h % HASH_SIZE;
+}
+
+Symbol* findSymbol(const char* id) {
+    SymbolTable* scope = currentScope;
+    while (scope != NULL) {
+        Symbol* sym = scope->table[hash(id)];
+        while (sym != NULL) {
+            if (strcmp(sym->id, id) == 0) return sym;
+            sym = sym->next;
         }
-        table = table->next;
+        scope = scope->prev;
     }
     return NULL;
 }
 
-void insertSymbol(SymbolTable** table, const char* id, double value) {
-    SymbolTable* symbol = findSymbol(*table, id);
-    if (symbol != NULL) {
-        symbol->value = value;
+void insertSymbol(const char* id, double value, VarType type) {
+    unsigned int index = hash(id);
+    Symbol* sym = findSymbol(id);
+    if (sym != NULL) {
+        sym->value = value;
+        sym->type = type;
     } else {
-        SymbolTable* newSymbol = (SymbolTable*)malloc(sizeof(SymbolTable));
-        newSymbol->id = strdup(id); // Allocates memory for the identifier
-        newSymbol->value = value;
-        newSymbol->next = *table;
-        *table = newSymbol;
+        sym = malloc(sizeof(Symbol));
+        sym->id = strdup(id);
+        sym->value = value;
+        sym->type = type;
+        sym->next = currentScope->table[index];
+        currentScope->table[index] = sym;
     }
 }
 
-SymbolTable* copySymbolTable(SymbolTable* source) {
-    SymbolTable* newTable = NULL;
-    SymbolTable* current = source;
-
-    while (current != NULL) {
-        insertSymbol(&newTable, current->id, current->value);
-        current = current->next;
+void pushScope() {
+    SymbolTable* newScope = malloc(sizeof(SymbolTable));
+    for (int i = 0; i < HASH_SIZE; i++) {
+        newScope->table[i] = NULL;
     }
+    newScope->prev = currentScope;
+    currentScope = newScope;
+}
 
-    return newTable;
+void popScope() {
+    if (currentScope == NULL) return;
+    for (int i = 0; i < HASH_SIZE; i++) {
+        Symbol* sym = currentScope->table[i];
+        while (sym != NULL) {
+            Symbol* temp = sym;
+            sym = sym->next;
+            free(temp->id);
+            free(temp);
+        }
+    }
+    SymbolTable* tempScope = currentScope;
+    currentScope = currentScope->prev;
+    free(tempScope);
 }
 
 void freeSymbolTable(SymbolTable* table) {
     while (table != NULL) {
+        for (int i = 0; i < HASH_SIZE; i++) {
+            Symbol* sym = table->table[i];
+            while (sym != NULL) {
+                Symbol* temp = sym;
+                sym = sym->next;
+                free(temp->id);
+                free(temp);
+            }
+        }
         SymbolTable* temp = table;
-        table = table->next;
-        free(temp->id);
+        table = table->prev;
         free(temp);
     }
 }
@@ -66,22 +110,24 @@ void freeSymbolTable(SymbolTable* table) {
 int yywrap( );
 void yyerror(const char* str);
 
-SymbolTable* symb = NULL;
-SymbolTable* aux_table = NULL;
-int hasError = 0;
-int ifElse = 0; // Flag to check if we are in an if-else block
+SymbolTable* currentScope = NULL;
 
 %}
 
 %union {
-	double number;
+    double number;
     char* id;
+    struct {
+        char* id
+        double value;
+        VarType type;
+    } expr;
 }
 
 
 %token IF 
 %token ELSE
-%token <id> INT CHAR FLOAT BOOL
+%token INT CHAR FLOAT BOOL
 %token READ
 %token WRITE
 %token <id> ID 
@@ -116,7 +162,7 @@ int ifElse = 0; // Flag to check if we are in an if-else block
 %right NOT
 
 /* declare non-terminals */
-%type <number> expression soma_sub mult_div term
+%type <expr> expression soma_sub mult_div term
 %type <number> comparison log_exp
 %type program declarations declaration comands comand assignment if else write jump
 
@@ -143,32 +189,16 @@ declarations: /* empty */ {}
             | declaration error { yyerrok; yyclearin; }
 
 declaration: INT ID DONE { 
-                if (!hasError) {
-                    insertSymbol(&symb, $2, 0.0);
-                } else {
-                    hasError = 0;
-                }
+                insertSymbol($2, 0.0, TYPE_INT);
            }
            | FLOAT ID DONE { 
-                if (!hasError) {
-                    insertSymbol(&symb, $2, 0.0);
-                } else {
-                    hasError = 0;
-                }
+                insertSymbol($2, 0.0, TYPE_FLOAT);
            }
            | CHAR ID DONE { 
-                if (!hasError) {
-                    insertSymbol(&symb, $2, 0.0);
-                } else {
-                    hasError = 0;
-                }
+                 insertSymbol($2, 0.0, TYPE_CHAR);
            }
            | BOOL ID DONE { 
-                if (!hasError) {
-                    insertSymbol(&symb, $2, 0.0);
-                } else {
-                    hasError = 0;
-                }
+                 insertSymbol($2, 0.0, TYPE_BOOL);
            }
            | error DONE { yyerrok; yyclearin; }
            ;
@@ -198,12 +228,12 @@ assignments: /* empty */ {}
            ;
 
 assignment: ID RECEIVE expression DONE { 
-                SymbolTable* symbol = findSymbol(symb, $1);
+                Symbol* symbol = findSymbol($1);
                 if (symbol != NULL) {
-                    symbol->value = $3;
+                    symbol->value = $3.value;
+                    symbol->type = $3.type;
                 } else {
                     fprintf(stderr, "Error: undefined variable '%s' at line %d.\n", $1, yylineno);
-                    hasError = 1;
                 }
 		  }
 		  | ID RECEIVE error DONE { yyerrok; yyclearin; }
@@ -212,21 +242,9 @@ assignment: ID RECEIVE expression DONE {
 
 
 if: IF LEFTPAR expression RIGHTPAR {
-        if($3 != 0) {
-            ifElse = 1;
-        } else {
-            ifElse = 0;
-        }
-        if(!ifElse) {
-            aux_table = copySymbolTable(symb);
-        }
+        pushScope();
     } jump LEFTKEYS program RIGHTKEYS {
-        if(!ifElse) {
-            freeSymbolTable(symb);
-            symb = copySymbolTable(aux_table);
-            freeSymbolTable(aux_table);
-            aux_table = NULL;
-        }
+        popScope();
     } else {}
     | IF LEFTPAR error RIGHTPAR jump LEFTKEYS program RIGHTKEYS else { yyerrok; yyclearin; }
     | IF LEFTPAR expression RIGHTPAR jump LEFTKEYS error RIGHTKEYS else { yyerrok; yyclearin; }
@@ -235,41 +253,43 @@ if: IF LEFTPAR expression RIGHTPAR {
 
 else: /* empty */ {}
     | ELSE jump LEFTKEYS { 
-        if(ifElse) {
-            aux_table = copySymbolTable(symb);
-        }
+        pushScope();
     } program RIGHTKEYS {
-        if(ifElse) {
-            freeSymbolTable(symb);
-            symb = copySymbolTable(aux_table);
-            freeSymbolTable(aux_table);
-            aux_table = NULL;
-        }
+        popScope();
     }
     ;
 
 
 
 write: WRITE LEFTPAR expression RIGHTPAR DONE { 
-        if (!hasError) {
-            printf("%lf\n", $3);
-        } else {
-            hasError = 0;
-        }
+        /* Print the value of the expression */
      }
      | WRITE LEFTPAR error RIGHTPAR DONE { yyerrok; yyclearin; }
      ;
 
 
 read: READ LEFTPAR expression RIGHTPAR DONE { 
-        if (!hasError) {
-            printf("Enter value for %lf: ", $3);
+        printf("Enter value for %lf: ", $3);
+        if ($3.type == TYPE_INT) {
+            int value;
+            scanf("%d", &value);
+            insertSymbol($3.id, value, TYPE_INT);
+        } else if ($3.type == TYPE_FLOAT) {
             double value;
             scanf("%lf", &value);
-            insertSymbol(&symb, $3, value);
+            insertSymbol($3.id, value, TYPE_FLOAT);
+        } else if ($3.type == TYPE_CHAR) {
+            char value;
+            scanf(" %c", &value);
+            insertSymbol($3.id, value, TYPE_CHAR);
+        } else if ($3.type == TYPE_BOOL) {
+            double value;
+            scanf("%lf", &value);
+            insertSymbol($3.id, value ? 1.0 : 0.0, TYPE_BOOL);
         } else {
-            hasError = 0;
+            fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", $3.id, yylineno);
         }
+        insertSymbol($3, value, $3.type);
     }
     | READ LEFTPAR error RIGHTPAR DONE { yyerrok; yyclearin; }
     ;
@@ -292,7 +312,6 @@ mult_div: expression MULT expression { $$ = $1 * $3; }
 		| expression DIV  expression { 
 			if ($3 == 0) {
 				fprintf(stderr, "Error: division by zero at line %d.\n", yylineno);
-				hasError = 1;
 				$$ = -1;
 			} else {
 				$$ = $1 / $3;
@@ -313,17 +332,18 @@ log_exp: expression AND expression { $$ = $1 && $3; }
        | NOT expression { $$ = !$2; }
        ;
 
-term: NUMBER { $$ = $1; }
-	| ID { 
-		SymbolTable* symbol = findSymbol(symb, $1);
-        if (symbol != NULL) {
-            $$ = symbol->value;
+term: NUMBER { $$.id = ""; $$.value = $1; $$.type = TYPE_FLOAT; }
+    | ID { 
+        Symbol* sym = findSymbol($1);
+        if (!sym) {
+            fprintf(stderr, "Undeclared variable '%s' at line %d\n", $1, yylineno);
+            $$.value = -1;
         } else {
-            fprintf(stderr, "Error: undefined variable '%s' at line %d.\n", $1, yylineno);
-            hasError = 1;
-            $$ = -1;
+            $$.id = sym->id;
+            $$.value = sym->value;
+            $$.type = sym->type;
         }
-	}
+    }
 	;
 
 jump : /* empty */ {}
@@ -341,25 +361,39 @@ void yyerror(const char* str) {
     if (strstr(str, "syntax error, unexpected JUMP") != NULL)
         fprintf(stderr, "Compilation error at line %d: '%s'.\n", yylineno - 1, str);
     else
-        fprintf(stderr, "Compilation error at line %d: '%s'.\n", yylineno, str);    
-    hasError = 1;
+        fprintf(stderr, "Compilation error at line %d: '%s'.\n", yylineno, str);
 }
 
 void printSymbolTable(SymbolTable* table) {
     printf("\nSymbol Table:\n");
-    printf("----------------------------\n");
-    printf("| %-10s | %-10s |\n", "Identifier", "Value");
-    printf("----------------------------\n");
+    printf("-------------------------------------------------\n");
+    printf("| %-10s | %-10s | %-10s |\n", "Identifier", "Value", "Type");
+    printf("-------------------------------------------------\n");
     while (table != NULL) {
-        printf("| %-10s | %-10.2lf |\n", table->id, table->value);
-        table = table->next;
+        for (int i = 0; i < HASH_SIZE; i++) {
+            Symbol* sym = table->table[i];
+            while (sym != NULL) {
+                const char* typeStr;
+                switch (sym->type) {
+                    case TYPE_INT: typeStr = "INT"; break;
+                    case TYPE_FLOAT: typeStr = "FLOAT"; break;
+                    case TYPE_CHAR: typeStr = "CHAR"; break;
+                    case TYPE_BOOL: typeStr = "BOOL"; break;
+                    default: typeStr = "UNKNOWN"; break;
+                }
+                printf("| %-10s | %-10.2lf | %-10s |\n", sym->id, sym->value, typeStr);
+                sym = sym->next;
+            }
+        }
+        table = table->prev;
     }
-    printf("----------------------------\n\n");
+    printf("-------------------------------------------------\n\n");
 }
 
 int main( ) {
+    pushScope(); // Initialize the first scope
+    symb
     yyparse( );
-    printSymbolTable(symb);
-	freeSymbolTable(symb);
+    
     return 0;
 }
