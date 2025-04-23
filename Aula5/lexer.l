@@ -9,6 +9,8 @@
 #include <string.h>
 #include "miniC.tab.h"
 
+typedef enum { TYPE_INT, TYPE_FLOAT, TYPE_CHAR, TYPE_BOOL } VarType;
+
 %}
 
 %option noyywrap
@@ -28,7 +30,12 @@
 [wW][rR][iI][tT][eE]		{ return WRITE; }
 
 [a-zA-Z\_]([a-zA-Z0-9\_])*	{ yylval.id = strdup(yytext); return ID; }
-"-"?[0-9]+(.[0-9]+)?		{ yylval.number = atof(yytext); return NUMBER; }
+
+"-"?[0-9]+		            { yylval.number.value = atof(yytext); yylval.number.type = TYPE_INT; return NUMBER; }
+"-"?[0-9]+(\.[0-9]+)?		{ yylval.number.value = atof(yytext); yylval.number.type = TYPE_FLOAT; return NUMBER; }
+\'.\'					    { yylval.number.value = (double)yytext[1]; yylval.number.type = TYPE_CHAR; return NUMBER; }
+
+\".*\"				        { yylval.string = strdup(yytext); return STRING; }
 
 "="						    { return RECEIVE; }
 
@@ -58,9 +65,7 @@
 "{"							{ return LEFTKEYS; }
 "}"							{ return RIGHTKEYS; }
 
-"\n"						{ return JUMP; }
-
-[\t\f ]					    {}
+[\t\f\n ]					    {}
 
 .							{ fprintf(stderr, "Error: invalid character on line %d: '%s'\n", yylineno, yytext); exit(1); }
 
