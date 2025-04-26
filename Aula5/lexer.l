@@ -1,15 +1,10 @@
 %{
-/*
- * tiny.l
- * Autor: Clayton Kossoski
- * Mestrando CPGEI - UTFPR - Campus Curitiba
- */
 
 #include <stdio.h>
 #include <string.h>
+#include "VarType.h"
 #include "miniC.tab.h"
 
-typedef enum { TYPE_INT, TYPE_FLOAT, TYPE_CHAR, TYPE_BOOL } VarType;
 
 %}
 
@@ -29,13 +24,16 @@ typedef enum { TYPE_INT, TYPE_FLOAT, TYPE_CHAR, TYPE_BOOL } VarType;
 [Rr][Ee][Aa][Dd]            { return READ; }
 [wW][rR][iI][tT][eE]		{ return WRITE; }
 
+[tT][rR][uU][eE]			{ yylval.number.value = 1; yylval.number.type = TYPE_BOOL; return NUMBER; }
+[fF][aA][lL][sS][eE]		{ yylval.number.value = 0; yylval.number.type = TYPE_BOOL; return NUMBER; }
+
 [a-zA-Z\_]([a-zA-Z0-9\_])*	{ yylval.id = strdup(yytext); return ID; }
 
 "-"?[0-9]+		            { yylval.number.value = atof(yytext); yylval.number.type = TYPE_INT; return NUMBER; }
 "-"?[0-9]+(\.[0-9]+)?		{ yylval.number.value = atof(yytext); yylval.number.type = TYPE_FLOAT; return NUMBER; }
 \'.\'					    { yylval.number.value = (double)yytext[1]; yylval.number.type = TYPE_CHAR; return NUMBER; }
 
-\".*\"				        { yylval.string = strdup(yytext); return STRING; }
+\".*\"				        { yylval.id = strdup(yytext); return STRING; }
 
 "="						    { return RECEIVE; }
 
@@ -51,7 +49,6 @@ typedef enum { TYPE_INT, TYPE_FLOAT, TYPE_CHAR, TYPE_BOOL } VarType;
 "!"						    { return NOT; }
 
 "//".*                      {}
-"/*".*"*/"                  {}
 
 "+"							{ return PLUS; }
 "-"							{ return MIN; }
@@ -65,8 +62,8 @@ typedef enum { TYPE_INT, TYPE_FLOAT, TYPE_CHAR, TYPE_BOOL } VarType;
 "{"							{ return LEFTKEYS; }
 "}"							{ return RIGHTKEYS; }
 
-[\t\f\n ]					    {}
+[\t\f\n ]					{}
 
-.							{ fprintf(stderr, "Error: invalid character on line %d: '%s'\n", yylineno, yytext); exit(1); }
+.							{ fprintf(stderr, "Error: invalid character on line %d: '%s'\n", yylineno, yytext); }
 
 %%

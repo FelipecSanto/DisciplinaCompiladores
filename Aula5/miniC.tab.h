@@ -56,28 +56,34 @@ extern int yydebug;
     YYUNDEF = 257,                 /* "invalid token"  */
     IF = 258,                      /* IF  */
     ELSE = 259,                    /* ELSE  */
-    ID = 260,                      /* ID  */
-    NUMBER = 261,                  /* NUMBER  */
-    RECEIVE = 262,                 /* RECEIVE  */
-    EQUAL = 263,                   /* EQUAL  */
-    NEQUAL = 264,                  /* NEQUAL  */
-    LESS = 265,                    /* LESS  */
-    GREAT = 266,                   /* GREAT  */
-    LEQUAL = 267,                  /* LEQUAL  */
-    GEQUAL = 268,                  /* GEQUAL  */
-    AND = 269,                     /* AND  */
-    OR = 270,                      /* OR  */
-    NOT = 271,                     /* NOT  */
-    PLUS = 272,                    /* PLUS  */
-    MIN = 273,                     /* MIN  */
-    MULT = 274,                    /* MULT  */
-    DIV = 275,                     /* DIV  */
-    LEFTPAR = 276,                 /* LEFTPAR  */
-    RIGHTPAR = 277,                /* RIGHTPAR  */
-    DONE = 278,                    /* DONE  */
-    LEFTKEYS = 279,                /* LEFTKEYS  */
-    RIGHTKEYS = 280,               /* RIGHTKEYS  */
-    JUMP = 281                     /* JUMP  */
+    INT = 260,                     /* INT  */
+    CHAR = 261,                    /* CHAR  */
+    FLOAT = 262,                   /* FLOAT  */
+    BOOL = 263,                    /* BOOL  */
+    READ = 264,                    /* READ  */
+    WRITE = 265,                   /* WRITE  */
+    ID = 266,                      /* ID  */
+    NUMBER = 267,                  /* NUMBER  */
+    STRING = 268,                  /* STRING  */
+    RECEIVE = 269,                 /* RECEIVE  */
+    EQUAL = 270,                   /* EQUAL  */
+    NEQUAL = 271,                  /* NEQUAL  */
+    LESS = 272,                    /* LESS  */
+    GREAT = 273,                   /* GREAT  */
+    LEQUAL = 274,                  /* LEQUAL  */
+    GEQUAL = 275,                  /* GEQUAL  */
+    AND = 276,                     /* AND  */
+    OR = 277,                      /* OR  */
+    NOT = 278,                     /* NOT  */
+    PLUS = 279,                    /* PLUS  */
+    MIN = 280,                     /* MIN  */
+    MULT = 281,                    /* MULT  */
+    DIV = 282,                     /* DIV  */
+    LEFTPAR = 283,                 /* LEFTPAR  */
+    RIGHTPAR = 284,                /* RIGHTPAR  */
+    DONE = 285,                    /* DONE  */
+    LEFTKEYS = 286,                /* LEFTKEYS  */
+    RIGHTKEYS = 287                /* RIGHTKEYS  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -86,12 +92,15 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 76 "miniC.y"
+#line 119 "miniC.y"
 
-	double number;
+    struct {
+        double value;
+        VarType type;
+    } number;
     char* id;
 
-#line 95 "miniC.tab.h"
+#line 104 "miniC.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

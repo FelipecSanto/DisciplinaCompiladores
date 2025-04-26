@@ -69,9 +69,10 @@
 /* First part of user prologue.  */
 #line 1 "miniC.y"
 
+#include "VarType.h"
 int yylex();
 extern int yylineno;
-#line 6 "miniC.y"
+#line 7 "miniC.y"
 
 
 #include <stdio.h>
@@ -79,55 +80,99 @@ extern int yylineno;
 #include <math.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <limits.h>
 
-// Estrutura de dados (lista) para a tabela de símbolos
-typedef struct SymbolTable {
+#define HASH_SIZE 100
+
+typedef struct Symbol {
     char* id;
     double value;
-    struct SymbolTable* next;
+    VarType type;
+    struct Symbol* next;
+} Symbol;
+
+typedef struct SymbolTable {
+    Symbol* table[HASH_SIZE];
+    struct SymbolTable* prev; // points to the previous scope
 } SymbolTable;
 
+SymbolTable* currentScope = NULL;
 
-SymbolTable* findSymbol(SymbolTable* table, const char* id) {
-    while (table != NULL) {
-        if (strcmp(table->id, id) == 0) {
-            return table;
+unsigned int hash(const char* id) {
+    unsigned int h = 0;
+    for (; *id; id++) {
+        h = (h << 4) + *id;
+    }
+    return h % HASH_SIZE;
+}
+
+Symbol* findSymbol(const char* id) {
+    SymbolTable* scope = currentScope;
+    while (scope != NULL) {
+        Symbol* sym = scope->table[hash(id)];
+        while (sym != NULL) {
+            if (strcmp(sym->id, id) == 0) return sym;
+            sym = sym->next;
         }
-        table = table->next;
+        scope = scope->prev;
     }
     return NULL;
 }
 
-void insertSymbol(SymbolTable** table, const char* id, double value) {
-    SymbolTable* symbol = findSymbol(*table, id);
-    if (symbol != NULL) {
-        symbol->value = value;
+void insertSymbol(const char* id, double value, VarType type) {
+    unsigned int index = hash(id);
+    Symbol* sym = findSymbol(id);
+    if (sym != NULL) {
+        sym->value = value;
+        sym->type = type;
     } else {
-        SymbolTable* newSymbol = (SymbolTable*)malloc(sizeof(SymbolTable));
-        newSymbol->id = strdup(id); // Allocates memory for the identifier
-        newSymbol->value = value;
-        newSymbol->next = *table;
-        *table = newSymbol;
+        sym = malloc(sizeof(Symbol));
+        sym->id = strdup(id);
+        sym->value = value;
+        sym->type = type;
+        sym->next = currentScope->table[index];
+        currentScope->table[index] = sym;
     }
 }
 
-SymbolTable* copySymbolTable(SymbolTable* source) {
-    SymbolTable* newTable = NULL;
-    SymbolTable* current = source;
-
-    while (current != NULL) {
-        insertSymbol(&newTable, current->id, current->value);
-        current = current->next;
+void pushScope() {
+    SymbolTable* newScope = malloc(sizeof(SymbolTable));
+    for (int i = 0; i < HASH_SIZE; i++) {
+        newScope->table[i] = NULL;
     }
+    newScope->prev = currentScope;
+    currentScope = newScope;
+}
 
-    return newTable;
+void popScope() {
+    if (currentScope == NULL) exit(1);
+    for (int i = 0; i < HASH_SIZE; i++) {
+        Symbol* sym = currentScope->table[i];
+        while (sym != NULL) {
+            Symbol* temp = sym;
+            sym = sym->next;
+            free(temp->id);
+            free(temp);
+        }
+    }
+    SymbolTable* tempScope = currentScope;
+    currentScope = currentScope->prev;
+    free(tempScope);
 }
 
 void freeSymbolTable(SymbolTable* table) {
     while (table != NULL) {
+        for (int i = 0; i < HASH_SIZE; i++) {
+            Symbol* sym = table->table[i];
+            while (sym != NULL) {
+                Symbol* temp = sym;
+                sym = sym->next;
+                free(temp->id);
+                free(temp);
+            }
+        }
         SymbolTable* temp = table;
-        table = table->next;
-        free(temp->id);
+        table = table->prev;
         free(temp);
     }
 }
@@ -135,13 +180,11 @@ void freeSymbolTable(SymbolTable* table) {
 int yywrap( );
 void yyerror(const char* str);
 
-SymbolTable* symb = NULL;
-SymbolTable* aux_table = NULL;
-int hasError = 0;
-int ifElse = 0; // Flag to check if we are in an if-else block
+int if_condition = 1;
+int if_else_condition = 0;
 
 
-#line 145 "miniC.tab.c"
+#line 188 "miniC.tab.c"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -174,44 +217,52 @@ enum yysymbol_kind_t
   YYSYMBOL_YYUNDEF = 2,                    /* "invalid token"  */
   YYSYMBOL_IF = 3,                         /* IF  */
   YYSYMBOL_ELSE = 4,                       /* ELSE  */
-  YYSYMBOL_ID = 5,                         /* ID  */
-  YYSYMBOL_NUMBER = 6,                     /* NUMBER  */
-  YYSYMBOL_RECEIVE = 7,                    /* RECEIVE  */
-  YYSYMBOL_EQUAL = 8,                      /* EQUAL  */
-  YYSYMBOL_NEQUAL = 9,                     /* NEQUAL  */
-  YYSYMBOL_LESS = 10,                      /* LESS  */
-  YYSYMBOL_GREAT = 11,                     /* GREAT  */
-  YYSYMBOL_LEQUAL = 12,                    /* LEQUAL  */
-  YYSYMBOL_GEQUAL = 13,                    /* GEQUAL  */
-  YYSYMBOL_AND = 14,                       /* AND  */
-  YYSYMBOL_OR = 15,                        /* OR  */
-  YYSYMBOL_NOT = 16,                       /* NOT  */
-  YYSYMBOL_PLUS = 17,                      /* PLUS  */
-  YYSYMBOL_MIN = 18,                       /* MIN  */
-  YYSYMBOL_MULT = 19,                      /* MULT  */
-  YYSYMBOL_DIV = 20,                       /* DIV  */
-  YYSYMBOL_LEFTPAR = 21,                   /* LEFTPAR  */
-  YYSYMBOL_RIGHTPAR = 22,                  /* RIGHTPAR  */
-  YYSYMBOL_DONE = 23,                      /* DONE  */
-  YYSYMBOL_LEFTKEYS = 24,                  /* LEFTKEYS  */
-  YYSYMBOL_RIGHTKEYS = 25,                 /* RIGHTKEYS  */
-  YYSYMBOL_JUMP = 26,                      /* JUMP  */
-  YYSYMBOL_YYACCEPT = 27,                  /* $accept  */
-  YYSYMBOL_program = 28,                   /* program  */
-  YYSYMBOL_line = 29,                      /* line  */
-  YYSYMBOL_assignment = 30,                /* assignment  */
-  YYSYMBOL_expression = 31,                /* expression  */
-  YYSYMBOL_soma_sub = 32,                  /* soma_sub  */
-  YYSYMBOL_mult_div = 33,                  /* mult_div  */
-  YYSYMBOL_comparison = 34,                /* comparison  */
-  YYSYMBOL_log_exp = 35,                   /* log_exp  */
-  YYSYMBOL_term = 36,                      /* term  */
-  YYSYMBOL_if = 37,                        /* if  */
-  YYSYMBOL_38_1 = 38,                      /* $@1  */
-  YYSYMBOL_39_2 = 39,                      /* $@2  */
-  YYSYMBOL_else = 40,                      /* else  */
-  YYSYMBOL_41_3 = 41,                      /* $@3  */
-  YYSYMBOL_jump = 42                       /* jump  */
+  YYSYMBOL_INT = 5,                        /* INT  */
+  YYSYMBOL_CHAR = 6,                       /* CHAR  */
+  YYSYMBOL_FLOAT = 7,                      /* FLOAT  */
+  YYSYMBOL_BOOL = 8,                       /* BOOL  */
+  YYSYMBOL_READ = 9,                       /* READ  */
+  YYSYMBOL_WRITE = 10,                     /* WRITE  */
+  YYSYMBOL_ID = 11,                        /* ID  */
+  YYSYMBOL_NUMBER = 12,                    /* NUMBER  */
+  YYSYMBOL_STRING = 13,                    /* STRING  */
+  YYSYMBOL_RECEIVE = 14,                   /* RECEIVE  */
+  YYSYMBOL_EQUAL = 15,                     /* EQUAL  */
+  YYSYMBOL_NEQUAL = 16,                    /* NEQUAL  */
+  YYSYMBOL_LESS = 17,                      /* LESS  */
+  YYSYMBOL_GREAT = 18,                     /* GREAT  */
+  YYSYMBOL_LEQUAL = 19,                    /* LEQUAL  */
+  YYSYMBOL_GEQUAL = 20,                    /* GEQUAL  */
+  YYSYMBOL_AND = 21,                       /* AND  */
+  YYSYMBOL_OR = 22,                        /* OR  */
+  YYSYMBOL_NOT = 23,                       /* NOT  */
+  YYSYMBOL_PLUS = 24,                      /* PLUS  */
+  YYSYMBOL_MIN = 25,                       /* MIN  */
+  YYSYMBOL_MULT = 26,                      /* MULT  */
+  YYSYMBOL_DIV = 27,                       /* DIV  */
+  YYSYMBOL_LEFTPAR = 28,                   /* LEFTPAR  */
+  YYSYMBOL_RIGHTPAR = 29,                  /* RIGHTPAR  */
+  YYSYMBOL_DONE = 30,                      /* DONE  */
+  YYSYMBOL_LEFTKEYS = 31,                  /* LEFTKEYS  */
+  YYSYMBOL_RIGHTKEYS = 32,                 /* RIGHTKEYS  */
+  YYSYMBOL_YYACCEPT = 33,                  /* $accept  */
+  YYSYMBOL_program = 34,                   /* program  */
+  YYSYMBOL_declaration = 35,               /* declaration  */
+  YYSYMBOL_comand = 36,                    /* comand  */
+  YYSYMBOL_assignment = 37,                /* assignment  */
+  YYSYMBOL_if = 38,                        /* if  */
+  YYSYMBOL_39_1 = 39,                      /* $@1  */
+  YYSYMBOL_40_2 = 40,                      /* $@2  */
+  YYSYMBOL_else = 41,                      /* else  */
+  YYSYMBOL_42_3 = 42,                      /* $@3  */
+  YYSYMBOL_write = 43,                     /* write  */
+  YYSYMBOL_read = 44,                      /* read  */
+  YYSYMBOL_expression = 45,                /* expression  */
+  YYSYMBOL_soma_sub = 46,                  /* soma_sub  */
+  YYSYMBOL_mult_div = 47,                  /* mult_div  */
+  YYSYMBOL_comparison = 48,                /* comparison  */
+  YYSYMBOL_log_exp = 49,                   /* log_exp  */
+  YYSYMBOL_term = 50                       /* term  */
 };
 typedef enum yysymbol_kind_t yysymbol_kind_t;
 
@@ -537,21 +588,21 @@ union yyalloc
 #endif /* !YYCOPY_NEEDED */
 
 /* YYFINAL -- State number of the termination state.  */
-#define YYFINAL  15
+#define YYFINAL  26
 /* YYLAST -- Last index in YYTABLE.  */
-#define YYLAST   195
+#define YYLAST   174
 
 /* YYNTOKENS -- Number of terminals.  */
-#define YYNTOKENS  27
+#define YYNTOKENS  33
 /* YYNNTS -- Number of nonterminals.  */
-#define YYNNTS  16
+#define YYNNTS  18
 /* YYNRULES -- Number of rules.  */
-#define YYNRULES  42
+#define YYNRULES  45
 /* YYNSTATES -- Number of states.  */
-#define YYNSTATES  87
+#define YYNSTATES  96
 
 /* YYMAXUTOK -- Last valid token kind.  */
-#define YYMAXUTOK   281
+#define YYMAXUTOK   287
 
 
 /* YYTRANSLATE(TOKEN-NUM) -- Symbol number corresponding to TOKEN-NUM
@@ -593,18 +644,18 @@ static const yytype_int8 yytranslate[] =
        2,     2,     2,     2,     2,     2,     1,     2,     3,     4,
        5,     6,     7,     8,     9,    10,    11,    12,    13,    14,
       15,    16,    17,    18,    19,    20,    21,    22,    23,    24,
-      25,    26
+      25,    26,    27,    28,    29,    30,    31,    32
 };
 
 #if YYDEBUG
 /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
-static const yytype_uint8 yyrline[] =
+static const yytype_int16 yyrline[] =
 {
-       0,   126,   126,   127,   128,   129,   132,   133,   136,   144,
-     145,   146,   147,   150,   151,   152,   153,   154,   155,   158,
-     159,   162,   163,   174,   175,   176,   177,   178,   179,   182,
-     183,   184,   187,   188,   201,   206,   201,   214,   217,   218,
-     218,   232,   233
+       0,   175,   175,   176,   177,   178,   183,   188,   193,   198,
+     208,   209,   210,   211,   216,   240,   249,   240,   257,   258,
+     258,   277,   297,   310,   319,   352,   353,   354,   355,   356,
+     357,   360,   374,   390,   404,   425,   436,   447,   458,   469,
+     484,   501,   511,   521,   533,   534
 };
 #endif
 
@@ -620,13 +671,13 @@ static const char *yysymbol_name (yysymbol_kind_t yysymbol) YY_ATTRIBUTE_UNUSED;
    First, the terminals, then, starting at YYNTOKENS, nonterminals.  */
 static const char *const yytname[] =
 {
-  "\"end of file\"", "error", "\"invalid token\"", "IF", "ELSE", "ID",
-  "NUMBER", "RECEIVE", "EQUAL", "NEQUAL", "LESS", "GREAT", "LEQUAL",
-  "GEQUAL", "AND", "OR", "NOT", "PLUS", "MIN", "MULT", "DIV", "LEFTPAR",
-  "RIGHTPAR", "DONE", "LEFTKEYS", "RIGHTKEYS", "JUMP", "$accept",
-  "program", "line", "assignment", "expression", "soma_sub", "mult_div",
-  "comparison", "log_exp", "term", "if", "$@1", "$@2", "else", "$@3",
-  "jump", YY_NULLPTR
+  "\"end of file\"", "error", "\"invalid token\"", "IF", "ELSE", "INT",
+  "CHAR", "FLOAT", "BOOL", "READ", "WRITE", "ID", "NUMBER", "STRING",
+  "RECEIVE", "EQUAL", "NEQUAL", "LESS", "GREAT", "LEQUAL", "GEQUAL", "AND",
+  "OR", "NOT", "PLUS", "MIN", "MULT", "DIV", "LEFTPAR", "RIGHTPAR", "DONE",
+  "LEFTKEYS", "RIGHTKEYS", "$accept", "program", "declaration", "comand",
+  "assignment", "if", "$@1", "$@2", "else", "$@3", "write", "read",
+  "expression", "soma_sub", "mult_div", "comparison", "log_exp", "term", YY_NULLPTR
 };
 
 static const char *
@@ -636,7 +687,7 @@ yysymbol_name (yysymbol_kind_t yysymbol)
 }
 #endif
 
-#define YYPACT_NINF (-60)
+#define YYPACT_NINF (-25)
 
 #define yypact_value_is_default(Yyn) \
   ((Yyn) == YYPACT_NINF)
@@ -650,15 +701,16 @@ yysymbol_name (yysymbol_kind_t yysymbol)
    STATE-NUM.  */
 static const yytype_int16 yypact[] =
 {
-      20,     0,   -20,    15,    14,     9,    14,   -60,   -60,    73,
-      14,    67,    73,    70,   -60,   -60,   -60,   -60,   -60,    73,
-      73,    87,   -60,   -60,   -60,   -60,   -60,   -60,    -9,   119,
-     103,     1,    41,   -60,   134,    73,    73,    73,    73,    73,
-      73,    73,    73,    73,    73,    73,    73,   -60,    18,   -60,
-     -60,   -60,   -60,   -60,   -60,   162,   162,   162,   162,   162,
-     162,   175,   149,    28,    28,   -60,   -60,    18,    33,    18,
-     -60,    40,    38,    44,    40,    59,    49,    18,   -60,   -60,
-      53,    59,   -60,   -60,    40,    56,   -60
+     163,    12,   -19,     3,     5,    13,    14,    10,    11,    26,
+      42,    12,    12,   -25,   -25,   -25,   -25,   -25,    41,    24,
+      25,    27,    28,    45,    -9,    41,   -25,   -25,   -25,   -25,
+     -25,    41,    41,    62,   -25,   -25,   -25,   -25,   -25,   -25,
+     -25,   -25,   -25,    30,    31,    32,    33,    78,   -25,    94,
+      41,    41,    41,    41,    41,    41,    41,    41,    41,    41,
+      41,    41,   -25,    35,    36,    37,    38,   -25,   -25,   122,
+     122,   122,   122,   122,   122,   135,   109,   -21,   -21,   -25,
+     -25,    39,   -25,   -25,   -25,   -25,    40,    43,   -25,    59,
+      70,   -25,   -25,    40,    44,   -25
 };
 
 /* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
@@ -666,29 +718,30 @@ static const yytype_int16 yypact[] =
    means the default is an error.  */
 static const yytype_int8 yydefact[] =
 {
-       0,     0,     0,     0,     0,     0,     0,     6,     7,     0,
-       0,     0,     0,     0,     5,     1,     4,    33,    32,     0,
-       0,     0,    13,    14,    16,    17,    18,     3,     0,     0,
-       0,     0,     0,    31,     0,     0,     0,     0,     0,     0,
-       0,     0,     0,     0,     0,     0,     0,    12,    41,    34,
-      11,    10,     9,     8,    15,    27,    28,    23,    24,    25,
-      26,    29,    30,    19,    20,    21,    22,    41,     0,    41,
-      42,     0,     0,     0,     0,    38,     0,    41,    37,    35,
-       0,    38,    39,    36,     0,     0,    40
+       0,     0,     0,     0,     0,     0,     0,     0,     0,     0,
+       0,     0,     0,    10,    11,    12,    13,     5,     0,     0,
+       0,     0,     0,     0,     0,     0,     1,     4,     3,    45,
+      44,     0,     0,     0,    25,    26,    28,    29,    30,     6,
+       8,     7,     9,     0,     0,     0,     0,     0,    43,     0,
+       0,     0,     0,     0,     0,     0,     0,     0,     0,     0,
+       0,     0,    15,     0,     0,     0,     0,    14,    27,    39,
+      40,    35,    36,    37,    38,    41,    42,    31,    32,    33,
+      34,     0,    24,    21,    22,    23,     0,     0,    16,    18,
+       0,    17,    19,     0,     0,    20
 };
 
 /* YYPGOTO[NTERM-NUM].  */
 static const yytype_int8 yypgoto[] =
 {
-     -60,    -4,   -60,   -60,    -8,   -60,   -60,   -60,   -60,   -60,
-     -60,   -60,   -60,     3,   -60,   -59
+     -25,    -1,   -25,   -25,   -25,   -25,   -25,   -25,   -25,   -25,
+     -25,   -25,   -24,   -25,   -25,   -25,   -25,   -25
 };
 
 /* YYDEFGOTO[NTERM-NUM].  */
 static const yytype_int8 yydefgoto[] =
 {
-       0,     5,     6,     7,    21,    22,    23,    24,    25,    26,
-       8,    69,    81,    78,    84,    68
+       0,    10,    11,    12,    13,    14,    81,    89,    91,    93,
+      15,    16,    33,    34,    35,    36,    37,    38
 };
 
 /* YYTABLE[YYPACT[STATE-NUM]] -- What to do in state STATE-NUM.  If
@@ -696,85 +749,82 @@ static const yytype_int8 yydefgoto[] =
    number is the opposite.  If YYTABLE_NINF, syntax error.  */
 static const yytype_int8 yytable[] =
 {
-      14,    11,    16,    29,    30,    32,    27,     9,    70,    15,
-      72,    33,    34,    48,    -2,     1,    12,     2,    80,     3,
-      -2,     1,    13,     2,    51,     3,    10,    55,    56,    57,
-      58,    59,    60,    61,    62,    63,    64,    65,    66,    -2,
-       4,     1,    52,     2,    67,     3,     4,    45,    46,    35,
-      36,    37,    38,    39,    40,    41,    42,    71,    43,    44,
-      45,    46,    74,    77,    53,    -2,     4,    73,    28,    75,
-      76,    31,    17,    18,    79,    17,    18,    82,    17,    18,
-      85,    86,     0,    19,    83,     0,    19,     0,    20,    19,
-       0,    20,     0,     0,    20,    35,    36,    37,    38,    39,
-      40,    41,    42,     0,    43,    44,    45,    46,     0,     0,
-      47,    35,    36,    37,    38,    39,    40,    41,    42,     0,
-      43,    44,    45,    46,     0,     0,    50,    35,    36,    37,
-      38,    39,    40,    41,    42,     0,    43,    44,    45,    46,
-       0,    49,    35,    36,    37,    38,    39,    40,    41,    42,
-       0,    43,    44,    45,    46,     0,    54,    35,    36,    37,
-      38,    39,    40,    41,     0,     0,    43,    44,    45,    46,
-      -3,    -3,    -3,    -3,    -3,    -3,     0,     0,     0,    43,
-      44,    45,    46,    35,    36,    37,    38,    39,    40,     0,
-       0,     0,    43,    44,    45,    46
+      17,    47,    44,    45,    46,    60,    61,    48,    49,    18,
+      27,    28,    -2,     1,    19,     2,    20,     3,     4,     5,
+       6,     7,     8,     9,    21,    22,    69,    70,    71,    72,
+      73,    74,    75,    76,    77,    78,    79,    80,    23,    24,
+      25,     1,    26,     2,    -2,     3,     4,     5,     6,     7,
+       8,     9,    29,    30,    39,    40,    43,    41,    42,    63,
+      64,    65,    66,    90,    31,    82,    83,    84,    85,    32,
+      86,     0,    -2,     0,     0,    88,    95,    50,    51,    52,
+      53,    54,    55,    56,    57,    87,    58,    59,    60,    61,
+       0,    62,    94,    50,    51,    52,    53,    54,    55,    56,
+      57,    92,    58,    59,    60,    61,     0,     0,    67,    50,
+      51,    52,    53,    54,    55,    56,    57,     0,    58,    59,
+      60,    61,     0,    68,    50,    51,    52,    53,    54,    55,
+      56,     0,     0,    58,    59,    60,    61,    -3,    -3,    -3,
+      -3,    -3,    -3,     0,     0,     0,    58,    59,    60,    61,
+      50,    51,    52,    53,    54,    55,     0,     0,     0,    58,
+      59,    60,    61,    -2,     1,     0,     2,     0,     3,     4,
+       5,     6,     7,     8,     9
 };
 
 static const yytype_int8 yycheck[] =
 {
-       4,    21,     6,    11,    12,    13,    10,     7,    67,     0,
-      69,    19,    20,    22,     0,     1,     1,     3,    77,     5,
-       0,     1,     7,     3,    23,     5,    26,    35,    36,    37,
-      38,    39,    40,    41,    42,    43,    44,    45,    46,    25,
-      26,     1,     1,     3,    26,     5,    26,    19,    20,     8,
-       9,    10,    11,    12,    13,    14,    15,    24,    17,    18,
-      19,    20,    24,     4,    23,    25,    26,    71,     1,    25,
-      74,     1,     5,     6,    25,     5,     6,    24,     5,     6,
-      84,    25,    -1,    16,    81,    -1,    16,    -1,    21,    16,
-      -1,    21,    -1,    -1,    21,     8,     9,    10,    11,    12,
-      13,    14,    15,    -1,    17,    18,    19,    20,    -1,    -1,
-      23,     8,     9,    10,    11,    12,    13,    14,    15,    -1,
-      17,    18,    19,    20,    -1,    -1,    23,     8,     9,    10,
-      11,    12,    13,    14,    15,    -1,    17,    18,    19,    20,
-      -1,    22,     8,     9,    10,    11,    12,    13,    14,    15,
-      -1,    17,    18,    19,    20,    -1,    22,     8,     9,    10,
-      11,    12,    13,    14,    -1,    -1,    17,    18,    19,    20,
-       8,     9,    10,    11,    12,    13,    -1,    -1,    -1,    17,
-      18,    19,    20,     8,     9,    10,    11,    12,    13,    -1,
-      -1,    -1,    17,    18,    19,    20
+       1,    25,    11,    12,    13,    26,    27,    31,    32,    28,
+      11,    12,     0,     1,    11,     3,    11,     5,     6,     7,
+       8,     9,    10,    11,    11,    11,    50,    51,    52,    53,
+      54,    55,    56,    57,    58,    59,    60,    61,    28,    28,
+      14,     1,     0,     3,    32,     5,     6,     7,     8,     9,
+      10,    11,    11,    12,    30,    30,    11,    30,    30,    29,
+      29,    29,    29,     4,    23,    30,    30,    30,    30,    28,
+      31,    -1,    32,    -1,    -1,    32,    32,    15,    16,    17,
+      18,    19,    20,    21,    22,    86,    24,    25,    26,    27,
+      -1,    29,    93,    15,    16,    17,    18,    19,    20,    21,
+      22,    31,    24,    25,    26,    27,    -1,    -1,    30,    15,
+      16,    17,    18,    19,    20,    21,    22,    -1,    24,    25,
+      26,    27,    -1,    29,    15,    16,    17,    18,    19,    20,
+      21,    -1,    -1,    24,    25,    26,    27,    15,    16,    17,
+      18,    19,    20,    -1,    -1,    -1,    24,    25,    26,    27,
+      15,    16,    17,    18,    19,    20,    -1,    -1,    -1,    24,
+      25,    26,    27,     0,     1,    -1,     3,    -1,     5,     6,
+       7,     8,     9,    10,    11
 };
 
 /* YYSTOS[STATE-NUM] -- The symbol kind of the accessing symbol of
    state STATE-NUM.  */
 static const yytype_int8 yystos[] =
 {
-       0,     1,     3,     5,    26,    28,    29,    30,    37,     7,
-      26,    21,     1,     7,    28,     0,    28,     5,     6,    16,
-      21,    31,    32,    33,    34,    35,    36,    28,     1,    31,
-      31,     1,    31,    31,    31,     8,     9,    10,    11,    12,
-      13,    14,    15,    17,    18,    19,    20,    23,    22,    22,
-      23,    23,     1,    23,    22,    31,    31,    31,    31,    31,
-      31,    31,    31,    31,    31,    31,    31,    26,    42,    38,
-      42,    24,    42,    28,    24,    25,    28,     4,    40,    25,
-      42,    39,    24,    40,    41,    28,    25
+       0,     1,     3,     5,     6,     7,     8,     9,    10,    11,
+      34,    35,    36,    37,    38,    43,    44,    34,    28,    11,
+      11,    11,    11,    28,    28,    14,     0,    34,    34,    11,
+      12,    23,    28,    45,    46,    47,    48,    49,    50,    30,
+      30,    30,    30,    11,    11,    12,    13,    45,    45,    45,
+      15,    16,    17,    18,    19,    20,    21,    22,    24,    25,
+      26,    27,    29,    29,    29,    29,    29,    30,    29,    45,
+      45,    45,    45,    45,    45,    45,    45,    45,    45,    45,
+      45,    39,    30,    30,    30,    30,    31,    34,    32,    40,
+       4,    41,    31,    42,    34,    32
 };
 
 /* YYR1[RULE-NUM] -- Symbol kind of the left-hand side of rule RULE-NUM.  */
 static const yytype_int8 yyr1[] =
 {
-       0,    27,    28,    28,    28,    28,    29,    29,    30,    30,
-      30,    30,    30,    31,    31,    31,    31,    31,    31,    32,
-      32,    33,    33,    34,    34,    34,    34,    34,    34,    35,
-      35,    35,    36,    36,    38,    39,    37,    37,    40,    41,
-      40,    42,    42
+       0,    33,    34,    34,    34,    34,    35,    35,    35,    35,
+      36,    36,    36,    36,    37,    39,    40,    38,    41,    42,
+      41,    43,    43,    43,    44,    45,    45,    45,    45,    45,
+      45,    46,    46,    47,    47,    48,    48,    48,    48,    48,
+      48,    49,    49,    49,    50,    50
 };
 
 /* YYR2[RULE-NUM] -- Number of symbols on the right-hand side of rule RULE-NUM.  */
 static const yytype_int8 yyr2[] =
 {
-       0,     2,     0,     3,     2,     2,     1,     1,     4,     4,
-       4,     4,     4,     1,     1,     3,     1,     1,     1,     3,
-       3,     3,     3,     3,     3,     3,     3,     3,     3,     3,
-       3,     2,     1,     1,     0,     0,    11,     9,     0,     0,
-       6,     0,     2
+       0,     2,     0,     2,     2,     2,     3,     3,     3,     3,
+       1,     1,     1,     1,     4,     0,     0,    10,     0,     0,
+       5,     5,     5,     5,     5,     1,     1,     3,     1,     1,
+       1,     3,     3,     3,     3,     3,     3,     3,     3,     3,
+       3,     3,     3,     2,     1,     1
 };
 
 
@@ -1508,287 +1558,557 @@ yyreduce:
   switch (yyn)
     {
   case 2: /* program: %empty  */
-#line 126 "miniC.y"
+#line 175 "miniC.y"
                      {}
-#line 1514 "miniC.tab.c"
+#line 1564 "miniC.tab.c"
     break;
 
-  case 3: /* program: error JUMP program  */
-#line 127 "miniC.y"
-                          { yyerrok; yyclearin; }
-#line 1520 "miniC.tab.c"
+  case 3: /* program: comand program  */
+#line 176 "miniC.y"
+                        {}
+#line 1570 "miniC.tab.c"
     break;
 
-  case 4: /* program: line program  */
-#line 128 "miniC.y"
-                    {}
-#line 1526 "miniC.tab.c"
+  case 4: /* program: declaration program  */
+#line 177 "miniC.y"
+                             {}
+#line 1576 "miniC.tab.c"
     break;
 
-  case 5: /* program: JUMP program  */
-#line 129 "miniC.y"
-                    {}
-#line 1532 "miniC.tab.c"
+  case 5: /* program: error program  */
+#line 178 "miniC.y"
+                       { yyerrok; yyclearin; }
+#line 1582 "miniC.tab.c"
     break;
 
-  case 8: /* assignment: ID RECEIVE expression DONE  */
-#line 136 "miniC.y"
-                                       { 
-				if (!hasError) {
-                    insertSymbol(&symb, (yyvsp[-3].id), (yyvsp[-1].number));
-                } else {
-                    hasError = 0;
+  case 6: /* declaration: INT ID DONE  */
+#line 183 "miniC.y"
+                         {
+                if(if_condition == 1) {
+                    insertSymbol((yyvsp[-1].id), 0.0, TYPE_INT);
                 }
-			}
-#line 1544 "miniC.tab.c"
-    break;
-
-  case 9: /* assignment: ID RECEIVE expression error  */
-#line 144 "miniC.y"
-                                                      { yyerrok; yyclearin; }
-#line 1550 "miniC.tab.c"
-    break;
-
-  case 10: /* assignment: ID RECEIVE error DONE  */
-#line 145 "miniC.y"
-                                                { yyerrok; yyclearin; }
-#line 1556 "miniC.tab.c"
-    break;
-
-  case 11: /* assignment: ID error expression DONE  */
-#line 146 "miniC.y"
-                                                   { yyerrok; yyclearin; }
-#line 1562 "miniC.tab.c"
-    break;
-
-  case 12: /* assignment: error RECEIVE expression DONE  */
-#line 147 "miniC.y"
-                                                        { yyerrok; yyclearin; }
-#line 1568 "miniC.tab.c"
-    break;
-
-  case 13: /* expression: soma_sub  */
-#line 150 "miniC.y"
-                     { (yyval.number) = (yyvsp[0].number); }
-#line 1574 "miniC.tab.c"
-    break;
-
-  case 14: /* expression: mult_div  */
-#line 151 "miniC.y"
-                             { (yyval.number) = (yyvsp[0].number); }
-#line 1580 "miniC.tab.c"
-    break;
-
-  case 15: /* expression: LEFTPAR expression RIGHTPAR  */
-#line 152 "miniC.y"
-                                        { (yyval.number) = (yyvsp[-1].number); }
-#line 1586 "miniC.tab.c"
-    break;
-
-  case 16: /* expression: comparison  */
-#line 153 "miniC.y"
-                       { (yyval.number) = (yyvsp[0].number); }
+           }
 #line 1592 "miniC.tab.c"
     break;
 
-  case 17: /* expression: log_exp  */
-#line 154 "miniC.y"
-                    { (yyval.number) = (yyvsp[0].number); }
-#line 1598 "miniC.tab.c"
+  case 7: /* declaration: FLOAT ID DONE  */
+#line 188 "miniC.y"
+                           { 
+                if(if_condition == 1) {
+                    insertSymbol((yyvsp[-1].id), 0.0, TYPE_FLOAT);
+                }
+           }
+#line 1602 "miniC.tab.c"
     break;
 
-  case 18: /* expression: term  */
-#line 155 "miniC.y"
-                         { (yyval.number) = (yyvsp[0].number); }
-#line 1604 "miniC.tab.c"
+  case 8: /* declaration: CHAR ID DONE  */
+#line 193 "miniC.y"
+                          { 
+                if(if_condition == 1) {
+                    insertSymbol((yyvsp[-1].id), 0.0, TYPE_CHAR);
+                }
+           }
+#line 1612 "miniC.tab.c"
     break;
 
-  case 19: /* soma_sub: expression PLUS expression  */
-#line 158 "miniC.y"
-                                     { (yyval.number) = (yyvsp[-2].number) + (yyvsp[0].number); }
-#line 1610 "miniC.tab.c"
-    break;
-
-  case 20: /* soma_sub: expression MIN expression  */
-#line 159 "miniC.y"
-                                     { (yyval.number) = (yyvsp[-2].number) - (yyvsp[0].number); }
-#line 1616 "miniC.tab.c"
-    break;
-
-  case 21: /* mult_div: expression MULT expression  */
-#line 162 "miniC.y"
-                                     { (yyval.number) = (yyvsp[-2].number) * (yyvsp[0].number); }
+  case 9: /* declaration: BOOL ID DONE  */
+#line 198 "miniC.y"
+                          { 
+                if(if_condition == 1) {
+                    insertSymbol((yyvsp[-1].id), 0.0, TYPE_BOOL);
+                }
+           }
 #line 1622 "miniC.tab.c"
     break;
 
-  case 22: /* mult_div: expression DIV expression  */
-#line 163 "miniC.y"
-                                             { 
-			if ((yyvsp[0].number) == 0) {
-				fprintf(stderr, "Error: division by zero at line %d.\n", yylineno);
-				hasError = 1;
-				(yyval.number) = -1;
-			} else {
-				(yyval.number) = (yyvsp[-2].number) / (yyvsp[0].number);
-			}
-		}
-#line 1636 "miniC.tab.c"
+  case 10: /* comand: assignment  */
+#line 208 "miniC.y"
+                   {}
+#line 1628 "miniC.tab.c"
     break;
 
-  case 23: /* comparison: expression LESS expression  */
-#line 174 "miniC.y"
-                                         { (yyval.number) = (yyvsp[-2].number) < (yyvsp[0].number);  }
-#line 1642 "miniC.tab.c"
+  case 11: /* comand: if  */
+#line 209 "miniC.y"
+           {}
+#line 1634 "miniC.tab.c"
     break;
 
-  case 24: /* comparison: expression GREAT expression  */
-#line 175 "miniC.y"
-                                         { (yyval.number) = (yyvsp[-2].number) > (yyvsp[0].number);  }
-#line 1648 "miniC.tab.c"
+  case 12: /* comand: write  */
+#line 210 "miniC.y"
+              {}
+#line 1640 "miniC.tab.c"
     break;
 
-  case 25: /* comparison: expression LEQUAL expression  */
-#line 176 "miniC.y"
-                                         { (yyval.number) = (yyvsp[-2].number) <= (yyvsp[0].number); }
-#line 1654 "miniC.tab.c"
+  case 13: /* comand: read  */
+#line 211 "miniC.y"
+             {}
+#line 1646 "miniC.tab.c"
     break;
 
-  case 26: /* comparison: expression GEQUAL expression  */
-#line 177 "miniC.y"
-                                         { (yyval.number) = (yyvsp[-2].number) >= (yyvsp[0].number); }
-#line 1660 "miniC.tab.c"
+  case 14: /* assignment: ID RECEIVE expression DONE  */
+#line 216 "miniC.y"
+                                       { 
+                if(if_condition == 1) {
+                    Symbol* symbol = findSymbol((yyvsp[-3].id));
+                    if (symbol != NULL) {
+                        if (symbol->type == (yyvsp[-1].number).type) {
+                            insertSymbol((yyvsp[-3].id), (yyvsp[-1].number).value, symbol->type);
+                        } else if(symbol->type == TYPE_INT && (yyvsp[-1].number).type == TYPE_FLOAT) {
+                            int value = (int)(yyvsp[-1].number).value;
+                            insertSymbol((yyvsp[-3].id), (double)value, symbol->type);
+                        } else if (symbol->type == TYPE_FLOAT && (yyvsp[-1].number).type == TYPE_INT) {
+                            insertSymbol((yyvsp[-3].id), (yyvsp[-1].number).value, symbol->type);
+                        } else {
+                            fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
+                        }
+                    } else {
+                        fprintf(stderr, "Error: undefined variable '%s' at line %d.\n", (yyvsp[-3].id), yylineno);
+                    }
+                }
+		  }
+#line 1670 "miniC.tab.c"
     break;
 
-  case 27: /* comparison: expression EQUAL expression  */
-#line 178 "miniC.y"
-                                         { (yyval.number) = (yyvsp[-2].number) == (yyvsp[0].number); }
-#line 1666 "miniC.tab.c"
+  case 15: /* $@1: %empty  */
+#line 240 "miniC.y"
+                                   {
+        pushScope();
+        if ((yyvsp[-1].number).type == TYPE_BOOL) {
+            if_condition = (yyvsp[-1].number).value;
+            if_else_condition = (yyvsp[-1].number).value;
+        } else {
+            fprintf(stderr, "Error: condition is not boolean at line %d.\n", yylineno);
+            if_condition = 0;
+        }
+    }
+#line 1685 "miniC.tab.c"
     break;
 
-  case 28: /* comparison: expression NEQUAL expression  */
-#line 179 "miniC.y"
-                                         { (yyval.number) = (yyvsp[-2].number) != (yyvsp[0].number); }
-#line 1672 "miniC.tab.c"
-    break;
-
-  case 29: /* log_exp: expression AND expression  */
-#line 182 "miniC.y"
-                                   { (yyval.number) = (yyvsp[-2].number) && (yyvsp[0].number); }
-#line 1678 "miniC.tab.c"
-    break;
-
-  case 30: /* log_exp: expression OR expression  */
-#line 183 "miniC.y"
-                                   { (yyval.number) = (yyvsp[-2].number) || (yyvsp[0].number); }
-#line 1684 "miniC.tab.c"
-    break;
-
-  case 31: /* log_exp: NOT expression  */
-#line 184 "miniC.y"
-                        { (yyval.number) = !(yyvsp[0].number); }
-#line 1690 "miniC.tab.c"
-    break;
-
-  case 32: /* term: NUMBER  */
-#line 187 "miniC.y"
-             { (yyval.number) = (yyvsp[0].number); }
+  case 16: /* $@2: %empty  */
+#line 249 "miniC.y"
+                                 {
+        if (if_condition == 0) {
+            popScope();
+            if_condition = 1;
+        }
+    }
 #line 1696 "miniC.tab.c"
     break;
 
-  case 33: /* term: ID  */
-#line 188 "miniC.y"
-             { 
-		SymbolTable* symbol = findSymbol(symb, (yyvsp[0].id));
-        if (symbol != NULL) {
-            (yyval.number) = symbol->value;
-        } else {
-            fprintf(stderr, "Error: undefined variable '%s' at line %d.\n", (yyvsp[0].id), yylineno);
-            hasError = 1;
-            (yyval.number) = -1;
-        }
-	}
-#line 1711 "miniC.tab.c"
-    break;
-
-  case 34: /* $@1: %empty  */
-#line 201 "miniC.y"
-                                   {
-        ifElse = (yyvsp[-1].number);
-        if(!ifElse) {
-            aux_table = copySymbolTable(symb);
-        }
-    }
-#line 1722 "miniC.tab.c"
-    break;
-
-  case 35: /* $@2: %empty  */
-#line 206 "miniC.y"
-                                      {
-        if(!ifElse) {
-            freeSymbolTable(symb);
-            symb = copySymbolTable(aux_table);
-            freeSymbolTable(aux_table);
-            aux_table = NULL;
-        }
-    }
-#line 1735 "miniC.tab.c"
-    break;
-
-  case 36: /* if: IF LEFTPAR expression RIGHTPAR $@1 jump LEFTKEYS program RIGHTKEYS $@2 else  */
-#line 213 "miniC.y"
+  case 17: /* if: IF LEFTPAR expression RIGHTPAR $@1 LEFTKEYS program RIGHTKEYS $@2 else  */
+#line 254 "miniC.y"
            {}
-#line 1741 "miniC.tab.c"
+#line 1702 "miniC.tab.c"
     break;
 
-  case 37: /* if: IF LEFTPAR error RIGHTPAR jump LEFTKEYS program RIGHTKEYS else  */
-#line 214 "miniC.y"
-                                                                     { yyerrok; yyclearin; }
-#line 1747 "miniC.tab.c"
-    break;
-
-  case 38: /* else: %empty  */
-#line 217 "miniC.y"
+  case 18: /* else: %empty  */
+#line 257 "miniC.y"
                   {}
-#line 1753 "miniC.tab.c"
+#line 1708 "miniC.tab.c"
     break;
 
-  case 39: /* $@3: %empty  */
-#line 218 "miniC.y"
-                         { 
-        if(ifElse) {
-            aux_table = copySymbolTable(symb);
-        }
+  case 19: /* $@3: %empty  */
+#line 258 "miniC.y"
+                    {
+        pushScope();
+        if (if_else_condition == 1) {
+            if_condition = 0;
+        } 
     }
-#line 1763 "miniC.tab.c"
+#line 1719 "miniC.tab.c"
     break;
 
-  case 40: /* else: ELSE jump LEFTKEYS $@3 program RIGHTKEYS  */
-#line 222 "miniC.y"
+  case 20: /* else: ELSE LEFTKEYS $@3 program RIGHTKEYS  */
+#line 263 "miniC.y"
                         {
-        if(ifElse) {
-            freeSymbolTable(symb);
-            symb = copySymbolTable(aux_table);
-            freeSymbolTable(aux_table);
-            aux_table = NULL;
+        if (if_condition == 0) {
+            if_condition = 1;
+        }
+
+        if(if_else_condition == 1) {
+            popScope();
         }
     }
+#line 1733 "miniC.tab.c"
+    break;
+
+  case 21: /* write: WRITE LEFTPAR ID RIGHTPAR DONE  */
+#line 277 "miniC.y"
+                                      {
+        if (if_condition == 1) {
+            Symbol* sym = findSymbol((yyvsp[-2].id));
+            if (sym == NULL) {
+                fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", (yyvsp[-2].id), yylineno);
+            }
+            if (sym->type == TYPE_INT) {
+                printf("%s = %d (Type == INT)\n", (yyvsp[-2].id), (int)sym->value);
+            } else if (sym->type == TYPE_BOOL) {
+                printf("%s = %d (Type == BOOL)\n", (yyvsp[-2].id), (int)sym->value);
+            } else if (sym->type == TYPE_FLOAT) {
+                printf("%s = %.2lf (Type == FLOAT)\n", (yyvsp[-2].id), sym->value);
+            } else if (sym->type == TYPE_CHAR) {
+                printf("%s = %c (Type == CHAR)\n", (yyvsp[-2].id), (char)sym->value);
+            } else {
+                fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", (yyvsp[-2].id), yylineno);
+                
+            }
+        }
+     }
+#line 1758 "miniC.tab.c"
+    break;
+
+  case 22: /* write: WRITE LEFTPAR NUMBER RIGHTPAR DONE  */
+#line 297 "miniC.y"
+                                          {
+        if (if_condition == 1) {
+            if ((yyvsp[-2].number).type == TYPE_INT) {
+                printf("%d (Type == INT)\n", (int)(yyvsp[-2].number).value);
+            } else if ((yyvsp[-2].number).type == TYPE_FLOAT) {
+                printf("%lf (Type == FLOAT)\n", (yyvsp[-2].number).value);
+            } else if ((yyvsp[-2].number).type == TYPE_CHAR) {
+                printf("%c (Type == CHAR)\n", (char)(yyvsp[-2].number).value);
+            } else {
+                fprintf(stderr, "Error: unsupported type for number at line %d.\n", yylineno);
+            }
+        }
+     }
 #line 1776 "miniC.tab.c"
     break;
 
-  case 41: /* jump: %empty  */
-#line 232 "miniC.y"
-                   {}
-#line 1782 "miniC.tab.c"
+  case 23: /* write: WRITE LEFTPAR STRING RIGHTPAR DONE  */
+#line 310 "miniC.y"
+                                          { 
+        if (if_condition == 1) {
+            printf("%s\n", (yyvsp[-2].id));
+        }
+        free((yyvsp[-2].id)); // Free the string after printing
+     }
+#line 1787 "miniC.tab.c"
     break;
 
-  case 42: /* jump: JUMP jump  */
-#line 233 "miniC.y"
-                 {}
-#line 1788 "miniC.tab.c"
+  case 24: /* read: READ LEFTPAR ID RIGHTPAR DONE  */
+#line 319 "miniC.y"
+                                    {
+        if (if_condition == 1) {
+            Symbol* sym = findSymbol((yyvsp[-2].id));
+            if (sym == NULL) {
+                fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", (yyvsp[-2].id), yylineno);
+            }
+            printf("Enter value for variable '%s': ", (yyvsp[-2].id));
+            if (sym->type == TYPE_INT) {
+                int value;
+                scanf("%d", &value);
+                insertSymbol(sym->id, value, TYPE_INT);
+            } else if (sym->type == TYPE_FLOAT) {
+                double value;
+                scanf("%lf", &value);
+                insertSymbol(sym->id, value, TYPE_FLOAT);
+            } else if (sym->type == TYPE_CHAR) {
+                char value;
+                scanf(" %c", &value);
+                insertSymbol(sym->id, value, TYPE_CHAR);
+            } else if (sym->type == TYPE_BOOL) {
+                double value;
+                scanf("%lf", &value);
+                insertSymbol(sym->id, value ? 1.0 : 0.0, TYPE_BOOL);
+            } else {
+                fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", sym->id, yylineno);
+            }
+        }
+    }
+#line 1820 "miniC.tab.c"
+    break;
+
+  case 25: /* expression: soma_sub  */
+#line 352 "miniC.y"
+                     { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; }
+#line 1826 "miniC.tab.c"
+    break;
+
+  case 26: /* expression: mult_div  */
+#line 353 "miniC.y"
+                             { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; }
+#line 1832 "miniC.tab.c"
+    break;
+
+  case 27: /* expression: LEFTPAR expression RIGHTPAR  */
+#line 354 "miniC.y"
+                                        { (yyval.number).value = (yyvsp[-1].number).value; (yyval.number).type = (yyvsp[-1].number).type; }
+#line 1838 "miniC.tab.c"
+    break;
+
+  case 28: /* expression: comparison  */
+#line 355 "miniC.y"
+                       { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; }
+#line 1844 "miniC.tab.c"
+    break;
+
+  case 29: /* expression: log_exp  */
+#line 356 "miniC.y"
+                    { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; }
+#line 1850 "miniC.tab.c"
+    break;
+
+  case 30: /* expression: term  */
+#line 357 "miniC.y"
+                         { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; }
+#line 1856 "miniC.tab.c"
+    break;
+
+  case 31: /* soma_sub: expression PLUS expression  */
+#line 360 "miniC.y"
+                                     { 
+                if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
+                    (yyval.number).value = (yyvsp[-2].number).value + (yyvsp[0].number).value;
+                    (yyval.number).type = TYPE_INT;
+                } else if ((((yyvsp[-2].number).type == TYPE_FLOAT || (yyvsp[-2].number).type == TYPE_INT) && (yyvsp[0].number).type == TYPE_FLOAT)
+                        || ((yyvsp[-2].number).type == TYPE_FLOAT && ((yyvsp[0].number).type == TYPE_INT || (yyvsp[0].number).type == TYPE_FLOAT))) {
+                    (yyval.number).value = (yyvsp[-2].number).value + (yyvsp[0].number).value;
+                    (yyval.number).type = TYPE_FLOAT;
+                } else {
+                    fprintf(stderr, "Error: incompatible types for addition at line %d.\n", yylineno);
+                    (yyval.number).value = -1;
+                    (yyval.number).type = TYPE_UNKNOWN;
+                }   
+        }
+#line 1875 "miniC.tab.c"
+    break;
+
+  case 32: /* soma_sub: expression MIN expression  */
+#line 374 "miniC.y"
+                                     { 
+                if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
+                    (yyval.number).value = (yyvsp[-2].number).value - (yyvsp[0].number).value;
+                    (yyval.number).type = TYPE_INT;
+                } else if ((((yyvsp[-2].number).type == TYPE_FLOAT || (yyvsp[-2].number).type == TYPE_INT) && (yyvsp[0].number).type == TYPE_FLOAT)
+                        || ((yyvsp[-2].number).type == TYPE_FLOAT && ((yyvsp[0].number).type == TYPE_INT || (yyvsp[0].number).type == TYPE_FLOAT))) {
+                    (yyval.number).value = (yyvsp[-2].number).value - (yyvsp[0].number).value;
+                    (yyval.number).type = TYPE_FLOAT;
+                } else {
+                    fprintf(stderr, "Error: incompatible types for subtraction at line %d.\n", yylineno);
+                    (yyval.number).value = -1;
+                    (yyval.number).type = TYPE_UNKNOWN;
+                }
+        }
+#line 1894 "miniC.tab.c"
+    break;
+
+  case 33: /* mult_div: expression MULT expression  */
+#line 390 "miniC.y"
+                                     { 
+                if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
+                    (yyval.number).value = (yyvsp[-2].number).value * (yyvsp[0].number).value;
+                    (yyval.number).type = TYPE_INT;
+                } else if ((((yyvsp[-2].number).type == TYPE_FLOAT || (yyvsp[-2].number).type == TYPE_INT) && (yyvsp[0].number).type == TYPE_FLOAT)
+                        || ((yyvsp[-2].number).type == TYPE_FLOAT && ((yyvsp[0].number).type == TYPE_INT || (yyvsp[0].number).type == TYPE_FLOAT))) {
+                    (yyval.number).value = (yyvsp[-2].number).value * (yyvsp[0].number).value;
+                    (yyval.number).type = TYPE_FLOAT;
+                } else {
+                    fprintf(stderr, "Error: incompatible types for multiplication at line %d.\n", yylineno);
+                    (yyval.number).value = -1;
+                    (yyval.number).type = TYPE_UNKNOWN;
+                }
+        }
+#line 1913 "miniC.tab.c"
+    break;
+
+  case 34: /* mult_div: expression DIV expression  */
+#line 404 "miniC.y"
+                                             { 
+                if ((yyvsp[0].number).value == 0.0) {
+                        fprintf(stderr, "Error: division by zero at line %d.\n", yylineno);
+                        (yyval.number).value = -1;
+                        (yyval.number).type = TYPE_UNKNOWN;
+                }
+                if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
+                    (yyval.number).value = (yyvsp[-2].number).value / (yyvsp[0].number).value;
+                    (yyval.number).type = TYPE_INT;
+                } else if ((((yyvsp[-2].number).type == TYPE_FLOAT || (yyvsp[-2].number).type == TYPE_INT) && (yyvsp[0].number).type == TYPE_FLOAT)
+                        || ((yyvsp[-2].number).type == TYPE_FLOAT && ((yyvsp[0].number).type == TYPE_INT || (yyvsp[0].number).type == TYPE_FLOAT))) {
+                    (yyval.number).value = (yyvsp[-2].number).value / (yyvsp[0].number).value;
+                    (yyval.number).type = TYPE_FLOAT;
+                } else {
+                    fprintf(stderr, "Error: incompatible types for division at line %d.\n", yylineno);
+                    (yyval.number).value = -1;
+                    (yyval.number).type = TYPE_UNKNOWN;
+                }
+		}
+#line 1937 "miniC.tab.c"
+    break;
+
+  case 35: /* comparison: expression LESS expression  */
+#line 425 "miniC.y"
+                                         { 
+                if(((yyvsp[-2].number).type == TYPE_INT || (yyvsp[-2].number).type == TYPE_FLOAT) && ((yyvsp[0].number).type == TYPE_INT || (yyvsp[0].number).type == TYPE_FLOAT)) {
+                    (yyval.number).value = (yyvsp[-2].number).value < (yyvsp[0].number).value;
+                    (yyval.number).type = TYPE_BOOL;
+                }
+                else {
+                    fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
+                    (yyval.number).value = -1;
+                    (yyval.number).type = TYPE_UNKNOWN;
+                }
+          }
+#line 1953 "miniC.tab.c"
+    break;
+
+  case 36: /* comparison: expression GREAT expression  */
+#line 436 "miniC.y"
+                                         { 
+                if(((yyvsp[-2].number).type == TYPE_INT || (yyvsp[-2].number).type == TYPE_FLOAT) && ((yyvsp[0].number).type == TYPE_INT || (yyvsp[0].number).type == TYPE_FLOAT)) {
+                    (yyval.number).value = (yyvsp[-2].number).value > (yyvsp[0].number).value;
+                    (yyval.number).type = TYPE_BOOL;
+                }
+                else {
+                    fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
+                    (yyval.number).value = -1;
+                    (yyval.number).type = TYPE_UNKNOWN;
+                }
+          }
+#line 1969 "miniC.tab.c"
+    break;
+
+  case 37: /* comparison: expression LEQUAL expression  */
+#line 447 "miniC.y"
+                                         { 
+                if(((yyvsp[-2].number).type == TYPE_INT || (yyvsp[-2].number).type == TYPE_FLOAT) && ((yyvsp[0].number).type == TYPE_INT || (yyvsp[0].number).type == TYPE_FLOAT)) {
+                    (yyval.number).value = (yyvsp[-2].number).value <= (yyvsp[0].number).value;
+                    (yyval.number).type = TYPE_BOOL;
+                }
+                else {
+                    fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
+                    (yyval.number).value = -1;
+                    (yyval.number).type = TYPE_UNKNOWN;
+                }
+          }
+#line 1985 "miniC.tab.c"
+    break;
+
+  case 38: /* comparison: expression GEQUAL expression  */
+#line 458 "miniC.y"
+                                         { 
+                if(((yyvsp[-2].number).type == TYPE_INT || (yyvsp[-2].number).type == TYPE_FLOAT) && ((yyvsp[0].number).type == TYPE_INT || (yyvsp[0].number).type == TYPE_FLOAT)) {
+                    (yyval.number).value = (yyvsp[-2].number).value >= (yyvsp[0].number).value;
+                    (yyval.number).type = TYPE_BOOL;
+                }
+                else {
+                    fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
+                    (yyval.number).value = -1;
+                    (yyval.number).type = TYPE_UNKNOWN;
+                }
+          }
+#line 2001 "miniC.tab.c"
+    break;
+
+  case 39: /* comparison: expression EQUAL expression  */
+#line 469 "miniC.y"
+                                         { 
+                if(((yyvsp[-2].number).type == TYPE_INT || (yyvsp[-2].number).type == TYPE_FLOAT || (yyvsp[-2].number).type == TYPE_BOOL) && ((yyvsp[0].number).type == TYPE_INT || (yyvsp[0].number).type == TYPE_FLOAT || (yyvsp[0].number).type == TYPE_BOOL)) {
+                    (yyval.number).value = (yyvsp[-2].number).value == (yyvsp[0].number).value;
+                    (yyval.number).type = TYPE_BOOL;
+                }
+                else if ((yyvsp[-2].number).type == TYPE_CHAR && (yyvsp[0].number).type == TYPE_CHAR) {
+                    (yyval.number).value = (yyvsp[-2].number).value == (yyvsp[0].number).value;
+                    (yyval.number).type = TYPE_BOOL;
+                }
+                else {
+                    fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
+                    (yyval.number).value = -1;
+                    (yyval.number).type = TYPE_UNKNOWN;
+                }
+          }
+#line 2021 "miniC.tab.c"
+    break;
+
+  case 40: /* comparison: expression NEQUAL expression  */
+#line 484 "miniC.y"
+                                         { 
+                if(((yyvsp[-2].number).type == TYPE_INT || (yyvsp[-2].number).type == TYPE_FLOAT || (yyvsp[-2].number).type == TYPE_BOOL) && ((yyvsp[0].number).type == TYPE_INT || (yyvsp[0].number).type == TYPE_FLOAT || (yyvsp[0].number).type == TYPE_BOOL)) {
+                    (yyval.number).value = (yyvsp[-2].number).value != (yyvsp[0].number).value;
+                    (yyval.number).type = TYPE_BOOL;
+                }
+                else if ((yyvsp[-2].number).type == TYPE_CHAR && (yyvsp[0].number).type == TYPE_CHAR) {
+                    (yyval.number).value = (yyvsp[-2].number).value != (yyvsp[0].number).value;
+                    (yyval.number).type = TYPE_BOOL;
+                }
+                else {
+                    fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
+                    (yyval.number).value = -1;
+                    (yyval.number).type = TYPE_UNKNOWN;
+                }
+           }
+#line 2041 "miniC.tab.c"
+    break;
+
+  case 41: /* log_exp: expression AND expression  */
+#line 501 "miniC.y"
+                                   { 
+            if ((yyvsp[-2].number).type == TYPE_BOOL && (yyvsp[0].number).type == TYPE_BOOL) {
+                (yyval.number).value = (yyvsp[-2].number).value && (yyvsp[0].number).value;
+                (yyval.number).type = TYPE_BOOL;
+            } else {
+                fprintf(stderr, "Error: logical AND between incompatible types at line %d.\n", yylineno);
+                (yyval.number).value = -1;
+                (yyval.number).type = TYPE_UNKNOWN;
+            }
+       }
+#line 2056 "miniC.tab.c"
+    break;
+
+  case 42: /* log_exp: expression OR expression  */
+#line 511 "miniC.y"
+                                   { 
+            if ((yyvsp[-2].number).type == TYPE_BOOL && (yyvsp[0].number).type == TYPE_BOOL) {
+                (yyval.number).value = (yyvsp[-2].number).value || (yyvsp[0].number).value;
+                (yyval.number).type = TYPE_BOOL;
+            } else {
+                fprintf(stderr, "Error: logical OR between incompatible types at line %d.\n", yylineno);
+                (yyval.number).value = -1;
+                (yyval.number).type = TYPE_UNKNOWN;
+            }
+       }
+#line 2071 "miniC.tab.c"
+    break;
+
+  case 43: /* log_exp: NOT expression  */
+#line 521 "miniC.y"
+                        { 
+            if ((yyvsp[0].number).type == TYPE_BOOL) {
+                (yyval.number).value = !(yyvsp[0].number).value;
+                (yyval.number).type = TYPE_BOOL;
+            } else {
+                fprintf(stderr, "Error: logical NOT on incompatible type at line %d.\n", yylineno);
+                (yyval.number).value = -1;
+                (yyval.number).type = TYPE_UNKNOWN;
+            }
+        }
+#line 2086 "miniC.tab.c"
+    break;
+
+  case 44: /* term: NUMBER  */
+#line 533 "miniC.y"
+             { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; }
+#line 2092 "miniC.tab.c"
+    break;
+
+  case 45: /* term: ID  */
+#line 534 "miniC.y"
+         { 
+        Symbol* sym = findSymbol((yyvsp[0].id));
+        if (!sym) {
+            fprintf(stderr, "Undeclared variable '%s' at line %d\n", (yyvsp[0].id), yylineno);
+            (yyval.number).value = -1;
+            (yyval.number).type = TYPE_UNKNOWN;
+        } else {
+            (yyval.number).value = sym->value;
+            (yyval.number).type = sym->type;
+        }
+    }
+#line 2108 "miniC.tab.c"
     break;
 
 
-#line 1792 "miniC.tab.c"
+#line 2112 "miniC.tab.c"
 
       default: break;
     }
@@ -2012,7 +2332,7 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 235 "miniC.y"
+#line 548 "miniC.y"
 
 
 int yywrap( ) {
@@ -2020,28 +2340,43 @@ int yywrap( ) {
 }
 
 void yyerror(const char* str) {
-    if (strstr(str, "syntax error, unexpected JUMP") != NULL)
-        fprintf(stderr, "Compilation error at line %d: '%s'.\n", yylineno - 1, str);
-    else
-        fprintf(stderr, "Compilation error at line %d: '%s'.\n", yylineno, str);    
-    hasError = 1;
+    fprintf(stderr, "Compilation error at line %d: '%s'.\n", yylineno, str);
 }
 
 void printSymbolTable(SymbolTable* table) {
     printf("\nSymbol Table:\n");
-    printf("----------------------------\n");
-    printf("| %-10s | %-10s |\n", "Identifier", "Value");
-    printf("----------------------------\n");
+    printf("-------------------------------------------------\n");
+    printf("| %-10s | %-10s | %-10s |\n", "Identifier", "Value", "Type");
+    printf("-------------------------------------------------\n");
     while (table != NULL) {
-        printf("| %-10s | %-10.2lf |\n", table->id, table->value);
-        table = table->next;
+        for (int i = 0; i < HASH_SIZE; i++) {
+            Symbol* sym = table->table[i];
+            while (sym != NULL) {
+                const char* typeStr;
+                if(sym->value >= INT_MAX - 10 || sym->value <= INT_MIN + 10) {
+                    printf("| %-10s | %-10s | %-10s |\n", sym->id, "UNKNOWN", "UNKNOWN");
+                }
+                else {
+                    switch (sym->type) {
+                        case TYPE_INT: typeStr = "INT"; printf("| %-10s | %-10d | %-10s |\n", sym->id, (int)sym->value, typeStr); break;
+                        case TYPE_BOOL: typeStr = "BOOL"; printf("| %-10s | %-10d | %-10s |\n", sym->id, (int)sym->value, typeStr); break;
+                        case TYPE_FLOAT: typeStr = "FLOAT"; printf("| %-10s | %-10.2lf | %-10s |\n", sym->id, sym->value, typeStr); break;
+                        case TYPE_CHAR: typeStr = "CHAR"; printf("| %-10s | %-10c | %-10s |\n", sym->id, (char)sym->value, typeStr); break;
+                        default: typeStr = "UNKNOWN"; break;
+                    }
+                }
+                sym = sym->next;
+            }
+        }
+        table = table->prev;
     }
-    printf("----------------------------\n\n");
+    printf("-------------------------------------------------\n\n");
 }
 
 int main( ) {
+    pushScope(); // Initialize the first scope
     yyparse( );
-    printSymbolTable(symb);
-	freeSymbolTable(symb);
+    printSymbolTable(currentScope); // Print the symbol table
+    freeSymbolTable(currentScope); // Free the symbol table
     return 0;
 }

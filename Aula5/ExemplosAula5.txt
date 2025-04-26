@@ -1,0 +1,119 @@
+// Declarações de variáveis
+int a;
+float b;
+char c;
+bool d;
+int z;
+
+// Teste de atribuições corretas
+a = 10;
+b = 20.5;
+c = 'x';
+d = true;
+
+// Teste de atribuições com erro: variável não declarada
+x = 15; // Erro: variável não declarada
+
+// Teste de operações aritméticas corretas
+a = (10 + 5) * 2;
+b = a / 2.0;
+
+// Teste de operações aritméticas com erro: divisão por zero
+z = 10 / 0; // Erro: divisão por zero
+
+
+// Teste de operações lógicas corretas
+if (a > 5 && b < 30.0) {
+    c = 'y';
+} else {
+    d = false;
+}
+
+write(c);
+write(d);
+
+d = false;
+
+// Teste de operações lógicas com erro: tipo incompatível
+if (a + b) { // Erro: expressão lógica com tipos incompatíveis
+    d = true;
+}
+
+
+write(d);
+
+// Teste de leitura de variáveis
+// read(a);
+// read(b);
+
+// Teste de leitura com erro: variável não declarada
+// read(x); // Erro: variável não declarada
+
+// Teste de escrita de variáveis
+write(a);
+write(b);
+
+// Teste de escrita com erro: variável não declarada
+// write(x); // Erro: variável não declarada
+
+// Teste de condicional correto
+if (a > 5) {
+    b = 10.5;
+} else {
+    c = 'z';
+}
+
+write(b);
+write(c);
+
+d = false;
+
+// Teste de condicional com erro: condição não booleana
+if (a + b) { // Erro: condição não é booleana
+    d = true;
+}
+
+write(d);
+
+// Teste de escopo de variáveis
+if (a > 5) {
+    int e;
+    e = a + 10;
+    write(e);
+} else {
+    int f;
+    f = a - 5;
+    write(f);
+}
+
+write(e);
+// write(f);
+
+// Teste de múltiplos operadores lógicos
+if ((a > 5 || b < 10.0) && !(c == 'x')) {
+    d = true;
+} else {
+    d = false;
+}
+
+write(d);
+
+// Teste de múltiplos operadores aritméticos
+a = (10 + 5) * (20 - 10) / 2;
+
+// Teste de parênteses aninhados
+b = ((a + 5) * (10 - 3)) / 2.0;
+
+// Teste de erro de tipo em atribuição
+a = b;
+c = d; // Erro: tipo incompatível
+
+// Teste de erro de variável não inicializada
+int abacaxi;
+write(abacaxi); // Erro: variável não inicializada
+
+// Teste de escrita de string
+write("Hello, World!");
+
+// Teste de escrita de string com erro: string não fechada
+write("Hello, World!); // Erro: string não fechada

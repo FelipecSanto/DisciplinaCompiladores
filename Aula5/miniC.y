@@ -1,4 +1,5 @@
 %{
+#include "VarType.h"
 int yylex();
 extern int yylineno;
 %}
@@ -10,10 +11,9 @@ extern int yylineno;
 #include <math.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <limits.h>
 
 #define HASH_SIZE 100
-
-typedef enum { TYPE_INT, TYPE_FLOAT, TYPE_CHAR, TYPE_BOOL } VarType;
 
 typedef struct Symbol {
     char* id;
@@ -27,6 +27,7 @@ typedef struct SymbolTable {
     struct SymbolTable* prev; // points to the previous scope
 } SymbolTable;
 
+SymbolTable* currentScope = NULL;
 
 unsigned int hash(const char* id) {
     unsigned int h = 0;
@@ -75,7 +76,7 @@ void pushScope() {
 }
 
 void popScope() {
-    if (currentScope == NULL) return;
+    if (currentScope == NULL) exit(1);
     for (int i = 0; i < HASH_SIZE; i++) {
         Symbol* sym = currentScope->table[i];
         while (sym != NULL) {
@@ -110,8 +111,8 @@ void freeSymbolTable(SymbolTable* table) {
 int yywrap( );
 void yyerror(const char* str);
 
-SymbolTable* currentScope = NULL;
-int if_condition = 0;
+int if_condition = 1;
+int if_else_condition = 0;
 
 %}
 
@@ -162,7 +163,7 @@ int if_condition = 0;
 
 /* declare non-terminals */
 %type <number> expression soma_sub mult_div term comparison log_exp
-%type program declarations declaration comands comand assignment if else write
+%type program declaration comand assignment if else write
 
 
 /* give us more detailed errors */
@@ -172,43 +173,39 @@ int if_condition = 0;
 
 
 program: /* empty */ {}
-       | declarations comands program {}
+       | comand program {}
+       | declaration program {}
        | error program { yyerrok; yyclearin; }
        ;
 
 
 
-declarations: /* empty */ {}
-            | declaration {}
-            | declaration declarations {}
-            | error declarations { yyerrok; yyclearin; }
-            | declaration error { yyerrok; yyclearin; }
-            ;
-
-declaration: INT ID DONE { 
-                insertSymbol($2, 0.0, TYPE_INT);
+declaration: INT ID DONE {
+                if(if_condition == 1) {
+                    insertSymbol($2, 0.0, TYPE_INT);
+                }
            }
            | FLOAT ID DONE { 
-                insertSymbol($2, 0.0, TYPE_FLOAT);
+                if(if_condition == 1) {
+                    insertSymbol($2, 0.0, TYPE_FLOAT);
+                }
            }
            | CHAR ID DONE { 
-                 insertSymbol($2, 0.0, TYPE_CHAR);
+                if(if_condition == 1) {
+                    insertSymbol($2, 0.0, TYPE_CHAR);
+                }
            }
            | BOOL ID DONE { 
-                 insertSymbol($2, 0.0, TYPE_BOOL);
+                if(if_condition == 1) {
+                    insertSymbol($2, 0.0, TYPE_BOOL);
+                }
            }
            ;
 
 
 
-comands: /* empty */ {}
-       | comand {}
-       | comand comands {}
-       | error comands { yyerrok; yyclearin; }
-       | comand error { yyerrok; yyclearin; }
-       ;
 
-comand: assignments {}
+comand: assignment {}
       | if {}
       | write {}
       | read {}
@@ -216,27 +213,23 @@ comand: assignments {}
 
 
 
-
-assignments: /* empty */ {} 
-           | assignment {}
-           | assignment assignments {}
-           ;
-
 assignment: ID RECEIVE expression DONE { 
-                Symbol* symbol = findSymbol($1);
-                if (symbol != NULL) {
-                    if (symbol->type == $3.type) {
-                        insertSymbol($1, $3.value, symbol->type);
-                    } else if(symbol->type == TYPE_INT && $3.type == TYPE_FLOAT) {
-                        int value = (int)$3.value;
-                        insertSymbol($1, (double)value, symbol->type);
-                    } else if (symbol->type == TYPE_FLOAT && $3.type == TYPE_INT) {
-                        insertSymbol($1, $3.value, symbol->type);
+                if(if_condition == 1) {
+                    Symbol* symbol = findSymbol($1);
+                    if (symbol != NULL) {
+                        if (symbol->type == $3.type) {
+                            insertSymbol($1, $3.value, symbol->type);
+                        } else if(symbol->type == TYPE_INT && $3.type == TYPE_FLOAT) {
+                            int value = (int)$3.value;
+                            insertSymbol($1, (double)value, symbol->type);
+                        } else if (symbol->type == TYPE_FLOAT && $3.type == TYPE_INT) {
+                            insertSymbol($1, $3.value, symbol->type);
+                        } else {
+                            fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
+                        }
                     } else {
-                        fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
+                        fprintf(stderr, "Error: undefined variable '%s' at line %d.\n", $1, yylineno);
                     }
-                } else {
-                    fprintf(stderr, "Error: undefined variable '%s' at line %d.\n", $1, yylineno);
                 }
 		  }
 	      ;
@@ -247,28 +240,32 @@ assignment: ID RECEIVE expression DONE {
 if: IF LEFTPAR expression RIGHTPAR {
         pushScope();
         if ($3.type == TYPE_BOOL) {
-            if($3.value == 1.0) {
-                if_condition = 1;
-            }
-            else {
-                if_condition = 0;
-            }
-        }
-        else {
+            if_condition = $3.value;
+            if_else_condition = $3.value;
+        } else {
             fprintf(stderr, "Error: condition is not boolean at line %d.\n", yylineno);
+            if_condition = 0;
         }
     } LEFTKEYS program RIGHTKEYS {
         if (if_condition == 0) {
             popScope();
+            if_condition = 1;
         }
     } else {}
     ;
 
 else: /* empty */ {}
-    | ELSE LEFTKEYS { 
+    | ELSE LEFTKEYS {
         pushScope();
+        if (if_else_condition == 1) {
+            if_condition = 0;
+        } 
     } program RIGHTKEYS {
-        if (if_condition == 1) {
+        if (if_condition == 0) {
+            if_condition = 1;
+        }
+
+        if(if_else_condition == 1) {
             popScope();
         }
     }
@@ -278,66 +275,73 @@ else: /* empty */ {}
 
 
 write: WRITE LEFTPAR ID RIGHTPAR DONE {
-        Symbol* sym = findSymbol($3);
-        if (sym == NULL) {
-            fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", $3, yylineno);
-            return;
-        }
-        if (sym->type == TYPE_INT) {
-            printf("%s = %d (Type == INT)\n", $3, (int)sym->value);
-        } else if (sym->type == TYPE_BOOL) {
-            printf("%s = %d (Type == BOOL)\n", $3, (int)sym->value);
-        } else if (sym->type == TYPE_FLOAT) {
-            printf("%s = %lf (Type == FLOAT)\n", $3, sym->value);
-        } else if (sym->type == TYPE_CHAR) {
-            printf("%s = %c (Type == CHAR)\n", $3, (char)sym->value);
-        } else {
-            fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", $3, yylineno);
+        if (if_condition == 1) {
+            Symbol* sym = findSymbol($3);
+            if (sym == NULL) {
+                fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", $3, yylineno);
+            }
+            if (sym->type == TYPE_INT) {
+                printf("%s = %d (Type == INT)\n", $3, (int)sym->value);
+            } else if (sym->type == TYPE_BOOL) {
+                printf("%s = %d (Type == BOOL)\n", $3, (int)sym->value);
+            } else if (sym->type == TYPE_FLOAT) {
+                printf("%s = %.2lf (Type == FLOAT)\n", $3, sym->value);
+            } else if (sym->type == TYPE_CHAR) {
+                printf("%s = %c (Type == CHAR)\n", $3, (char)sym->value);
+            } else {
+                fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", $3, yylineno);
+                
+            }
         }
      }
      | WRITE LEFTPAR NUMBER RIGHTPAR DONE {
-        if ($3.type == TYPE_INT) {
-            printf("%d (Type == INT)\n", (int)$3.value);
-        } else if ($3.type == TYPE_FLOAT) {
-            printf("%lf (Type == FLOAT)\n", $3.value);
-        } else if ($3.type == TYPE_CHAR) {
-            printf("%c (Type == CHAR)\n", (char)$3.value);
-        } else {
-            fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", $3, yylineno);
+        if (if_condition == 1) {
+            if ($3.type == TYPE_INT) {
+                printf("%d (Type == INT)\n", (int)$3.value);
+            } else if ($3.type == TYPE_FLOAT) {
+                printf("%lf (Type == FLOAT)\n", $3.value);
+            } else if ($3.type == TYPE_CHAR) {
+                printf("%c (Type == CHAR)\n", (char)$3.value);
+            } else {
+                fprintf(stderr, "Error: unsupported type for number at line %d.\n", yylineno);
+            }
         }
      }
      | WRITE LEFTPAR STRING RIGHTPAR DONE { 
-        printf("%s\n", $3);
+        if (if_condition == 1) {
+            printf("%s\n", $3);
+        }
         free($3); // Free the string after printing
      }
      ;
 
 
-read: READ LEFTPAR ID RIGHTPAR DONE { 
-        Symbol* sym = findSymbol($3);
-        if (sym == NULL) {
-            fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", $3, yylineno);
-            return;
-        }
-        printf("Enter value for variable '%s': ", sym.id);
-        if (sym.type == TYPE_INT) {
-            int value;
-            scanf("%d", &value);
-            insertSymbol(sym.id, value, TYPE_INT);
-        } else if (sym.type == TYPE_FLOAT) {
-            double value;
-            scanf("%lf", &value);
-            insertSymbol(sym.id, value, TYPE_FLOAT);
-        } else if (sym.type == TYPE_CHAR) {
-            char value;
-            scanf(" %c", &value);
-            insertSymbol(sym.id, value, TYPE_CHAR);
-        } else if (sym.type == TYPE_BOOL) {
-            double value;
-            scanf("%lf", &value);
-            insertSymbol(sym.id, value ? 1.0 : 0.0, TYPE_BOOL);
-        } else {
-            fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", sym.id, yylineno);
+read: READ LEFTPAR ID RIGHTPAR DONE {
+        if (if_condition == 1) {
+            Symbol* sym = findSymbol($3);
+            if (sym == NULL) {
+                fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", $3, yylineno);
+            }
+            printf("Enter value for variable '%s': ", $3);
+            if (sym->type == TYPE_INT) {
+                int value;
+                scanf("%d", &value);
+                insertSymbol(sym->id, value, TYPE_INT);
+            } else if (sym->type == TYPE_FLOAT) {
+                double value;
+                scanf("%lf", &value);
+                insertSymbol(sym->id, value, TYPE_FLOAT);
+            } else if (sym->type == TYPE_CHAR) {
+                char value;
+                scanf(" %c", &value);
+                insertSymbol(sym->id, value, TYPE_CHAR);
+            } else if (sym->type == TYPE_BOOL) {
+                double value;
+                scanf("%lf", &value);
+                insertSymbol(sym->id, value ? 1.0 : 0.0, TYPE_BOOL);
+            } else {
+                fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", sym->id, yylineno);
+            }
         }
     }
     ;
@@ -363,7 +367,8 @@ soma_sub: expression PLUS expression {
                     $$.type = TYPE_FLOAT;
                 } else {
                     fprintf(stderr, "Error: incompatible types for addition at line %d.\n", yylineno);
-                    $$ = -1;
+                    $$.value = -1;
+                    $$.type = TYPE_UNKNOWN;
                 }   
         }
     	| expression MIN  expression { 
@@ -376,7 +381,8 @@ soma_sub: expression PLUS expression {
                     $$.type = TYPE_FLOAT;
                 } else {
                     fprintf(stderr, "Error: incompatible types for subtraction at line %d.\n", yylineno);
-                    $$ = -1;
+                    $$.value = -1;
+                    $$.type = TYPE_UNKNOWN;
                 }
         }
 		;
@@ -391,13 +397,15 @@ mult_div: expression MULT expression {
                     $$.type = TYPE_FLOAT;
                 } else {
                     fprintf(stderr, "Error: incompatible types for multiplication at line %d.\n", yylineno);
-                    $$ = -1;
+                    $$.value = -1;
+                    $$.type = TYPE_UNKNOWN;
                 }
         }
 		| expression DIV  expression { 
                 if ($3.value == 0.0) {
                         fprintf(stderr, "Error: division by zero at line %d.\n", yylineno);
-                        $$ = -1;
+                        $$.value = -1;
+                        $$.type = TYPE_UNKNOWN;
                 }
                 if ($1.type == TYPE_INT && $3.type == TYPE_INT) {
                     $$.value = $1.value / $3.value;
@@ -408,7 +416,8 @@ mult_div: expression MULT expression {
                     $$.type = TYPE_FLOAT;
                 } else {
                     fprintf(stderr, "Error: incompatible types for division at line %d.\n", yylineno);
-                    $$ = -1;
+                    $$.value = -1;
+                    $$.type = TYPE_UNKNOWN;
                 }
 		}
 		;
@@ -420,7 +429,8 @@ comparison: expression LESS   expression {
                 }
                 else {
                     fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
-                    $$ = -1;
+                    $$.value = -1;
+                    $$.type = TYPE_UNKNOWN;
                 }
           }
           | expression GREAT  expression { 
@@ -430,11 +440,8 @@ comparison: expression LESS   expression {
                 }
                 else {
                     fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
-                    $$ = -1;
-                }
-                else {
-                    fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
-                    $$ = -1;
+                    $$.value = -1;
+                    $$.type = TYPE_UNKNOWN;
                 }
           }
           | expression LEQUAL expression { 
@@ -444,7 +451,8 @@ comparison: expression LESS   expression {
                 }
                 else {
                     fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
-                    $$ = -1;
+                    $$.value = -1;
+                    $$.type = TYPE_UNKNOWN;
                 }
           }
           | expression GEQUAL expression { 
@@ -454,7 +462,8 @@ comparison: expression LESS   expression {
                 }
                 else {
                     fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
-                    $$ = -1;
+                    $$.value = -1;
+                    $$.type = TYPE_UNKNOWN;
                 }
           }
           | expression EQUAL  expression { 
@@ -468,7 +477,8 @@ comparison: expression LESS   expression {
                 }
                 else {
                     fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
-                    $$ = -1;
+                    $$.value = -1;
+                    $$.type = TYPE_UNKNOWN;
                 }
           }
           | expression NEQUAL expression { 
@@ -482,7 +492,8 @@ comparison: expression LESS   expression {
                 }
                 else {
                     fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
-                    $$ = -1;
+                    $$.value = -1;
+                    $$.type = TYPE_UNKNOWN;
                 }
            }
           ;
@@ -493,7 +504,8 @@ log_exp: expression AND expression {
                 $$.type = TYPE_BOOL;
             } else {
                 fprintf(stderr, "Error: logical AND between incompatible types at line %d.\n", yylineno);
-                $$ = -1;
+                $$.value = -1;
+                $$.type = TYPE_UNKNOWN;
             }
        }
        | expression OR  expression { 
@@ -502,7 +514,8 @@ log_exp: expression AND expression {
                 $$.type = TYPE_BOOL;
             } else {
                 fprintf(stderr, "Error: logical OR between incompatible types at line %d.\n", yylineno);
-                $$ = -1;
+                $$.value = -1;
+                $$.type = TYPE_UNKNOWN;
             }
        }
        | NOT expression { 
@@ -511,7 +524,8 @@ log_exp: expression AND expression {
                 $$.type = TYPE_BOOL;
             } else {
                 fprintf(stderr, "Error: logical NOT on incompatible type at line %d.\n", yylineno);
-                $$ = -1;
+                $$.value = -1;
+                $$.type = TYPE_UNKNOWN;
             }
         }
        ;
@@ -522,6 +536,7 @@ term: NUMBER { $$.value = $1.value; $$.type = $1.type; }
         if (!sym) {
             fprintf(stderr, "Undeclared variable '%s' at line %d\n", $1, yylineno);
             $$.value = -1;
+            $$.type = TYPE_UNKNOWN;
         } else {
             $$.value = sym->value;
             $$.type = sym->type;
@@ -537,10 +552,7 @@ int yywrap( ) {
 }
 
 void yyerror(const char* str) {
-    if (strstr(str, "syntax error, unexpected JUMP") != NULL)
-        fprintf(stderr, "Compilation error at line %d: '%s'.\n", yylineno - 1, str);
-    else
-        fprintf(stderr, "Compilation error at line %d: '%s'.\n", yylineno, str);
+    fprintf(stderr, "Compilation error at line %d: '%s'.\n", yylineno, str);
 }
 
 void printSymbolTable(SymbolTable* table) {
@@ -553,14 +565,18 @@ void printSymbolTable(SymbolTable* table) {
             Symbol* sym = table->table[i];
             while (sym != NULL) {
                 const char* typeStr;
-                switch (sym->type) {
-                    case TYPE_INT: typeStr = "INT"; break;
-                    case TYPE_FLOAT: typeStr = "FLOAT"; break;
-                    case TYPE_CHAR: typeStr = "CHAR"; break;
-                    case TYPE_BOOL: typeStr = "BOOL"; break;
-                    default: typeStr = "UNKNOWN"; break;
+                if(sym->value >= INT_MAX - 10 || sym->value <= INT_MIN + 10) {
+                    printf("| %-10s | %-10s | %-10s |\n", sym->id, "UNKNOWN", "UNKNOWN");
                 }
-                printf("| %-10s | %-10.2lf | %-10s |\n", sym->id, sym->value, typeStr);
+                else {
+                    switch (sym->type) {
+                        case TYPE_INT: typeStr = "INT"; printf("| %-10s | %-10d | %-10s |\n", sym->id, (int)sym->value, typeStr); break;
+                        case TYPE_BOOL: typeStr = "BOOL"; printf("| %-10s | %-10d | %-10s |\n", sym->id, (int)sym->value, typeStr); break;
+                        case TYPE_FLOAT: typeStr = "FLOAT"; printf("| %-10s | %-10.2lf | %-10s |\n", sym->id, sym->value, typeStr); break;
+                        case TYPE_CHAR: typeStr = "CHAR"; printf("| %-10s | %-10c | %-10s |\n", sym->id, (char)sym->value, typeStr); break;
+                        default: typeStr = "UNKNOWN"; break;
+                    }
+                }
                 sym = sym->next;
             }
         }
@@ -572,6 +588,7 @@ void printSymbolTable(SymbolTable* table) {
 int main( ) {
     pushScope(); // Initialize the first scope
     yyparse( );
+    printSymbolTable(currentScope); // Print the symbol table
     freeSymbolTable(currentScope); // Free the symbol table
     return 0;
 }
