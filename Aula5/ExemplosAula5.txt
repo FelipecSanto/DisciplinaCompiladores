@@ -39,22 +39,16 @@ if (a + b) { // Erro: expressão lógica com tipos incompatíveis
     d = true;
 }
 
-
 write(d);
-
-// Teste de leitura de variáveis
-// read(a);
-// read(b);
-
-// Teste de leitura com erro: variável não declarada
-// read(x); // Erro: variável não declarada
 
 // Teste de escrita de variáveis
 write(a);
 write(b);
 
 // Teste de escrita com erro: variável não declarada
-// write(x); // Erro: variável não declarada
+write(x); // Erro: variável não declaradas
+
+read(a);
 
 // Teste de condicional correto
 if (a > 5) {
@@ -87,7 +81,6 @@ if (a > 5) {
 }
 
 write(e);
-// write(f);
 
 // Teste de múltiplos operadores lógicos
 if ((a > 5 || b < 10.0) && !(c == 'x')) {

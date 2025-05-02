@@ -76,11 +76,14 @@ extern int yylineno;
 
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include <stdlib.h>
 #include <ctype.h>
 #include <limits.h>
+#include <float.h>
+#include <signal.h>
+#include <unistd.h>
 
 #define HASH_SIZE 100
 
@@ -120,12 +123,12 @@ Symbol* findSymbol(const char* id) {
 }
 
 void insertSymbol(const char* id, double value, VarType type) {
-    unsigned int index = hash(id);
     Symbol* sym = findSymbol(id);
     if (sym != NULL) {
         sym->value = value;
         sym->type = type;
     } else {
+        unsigned int index = hash(id);
         sym = malloc(sizeof(Symbol));
         sym->id = strdup(id);
         sym->value = value;
@@ -184,7 +187,7 @@ int if_condition = 1;
 int if_else_condition = 0;
 
 
-#line 188 "miniC.tab.c"
+#line 191 "miniC.tab.c"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -651,11 +654,11 @@ static const yytype_int8 yytranslate[] =
 /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int16 yyrline[] =
 {
-       0,   175,   175,   176,   177,   178,   183,   188,   193,   198,
-     208,   209,   210,   211,   216,   240,   249,   240,   257,   258,
-     258,   277,   297,   310,   319,   352,   353,   354,   355,   356,
-     357,   360,   374,   390,   404,   425,   436,   447,   458,   469,
-     484,   501,   511,   521,   533,   534
+       0,   178,   178,   179,   180,   181,   186,   191,   196,   201,
+     211,   212,   213,   214,   219,   243,   252,   243,   260,   261,
+     261,   280,   304,   317,   326,   373,   374,   375,   376,   377,
+     378,   381,   395,   411,   425,   446,   457,   468,   479,   490,
+     505,   522,   532,   542,   554,   555
 };
 #endif
 
@@ -1558,95 +1561,95 @@ yyreduce:
   switch (yyn)
     {
   case 2: /* program: %empty  */
-#line 175 "miniC.y"
+#line 178 "miniC.y"
                      {}
-#line 1564 "miniC.tab.c"
+#line 1567 "miniC.tab.c"
     break;
 
   case 3: /* program: comand program  */
-#line 176 "miniC.y"
+#line 179 "miniC.y"
                         {}
-#line 1570 "miniC.tab.c"
+#line 1573 "miniC.tab.c"
     break;
 
   case 4: /* program: declaration program  */
-#line 177 "miniC.y"
+#line 180 "miniC.y"
                              {}
-#line 1576 "miniC.tab.c"
+#line 1579 "miniC.tab.c"
     break;
 
   case 5: /* program: error program  */
-#line 178 "miniC.y"
+#line 181 "miniC.y"
                        { yyerrok; yyclearin; }
-#line 1582 "miniC.tab.c"
+#line 1585 "miniC.tab.c"
     break;
 
   case 6: /* declaration: INT ID DONE  */
-#line 183 "miniC.y"
+#line 186 "miniC.y"
                          {
                 if(if_condition == 1) {
-                    insertSymbol((yyvsp[-1].id), 0.0, TYPE_INT);
+                    insertSymbol((yyvsp[-1].id), -DBL_MAX, TYPE_INT);
                 }
            }
-#line 1592 "miniC.tab.c"
+#line 1595 "miniC.tab.c"
     break;
 
   case 7: /* declaration: FLOAT ID DONE  */
-#line 188 "miniC.y"
+#line 191 "miniC.y"
                            { 
                 if(if_condition == 1) {
-                    insertSymbol((yyvsp[-1].id), 0.0, TYPE_FLOAT);
+                    insertSymbol((yyvsp[-1].id), -DBL_MAX, TYPE_FLOAT);
                 }
            }
-#line 1602 "miniC.tab.c"
+#line 1605 "miniC.tab.c"
     break;
 
   case 8: /* declaration: CHAR ID DONE  */
-#line 193 "miniC.y"
+#line 196 "miniC.y"
                           { 
                 if(if_condition == 1) {
-                    insertSymbol((yyvsp[-1].id), 0.0, TYPE_CHAR);
+                    insertSymbol((yyvsp[-1].id), -DBL_MAX, TYPE_CHAR);
                 }
            }
-#line 1612 "miniC.tab.c"
+#line 1615 "miniC.tab.c"
     break;
 
   case 9: /* declaration: BOOL ID DONE  */
-#line 198 "miniC.y"
+#line 201 "miniC.y"
                           { 
                 if(if_condition == 1) {
-                    insertSymbol((yyvsp[-1].id), 0.0, TYPE_BOOL);
+                    insertSymbol((yyvsp[-1].id), -DBL_MAX, TYPE_BOOL);
                 }
            }
-#line 1622 "miniC.tab.c"
+#line 1625 "miniC.tab.c"
     break;
 
   case 10: /* comand: assignment  */
-#line 208 "miniC.y"
+#line 211 "miniC.y"
                    {}
-#line 1628 "miniC.tab.c"
+#line 1631 "miniC.tab.c"
     break;
 
   case 11: /* comand: if  */
-#line 209 "miniC.y"
+#line 212 "miniC.y"
            {}
-#line 1634 "miniC.tab.c"
+#line 1637 "miniC.tab.c"
     break;
 
   case 12: /* comand: write  */
-#line 210 "miniC.y"
+#line 213 "miniC.y"
               {}
-#line 1640 "miniC.tab.c"
+#line 1643 "miniC.tab.c"
     break;
 
   case 13: /* comand: read  */
-#line 211 "miniC.y"
+#line 214 "miniC.y"
              {}
-#line 1646 "miniC.tab.c"
+#line 1649 "miniC.tab.c"
     break;
 
   case 14: /* assignment: ID RECEIVE expression DONE  */
-#line 216 "miniC.y"
+#line 219 "miniC.y"
                                        { 
                 if(if_condition == 1) {
                     Symbol* symbol = findSymbol((yyvsp[-3].id));
@@ -1666,11 +1669,11 @@ yyreduce:
                     }
                 }
 		  }
-#line 1670 "miniC.tab.c"
+#line 1673 "miniC.tab.c"
     break;
 
   case 15: /* $@1: %empty  */
-#line 240 "miniC.y"
+#line 243 "miniC.y"
                                    {
         pushScope();
         if ((yyvsp[-1].number).type == TYPE_BOOL) {
@@ -1681,45 +1684,45 @@ yyreduce:
             if_condition = 0;
         }
     }
-#line 1685 "miniC.tab.c"
+#line 1688 "miniC.tab.c"
     break;
 
   case 16: /* $@2: %empty  */
-#line 249 "miniC.y"
+#line 252 "miniC.y"
                                  {
         if (if_condition == 0) {
             popScope();
             if_condition = 1;
         }
     }
-#line 1696 "miniC.tab.c"
+#line 1699 "miniC.tab.c"
     break;
 
   case 17: /* if: IF LEFTPAR expression RIGHTPAR $@1 LEFTKEYS program RIGHTKEYS $@2 else  */
-#line 254 "miniC.y"
+#line 257 "miniC.y"
            {}
-#line 1702 "miniC.tab.c"
+#line 1705 "miniC.tab.c"
     break;
 
   case 18: /* else: %empty  */
-#line 257 "miniC.y"
+#line 260 "miniC.y"
                   {}
-#line 1708 "miniC.tab.c"
+#line 1711 "miniC.tab.c"
     break;
 
   case 19: /* $@3: %empty  */
-#line 258 "miniC.y"
+#line 261 "miniC.y"
                     {
         pushScope();
         if (if_else_condition == 1) {
             if_condition = 0;
         } 
     }
-#line 1719 "miniC.tab.c"
+#line 1722 "miniC.tab.c"
     break;
 
   case 20: /* else: ELSE LEFTKEYS $@3 program RIGHTKEYS  */
-#line 263 "miniC.y"
+#line 266 "miniC.y"
                         {
         if (if_condition == 0) {
             if_condition = 1;
@@ -1729,36 +1732,40 @@ yyreduce:
             popScope();
         }
     }
-#line 1733 "miniC.tab.c"
+#line 1736 "miniC.tab.c"
     break;
 
   case 21: /* write: WRITE LEFTPAR ID RIGHTPAR DONE  */
-#line 277 "miniC.y"
+#line 280 "miniC.y"
                                       {
         if (if_condition == 1) {
             Symbol* sym = findSymbol((yyvsp[-2].id));
             if (sym == NULL) {
                 fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", (yyvsp[-2].id), yylineno);
             }
-            if (sym->type == TYPE_INT) {
-                printf("%s = %d (Type == INT)\n", (yyvsp[-2].id), (int)sym->value);
-            } else if (sym->type == TYPE_BOOL) {
-                printf("%s = %d (Type == BOOL)\n", (yyvsp[-2].id), (int)sym->value);
-            } else if (sym->type == TYPE_FLOAT) {
-                printf("%s = %.2lf (Type == FLOAT)\n", (yyvsp[-2].id), sym->value);
-            } else if (sym->type == TYPE_CHAR) {
-                printf("%s = %c (Type == CHAR)\n", (yyvsp[-2].id), (char)sym->value);
-            } else {
-                fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", (yyvsp[-2].id), yylineno);
-                
+            else if(sym->value == -DBL_MAX) {
+                fprintf(stderr, "Error: variable '%s' is uninitialized at line %d.\n", (yyvsp[-2].id), yylineno);
+            }
+            else {
+                if (sym->type == TYPE_INT) {
+                    printf("%s = %d (Type == INT)\n", (yyvsp[-2].id), (int)sym->value);
+                } else if (sym->type == TYPE_BOOL) {
+                    printf("%s = %d (Type == BOOL)\n", (yyvsp[-2].id), (int)sym->value);
+                } else if (sym->type == TYPE_FLOAT) {
+                    printf("%s = %.2lf (Type == FLOAT)\n", (yyvsp[-2].id), sym->value);
+                } else if (sym->type == TYPE_CHAR) {
+                    printf("%s = %c (Type == CHAR)\n", (yyvsp[-2].id), (char)sym->value);
+                } else {
+                    fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", (yyvsp[-2].id), yylineno);
+                }
             }
         }
      }
-#line 1758 "miniC.tab.c"
+#line 1765 "miniC.tab.c"
     break;
 
   case 22: /* write: WRITE LEFTPAR NUMBER RIGHTPAR DONE  */
-#line 297 "miniC.y"
+#line 304 "miniC.y"
                                           {
         if (if_condition == 1) {
             if ((yyvsp[-2].number).type == TYPE_INT) {
@@ -1772,91 +1779,105 @@ yyreduce:
             }
         }
      }
-#line 1776 "miniC.tab.c"
+#line 1783 "miniC.tab.c"
     break;
 
   case 23: /* write: WRITE LEFTPAR STRING RIGHTPAR DONE  */
-#line 310 "miniC.y"
+#line 317 "miniC.y"
                                           { 
         if (if_condition == 1) {
             printf("%s\n", (yyvsp[-2].id));
         }
         free((yyvsp[-2].id)); // Free the string after printing
      }
-#line 1787 "miniC.tab.c"
+#line 1794 "miniC.tab.c"
     break;
 
   case 24: /* read: READ LEFTPAR ID RIGHTPAR DONE  */
-#line 319 "miniC.y"
+#line 326 "miniC.y"
                                     {
         if (if_condition == 1) {
             Symbol* sym = findSymbol((yyvsp[-2].id));
             if (sym == NULL) {
                 fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", (yyvsp[-2].id), yylineno);
             }
-            printf("Enter value for variable '%s': ", (yyvsp[-2].id));
-            if (sym->type == TYPE_INT) {
-                int value;
-                scanf("%d", &value);
-                insertSymbol(sym->id, value, TYPE_INT);
-            } else if (sym->type == TYPE_FLOAT) {
-                double value;
-                scanf("%lf", &value);
-                insertSymbol(sym->id, value, TYPE_FLOAT);
-            } else if (sym->type == TYPE_CHAR) {
-                char value;
-                scanf(" %c", &value);
-                insertSymbol(sym->id, value, TYPE_CHAR);
-            } else if (sym->type == TYPE_BOOL) {
-                double value;
-                scanf("%lf", &value);
-                insertSymbol(sym->id, value ? 1.0 : 0.0, TYPE_BOOL);
-            } else {
-                fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", sym->id, yylineno);
+            else {
+                FILE* input = fopen("/dev/tty", "r");
+                if (input == NULL) {
+                    fprintf(stderr, "Error: unable to read from keyboard.\n");
+                    exit(1);
+                }
+                switch (sym->type) {
+                        case TYPE_INT: printf("Enter value for variable '%s with Type == INT': ", (yyvsp[-2].id)); break;
+                        case TYPE_BOOL: printf("Enter value for variable '%s with Type == BOOL': ", (yyvsp[-2].id)); break;
+                        case TYPE_FLOAT: printf("Enter value for variable '%s with Type == FLOAT': ", (yyvsp[-2].id)); break;
+                        case TYPE_CHAR: printf("Enter value for variable '%s with Type == CHAR': ", (yyvsp[-2].id)); break;
+                        default: break;
+                }
+                if (sym->type == TYPE_INT) {
+                    int value = 0;
+                    fscanf(input, "%d", &value);
+                    insertSymbol(sym->id, (double)value, TYPE_INT);
+                } else if (sym->type == TYPE_FLOAT) {
+                    double value = 0.0;
+                    fscanf(input, "%lf", &value);
+                    insertSymbol(sym->id, value, TYPE_FLOAT);
+                } else if (sym->type == TYPE_CHAR) {
+                    char value = 'a';
+                    fscanf(input, " %c", &value);
+                    insertSymbol(sym->id, value, TYPE_CHAR);
+                } else if (sym->type == TYPE_BOOL) {
+                    double value = 0.0;
+                    fscanf(input, "%lf", &value);
+                    insertSymbol(sym->id, value ? 1.0 : 0.0, TYPE_BOOL);
+                } else {
+                    fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", sym->id, yylineno);
+                }
+                fclose(input);
             }
         }
     }
-#line 1820 "miniC.tab.c"
+#line 1841 "miniC.tab.c"
     break;
 
   case 25: /* expression: soma_sub  */
-#line 352 "miniC.y"
+#line 373 "miniC.y"
                      { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; }
-#line 1826 "miniC.tab.c"
+#line 1847 "miniC.tab.c"
     break;
 
   case 26: /* expression: mult_div  */
-#line 353 "miniC.y"
+#line 374 "miniC.y"
                              { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; }
-#line 1832 "miniC.tab.c"
+#line 1853 "miniC.tab.c"
     break;
 
   case 27: /* expression: LEFTPAR expression RIGHTPAR  */
-#line 354 "miniC.y"
+#line 375 "miniC.y"
                                         { (yyval.number).value = (yyvsp[-1].number).value; (yyval.number).type = (yyvsp[-1].number).type; }
-#line 1838 "miniC.tab.c"
+#line 1859 "miniC.tab.c"
     break;
 
   case 28: /* expression: comparison  */
-#line 355 "miniC.y"
+#line 376 "miniC.y"
                        { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; }
-#line 1844 "miniC.tab.c"
+#line 1865 "miniC.tab.c"
     break;
 
   case 29: /* expression: log_exp  */
-#line 356 "miniC.y"
+#line 377 "miniC.y"
                     { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; }
-#line 1850 "miniC.tab.c"
+#line 1871 "miniC.tab.c"
     break;
 
   case 30: /* expression: term  */
-#line 357 "miniC.y"
+#line 378 "miniC.y"
                          { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; }
-#line 1856 "miniC.tab.c"
+#line 1877 "miniC.tab.c"
     break;
 
   case 31: /* soma_sub: expression PLUS expression  */
-#line 360 "miniC.y"
+#line 381 "miniC.y"
                                      { 
                 if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value + (yyvsp[0].number).value;
@@ -1871,11 +1892,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }   
         }
-#line 1875 "miniC.tab.c"
+#line 1896 "miniC.tab.c"
     break;
 
   case 32: /* soma_sub: expression MIN expression  */
-#line 374 "miniC.y"
+#line 395 "miniC.y"
                                      { 
                 if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value - (yyvsp[0].number).value;
@@ -1890,11 +1911,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
         }
-#line 1894 "miniC.tab.c"
+#line 1915 "miniC.tab.c"
     break;
 
   case 33: /* mult_div: expression MULT expression  */
-#line 390 "miniC.y"
+#line 411 "miniC.y"
                                      { 
                 if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value * (yyvsp[0].number).value;
@@ -1909,11 +1930,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
         }
-#line 1913 "miniC.tab.c"
+#line 1934 "miniC.tab.c"
     break;
 
   case 34: /* mult_div: expression DIV expression  */
-#line 404 "miniC.y"
+#line 425 "miniC.y"
                                              { 
                 if ((yyvsp[0].number).value == 0.0) {
                         fprintf(stderr, "Error: division by zero at line %d.\n", yylineno);
@@ -1933,11 +1954,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
 		}
-#line 1937 "miniC.tab.c"
+#line 1958 "miniC.tab.c"
     break;
 
   case 35: /* comparison: expression LESS expression  */
-#line 425 "miniC.y"
+#line 446 "miniC.y"
                                          { 
                 if(((yyvsp[-2].number).type == TYPE_INT || (yyvsp[-2].number).type == TYPE_FLOAT) && ((yyvsp[0].number).type == TYPE_INT || (yyvsp[0].number).type == TYPE_FLOAT)) {
                     (yyval.number).value = (yyvsp[-2].number).value < (yyvsp[0].number).value;
@@ -1949,11 +1970,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
           }
-#line 1953 "miniC.tab.c"
+#line 1974 "miniC.tab.c"
     break;
 
   case 36: /* comparison: expression GREAT expression  */
-#line 436 "miniC.y"
+#line 457 "miniC.y"
                                          { 
                 if(((yyvsp[-2].number).type == TYPE_INT || (yyvsp[-2].number).type == TYPE_FLOAT) && ((yyvsp[0].number).type == TYPE_INT || (yyvsp[0].number).type == TYPE_FLOAT)) {
                     (yyval.number).value = (yyvsp[-2].number).value > (yyvsp[0].number).value;
@@ -1965,11 +1986,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
           }
-#line 1969 "miniC.tab.c"
+#line 1990 "miniC.tab.c"
     break;
 
   case 37: /* comparison: expression LEQUAL expression  */
-#line 447 "miniC.y"
+#line 468 "miniC.y"
                                          { 
                 if(((yyvsp[-2].number).type == TYPE_INT || (yyvsp[-2].number).type == TYPE_FLOAT) && ((yyvsp[0].number).type == TYPE_INT || (yyvsp[0].number).type == TYPE_FLOAT)) {
                     (yyval.number).value = (yyvsp[-2].number).value <= (yyvsp[0].number).value;
@@ -1981,11 +2002,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
           }
-#line 1985 "miniC.tab.c"
+#line 2006 "miniC.tab.c"
     break;
 
   case 38: /* comparison: expression GEQUAL expression  */
-#line 458 "miniC.y"
+#line 479 "miniC.y"
                                          { 
                 if(((yyvsp[-2].number).type == TYPE_INT || (yyvsp[-2].number).type == TYPE_FLOAT) && ((yyvsp[0].number).type == TYPE_INT || (yyvsp[0].number).type == TYPE_FLOAT)) {
                     (yyval.number).value = (yyvsp[-2].number).value >= (yyvsp[0].number).value;
@@ -1997,11 +2018,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
           }
-#line 2001 "miniC.tab.c"
+#line 2022 "miniC.tab.c"
     break;
 
   case 39: /* comparison: expression EQUAL expression  */
-#line 469 "miniC.y"
+#line 490 "miniC.y"
                                          { 
                 if(((yyvsp[-2].number).type == TYPE_INT || (yyvsp[-2].number).type == TYPE_FLOAT || (yyvsp[-2].number).type == TYPE_BOOL) && ((yyvsp[0].number).type == TYPE_INT || (yyvsp[0].number).type == TYPE_FLOAT || (yyvsp[0].number).type == TYPE_BOOL)) {
                     (yyval.number).value = (yyvsp[-2].number).value == (yyvsp[0].number).value;
@@ -2017,11 +2038,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
           }
-#line 2021 "miniC.tab.c"
+#line 2042 "miniC.tab.c"
     break;
 
   case 40: /* comparison: expression NEQUAL expression  */
-#line 484 "miniC.y"
+#line 505 "miniC.y"
                                          { 
                 if(((yyvsp[-2].number).type == TYPE_INT || (yyvsp[-2].number).type == TYPE_FLOAT || (yyvsp[-2].number).type == TYPE_BOOL) && ((yyvsp[0].number).type == TYPE_INT || (yyvsp[0].number).type == TYPE_FLOAT || (yyvsp[0].number).type == TYPE_BOOL)) {
                     (yyval.number).value = (yyvsp[-2].number).value != (yyvsp[0].number).value;
@@ -2037,11 +2058,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
            }
-#line 2041 "miniC.tab.c"
+#line 2062 "miniC.tab.c"
     break;
 
   case 41: /* log_exp: expression AND expression  */
-#line 501 "miniC.y"
+#line 522 "miniC.y"
                                    { 
             if ((yyvsp[-2].number).type == TYPE_BOOL && (yyvsp[0].number).type == TYPE_BOOL) {
                 (yyval.number).value = (yyvsp[-2].number).value && (yyvsp[0].number).value;
@@ -2052,11 +2073,11 @@ yyreduce:
                 (yyval.number).type = TYPE_UNKNOWN;
             }
        }
-#line 2056 "miniC.tab.c"
+#line 2077 "miniC.tab.c"
     break;
 
   case 42: /* log_exp: expression OR expression  */
-#line 511 "miniC.y"
+#line 532 "miniC.y"
                                    { 
             if ((yyvsp[-2].number).type == TYPE_BOOL && (yyvsp[0].number).type == TYPE_BOOL) {
                 (yyval.number).value = (yyvsp[-2].number).value || (yyvsp[0].number).value;
@@ -2067,11 +2088,11 @@ yyreduce:
                 (yyval.number).type = TYPE_UNKNOWN;
             }
        }
-#line 2071 "miniC.tab.c"
+#line 2092 "miniC.tab.c"
     break;
 
   case 43: /* log_exp: NOT expression  */
-#line 521 "miniC.y"
+#line 542 "miniC.y"
                         { 
             if ((yyvsp[0].number).type == TYPE_BOOL) {
                 (yyval.number).value = !(yyvsp[0].number).value;
@@ -2082,17 +2103,17 @@ yyreduce:
                 (yyval.number).type = TYPE_UNKNOWN;
             }
         }
-#line 2086 "miniC.tab.c"
+#line 2107 "miniC.tab.c"
     break;
 
   case 44: /* term: NUMBER  */
-#line 533 "miniC.y"
+#line 554 "miniC.y"
              { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; }
-#line 2092 "miniC.tab.c"
+#line 2113 "miniC.tab.c"
     break;
 
   case 45: /* term: ID  */
-#line 534 "miniC.y"
+#line 555 "miniC.y"
          { 
         Symbol* sym = findSymbol((yyvsp[0].id));
         if (!sym) {
@@ -2100,15 +2121,21 @@ yyreduce:
             (yyval.number).value = -1;
             (yyval.number).type = TYPE_UNKNOWN;
         } else {
-            (yyval.number).value = sym->value;
-            (yyval.number).type = sym->type;
+            if (sym->value == -DBL_MAX) {
+                fprintf(stderr, "Uninitialized variable '%s' at line %d\n", (yyvsp[0].id), yylineno);
+                (yyval.number).value = -1;
+                (yyval.number).type = TYPE_UNKNOWN;
+            } else {
+                (yyval.number).value = sym->value;
+                (yyval.number).type = sym->type;
+            }
         }
     }
-#line 2108 "miniC.tab.c"
+#line 2135 "miniC.tab.c"
     break;
 
 
-#line 2112 "miniC.tab.c"
+#line 2139 "miniC.tab.c"
 
       default: break;
     }
@@ -2332,7 +2359,7 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 548 "miniC.y"
+#line 575 "miniC.y"
 
 
 int yywrap( ) {
@@ -2341,6 +2368,11 @@ int yywrap( ) {
 
 void yyerror(const char* str) {
     fprintf(stderr, "Compilation error at line %d: '%s'.\n", yylineno, str);
+}
+
+void handleSegfault(int sig) {
+    fprintf(stderr, "Segmentation fault (signal %d). Exiting gracefully.\n", sig);
+    exit(1);
 }
 
 void printSymbolTable(SymbolTable* table) {
@@ -2352,17 +2384,23 @@ void printSymbolTable(SymbolTable* table) {
         for (int i = 0; i < HASH_SIZE; i++) {
             Symbol* sym = table->table[i];
             while (sym != NULL) {
-                const char* typeStr;
                 if(sym->value >= INT_MAX - 10 || sym->value <= INT_MIN + 10) {
-                    printf("| %-10s | %-10s | %-10s |\n", sym->id, "UNKNOWN", "UNKNOWN");
+                    switch (sym->type) {
+                        case TYPE_INT: printf("| %-10s | %-10s | %-10s |\n", sym->id, "UNKNOWN", "INT"); break;
+                        case TYPE_BOOL: printf("| %-10s | %-10s | %-10s |\n", sym->id, "UNKNOWN", "BOOL"); break;
+                        case TYPE_FLOAT: printf("| %-10s | %-10s | %-10s |\n", sym->id, "UNKNOWN", "FLOAT"); break;
+                        case TYPE_CHAR: printf("| %-10s | %-10s | %-10s |\n", sym->id, "UNKNOWN", "CHAR"); break;
+                        default: break;
+                    }
                 }
                 else {
                     switch (sym->type) {
-                        case TYPE_INT: typeStr = "INT"; printf("| %-10s | %-10d | %-10s |\n", sym->id, (int)sym->value, typeStr); break;
-                        case TYPE_BOOL: typeStr = "BOOL"; printf("| %-10s | %-10d | %-10s |\n", sym->id, (int)sym->value, typeStr); break;
-                        case TYPE_FLOAT: typeStr = "FLOAT"; printf("| %-10s | %-10.2lf | %-10s |\n", sym->id, sym->value, typeStr); break;
-                        case TYPE_CHAR: typeStr = "CHAR"; printf("| %-10s | %-10c | %-10s |\n", sym->id, (char)sym->value, typeStr); break;
-                        default: typeStr = "UNKNOWN"; break;
+                        case TYPE_INT: printf("| %-10s | %-10d | %-10s |\n", sym->id, (int)sym->value, "INT"); break;
+                        case TYPE_BOOL: printf("| %-10s | %-10d | %-10s |\n", sym->id, (int)sym->value, "BOOL"); break;
+                        case TYPE_FLOAT: printf("| %-10s | %-10.2lf | %-10s |\n", sym->id, sym->value, "FLOAT"); break;
+                        case TYPE_CHAR: printf("| %-10s | %-10c | %-10s |\n", sym->id, (char)sym->value, "CHAR"); break;
+                        case TYPE_UNKNOWN: printf("| %-10s | %-10s | %-10s |\n", sym->id, "UNKNOWN", "UNKNOWN"); break;
+                        default: break;
                     }
                 }
                 sym = sym->next;
@@ -2374,6 +2412,7 @@ void printSymbolTable(SymbolTable* table) {
 }
 
 int main( ) {
+    signal(SIGSEGV, handleSegfault); // Handle segmentation faults
     pushScope(); // Initialize the first scope
     yyparse( );
     printSymbolTable(currentScope); // Print the symbol table

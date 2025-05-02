@@ -7,11 +7,14 @@ extern int yylineno;
 %{
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include <stdlib.h>
 #include <ctype.h>
 #include <limits.h>
+#include <float.h>
+#include <signal.h>
+#include <unistd.h>
 
 #define HASH_SIZE 100
 
@@ -51,12 +54,12 @@ Symbol* findSymbol(const char* id) {
 }
 
 void insertSymbol(const char* id, double value, VarType type) {
-    unsigned int index = hash(id);
     Symbol* sym = findSymbol(id);
     if (sym != NULL) {
         sym->value = value;
         sym->type = type;
     } else {
+        unsigned int index = hash(id);
         sym = malloc(sizeof(Symbol));
         sym->id = strdup(id);
         sym->value = value;
@@ -182,22 +185,22 @@ program: /* empty */ {}
 
 declaration: INT ID DONE {
                 if(if_condition == 1) {
-                    insertSymbol($2, 0.0, TYPE_INT);
+                    insertSymbol($2, -DBL_MAX, TYPE_INT);
                 }
            }
            | FLOAT ID DONE { 
                 if(if_condition == 1) {
-                    insertSymbol($2, 0.0, TYPE_FLOAT);
+                    insertSymbol($2, -DBL_MAX, TYPE_FLOAT);
                 }
            }
            | CHAR ID DONE { 
                 if(if_condition == 1) {
-                    insertSymbol($2, 0.0, TYPE_CHAR);
+                    insertSymbol($2, -DBL_MAX, TYPE_CHAR);
                 }
            }
            | BOOL ID DONE { 
                 if(if_condition == 1) {
-                    insertSymbol($2, 0.0, TYPE_BOOL);
+                    insertSymbol($2, -DBL_MAX, TYPE_BOOL);
                 }
            }
            ;
@@ -280,17 +283,21 @@ write: WRITE LEFTPAR ID RIGHTPAR DONE {
             if (sym == NULL) {
                 fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", $3, yylineno);
             }
-            if (sym->type == TYPE_INT) {
-                printf("%s = %d (Type == INT)\n", $3, (int)sym->value);
-            } else if (sym->type == TYPE_BOOL) {
-                printf("%s = %d (Type == BOOL)\n", $3, (int)sym->value);
-            } else if (sym->type == TYPE_FLOAT) {
-                printf("%s = %.2lf (Type == FLOAT)\n", $3, sym->value);
-            } else if (sym->type == TYPE_CHAR) {
-                printf("%s = %c (Type == CHAR)\n", $3, (char)sym->value);
-            } else {
-                fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", $3, yylineno);
-                
+            else if(sym->value == -DBL_MAX) {
+                fprintf(stderr, "Error: variable '%s' is uninitialized at line %d.\n", $3, yylineno);
+            }
+            else {
+                if (sym->type == TYPE_INT) {
+                    printf("%s = %d (Type == INT)\n", $3, (int)sym->value);
+                } else if (sym->type == TYPE_BOOL) {
+                    printf("%s = %d (Type == BOOL)\n", $3, (int)sym->value);
+                } else if (sym->type == TYPE_FLOAT) {
+                    printf("%s = %.2lf (Type == FLOAT)\n", $3, sym->value);
+                } else if (sym->type == TYPE_CHAR) {
+                    printf("%s = %c (Type == CHAR)\n", $3, (char)sym->value);
+                } else {
+                    fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", $3, yylineno);
+                }
             }
         }
      }
@@ -322,25 +329,39 @@ read: READ LEFTPAR ID RIGHTPAR DONE {
             if (sym == NULL) {
                 fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", $3, yylineno);
             }
-            printf("Enter value for variable '%s': ", $3);
-            if (sym->type == TYPE_INT) {
-                int value;
-                scanf("%d", &value);
-                insertSymbol(sym->id, value, TYPE_INT);
-            } else if (sym->type == TYPE_FLOAT) {
-                double value;
-                scanf("%lf", &value);
-                insertSymbol(sym->id, value, TYPE_FLOAT);
-            } else if (sym->type == TYPE_CHAR) {
-                char value;
-                scanf(" %c", &value);
-                insertSymbol(sym->id, value, TYPE_CHAR);
-            } else if (sym->type == TYPE_BOOL) {
-                double value;
-                scanf("%lf", &value);
-                insertSymbol(sym->id, value ? 1.0 : 0.0, TYPE_BOOL);
-            } else {
-                fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", sym->id, yylineno);
+            else {
+                FILE* input = fopen("/dev/tty", "r");
+                if (input == NULL) {
+                    fprintf(stderr, "Error: unable to read from keyboard.\n");
+                    exit(1);
+                }
+                switch (sym->type) {
+                        case TYPE_INT: printf("Enter value for variable '%s with Type == INT': ", $3); break;
+                        case TYPE_BOOL: printf("Enter value for variable '%s with Type == BOOL': ", $3); break;
+                        case TYPE_FLOAT: printf("Enter value for variable '%s with Type == FLOAT': ", $3); break;
+                        case TYPE_CHAR: printf("Enter value for variable '%s with Type == CHAR': ", $3); break;
+                        default: break;
+                }
+                if (sym->type == TYPE_INT) {
+                    int value = 0;
+                    fscanf(input, "%d", &value);
+                    insertSymbol(sym->id, (double)value, TYPE_INT);
+                } else if (sym->type == TYPE_FLOAT) {
+                    double value = 0.0;
+                    fscanf(input, "%lf", &value);
+                    insertSymbol(sym->id, value, TYPE_FLOAT);
+                } else if (sym->type == TYPE_CHAR) {
+                    char value = 'a';
+                    fscanf(input, " %c", &value);
+                    insertSymbol(sym->id, value, TYPE_CHAR);
+                } else if (sym->type == TYPE_BOOL) {
+                    double value = 0.0;
+                    fscanf(input, "%lf", &value);
+                    insertSymbol(sym->id, value ? 1.0 : 0.0, TYPE_BOOL);
+                } else {
+                    fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", sym->id, yylineno);
+                }
+                fclose(input);
             }
         }
     }
@@ -538,8 +559,14 @@ term: NUMBER { $$.value = $1.value; $$.type = $1.type; }
             $$.value = -1;
             $$.type = TYPE_UNKNOWN;
         } else {
-            $$.value = sym->value;
-            $$.type = sym->type;
+            if (sym->value == -DBL_MAX) {
+                fprintf(stderr, "Uninitialized variable '%s' at line %d\n", $1, yylineno);
+                $$.value = -1;
+                $$.type = TYPE_UNKNOWN;
+            } else {
+                $$.value = sym->value;
+                $$.type = sym->type;
+            }
         }
     }
 	;
@@ -555,6 +582,11 @@ void yyerror(const char* str) {
     fprintf(stderr, "Compilation error at line %d: '%s'.\n", yylineno, str);
 }
 
+void handleSegfault(int sig) {
+    fprintf(stderr, "Segmentation fault (signal %d). Exiting gracefully.\n", sig);
+    exit(1);
+}
+
 void printSymbolTable(SymbolTable* table) {
     printf("\nSymbol Table:\n");
     printf("-------------------------------------------------\n");
@@ -564,17 +596,23 @@ void printSymbolTable(SymbolTable* table) {
         for (int i = 0; i < HASH_SIZE; i++) {
             Symbol* sym = table->table[i];
             while (sym != NULL) {
-                const char* typeStr;
                 if(sym->value >= INT_MAX - 10 || sym->value <= INT_MIN + 10) {
-                    printf("| %-10s | %-10s | %-10s |\n", sym->id, "UNKNOWN", "UNKNOWN");
+                    switch (sym->type) {
+                        case TYPE_INT: printf("| %-10s | %-10s | %-10s |\n", sym->id, "UNKNOWN", "INT"); break;
+                        case TYPE_BOOL: printf("| %-10s | %-10s | %-10s |\n", sym->id, "UNKNOWN", "BOOL"); break;
+                        case TYPE_FLOAT: printf("| %-10s | %-10s | %-10s |\n", sym->id, "UNKNOWN", "FLOAT"); break;
+                        case TYPE_CHAR: printf("| %-10s | %-10s | %-10s |\n", sym->id, "UNKNOWN", "CHAR"); break;
+                        default: break;
+                    }
                 }
                 else {
                     switch (sym->type) {
-                        case TYPE_INT: typeStr = "INT"; printf("| %-10s | %-10d | %-10s |\n", sym->id, (int)sym->value, typeStr); break;
-                        case TYPE_BOOL: typeStr = "BOOL"; printf("| %-10s | %-10d | %-10s |\n", sym->id, (int)sym->value, typeStr); break;
-                        case TYPE_FLOAT: typeStr = "FLOAT"; printf("| %-10s | %-10.2lf | %-10s |\n", sym->id, sym->value, typeStr); break;
-                        case TYPE_CHAR: typeStr = "CHAR"; printf("| %-10s | %-10c | %-10s |\n", sym->id, (char)sym->value, typeStr); break;
-                        default: typeStr = "UNKNOWN"; break;
+                        case TYPE_INT: printf("| %-10s | %-10d | %-10s |\n", sym->id, (int)sym->value, "INT"); break;
+                        case TYPE_BOOL: printf("| %-10s | %-10d | %-10s |\n", sym->id, (int)sym->value, "BOOL"); break;
+                        case TYPE_FLOAT: printf("| %-10s | %-10.2lf | %-10s |\n", sym->id, sym->value, "FLOAT"); break;
+                        case TYPE_CHAR: printf("| %-10s | %-10c | %-10s |\n", sym->id, (char)sym->value, "CHAR"); break;
+                        case TYPE_UNKNOWN: printf("| %-10s | %-10s | %-10s |\n", sym->id, "UNKNOWN", "UNKNOWN"); break;
+                        default: break;
                     }
                 }
                 sym = sym->next;
@@ -586,6 +624,7 @@ void printSymbolTable(SymbolTable* table) {
 }
 
 int main( ) {
+    signal(SIGSEGV, handleSegfault); // Handle segmentation faults
     pushScope(); // Initialize the first scope
     yyparse( );
     printSymbolTable(currentScope); // Print the symbol table
