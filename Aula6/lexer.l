@@ -1,10 +1,13 @@
 %{
 
+#include <llvm-c/Core.h>
+#include <llvm-c/Analysis.h>
+#include <llvm-c/Target.h>
+#include <llvm-c/ExecutionEngine.h>
 #include <stdio.h>
 #include <string.h>
 #include "VarType.h"
 #include "miniC.tab.h"
-
 
 %}
 

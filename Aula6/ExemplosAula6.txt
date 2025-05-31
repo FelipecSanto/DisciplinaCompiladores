@@ -10,10 +10,10 @@ b = 2.5;
 c = 'x';
 d = true;
 
-write(a);
-write(b);
-write(c);
-write(d); // Erro: tipo bool não suportado em write (dependendo da sua implementação)
+// write(a);
+// write(b);
+// write(c);
+// write(d);
 
 a = b + 1; // Erro semântico: atribuição float para int sem cast explícito
 
@@ -21,35 +21,37 @@ b = a / 0; // Erro semântico: divisão por zero
 
 e = 5; // Erro semântico: variável não declarada
 
-if (a < b) {
-    a = a + 1;
-    if (d) {
-        b = b * 2;
-    } else  {
-        c = 'y';
+if (a > 0) {
+    b = a + b;
+    if (b > 0) {
+        a = 25;
+        if (d) {
+            a = 5 * (7 + b);
+        }
     }
-} else {
-    b = b - 1;
-    f = 3; // Erro semântico: variável não declarada
-}
-
-while (a < 20) {
-    a = a + 1;
-    if (a == 15) {
-        // break // Erro sintático: break não implementado
+    else {
+        b = 5.5;
     }
 }
+else {
+    a = a + b;
+}
 
-read(a);
-read(b);
-read(c);
-read(d);
+while (a > 0) {
+    b = b + 1;
+    a = a - 1;
+}
 
-write("Fim do teste!");
+// read(a);
+// read(b);
+// read(c);
+// read(d);
+
+// write("Fim do teste!");
 
 @ // Erro léxico: caractere inválido
 
-int g
-g = 2; // Erro sintático: falta de ponto e vírgula na declaração acima
+int g   // Erro sintático: falta de ponto e vírgula na declaração
+g = 2; 
 
-write(g); // Erro semântico: variável não inicializada (dependendo da sua implementação)
+// write(g); // Erro semântico: variável não inicializada (dependendo da sua implementação)

@@ -1,4 +1,3 @@
-// filepath: /home/felipe/Documentos/Compiladores/Aula5/miniC.h
 #ifndef MINIC_H
 #define MINIC_H
 

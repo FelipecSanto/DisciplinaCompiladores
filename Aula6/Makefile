@@ -2,7 +2,7 @@
 all:
 	bison -d miniC.y -o miniC.tab.c -Wcounterexamples
 	flex -l -o lexer.yy.c lexer.l
-	gcc miniC.tab.c lexer.yy.c -Wall -Wno-unused-function -o tinycompiler
+	gcc -g miniC.tab.c lexer.yy.c -Wall -Wno-unused-function -o tinycompiler `llvm-config --cflags --ldflags --libs core` -rdynamic
 	./tinycompiler < ExemplosAula6.txt
 
 clear:

@@ -93,16 +93,22 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 193 "miniC.y"
+#line 177 "miniC.y"
 
     struct {
         double value;
         VarType type;
-        char* result;
+        LLVMValueRef llvm_value;
     } number;
+    struct {
+        LLVMBasicBlockRef ifBB, elseBB, endIFBB;
+    } if_else_blocks;
+    struct {
+        LLVMBasicBlockRef condBB, bodyBB, endWHILEBB;
+    } while_blocks;
     char* id;
 
-#line 106 "miniC.tab.h"
+#line 112 "miniC.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

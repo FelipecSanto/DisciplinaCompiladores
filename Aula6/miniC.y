@@ -1,10 +1,5 @@
 %{
 #include "VarType.h"
-int yylex();
-extern int yylineno;
-%}
-
-%{
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,77 +10,12 @@ extern int yylineno;
 #include <float.h>
 #include <signal.h>
 #include <unistd.h>
-
-#define MAX_TAC 1000
-
-typedef struct TAC {
-    char* op;       // Operação (e.g., "IF", "GOTO", "+", "-", etc.)
-    char* arg1;     // Primeiro argumento
-    char* arg2;     // Segundo argumento (se aplicável)
-    char* result;   // Resultado ou label
-} TAC;
-
-TAC tacBuffer[MAX_TAC];
-int tacIndex = 0;
-int labelCount = 0; // Para gerar labels únicos
-char label[10];
-char label0[10];
-
-void addTAC(const char* op, const char* arg1, const char* arg2, const char* result) {
-    if (tacIndex >= MAX_TAC) {
-        fprintf(stderr, "Error: TAC buffer overflow.\n");
-        exit(1);
-    }
-    tacBuffer[tacIndex].op = op ? strdup(op) : NULL;
-    tacBuffer[tacIndex].arg1 = arg1 ? strdup(arg1) : NULL;
-    tacBuffer[tacIndex].arg2 = arg2 ? strdup(arg2) : NULL;
-    tacBuffer[tacIndex].result = result ? strdup(result) : NULL;
-    tacIndex++;
-}
-
-void printTAC() {
-    printf("\nThree-Address Code:\n");
-    for (int i = 0; i < tacIndex; i++) {
-        if (tacBuffer[i].op &&
-            strcmp(tacBuffer[i].op, "+") != 0 &&
-            strcmp(tacBuffer[i].op, "-") != 0 &&
-            strcmp(tacBuffer[i].op, "*") != 0 &&
-            strcmp(tacBuffer[i].op, "/") != 0 &&
-            strcmp(tacBuffer[i].op, ">") != 0 &&
-            strcmp(tacBuffer[i].op, "<") != 0 &&
-            strcmp(tacBuffer[i].op, ">=") != 0 &&
-            strcmp(tacBuffer[i].op, "<=") != 0 &&
-            strcmp(tacBuffer[i].op, "==") != 0 &&
-            strcmp(tacBuffer[i].op, "!=") != 0 &&
-            strcmp(tacBuffer[i].op, "&&") != 0 &&
-            strcmp(tacBuffer[i].op, "||") != 0 &&
-            strcmp(tacBuffer[i].op, "!") != 0 &&
-            strcmp(tacBuffer[i].op, "(int)") != 0 &&
-            strcmp(tacBuffer[i].op, "(float)") != 0 &&
-            strcmp(tacBuffer[i].op, "(char)") != 0 &&
-            strcmp(tacBuffer[i].op, "(bool)") != 0){
-            
-            if(strcmp(tacBuffer[i].arg1, ":") != 0) {
-                printf("\t%s %s %s %s\n",
-                    tacBuffer[i].op,
-                    tacBuffer[i].arg1 ? tacBuffer[i].arg1 : "",
-                    tacBuffer[i].arg2 ? tacBuffer[i].arg2 : "",
-                    tacBuffer[i].result ? tacBuffer[i].result : "");
-            } else {
-                printf("%s%s",
-                    tacBuffer[i].op,
-                    tacBuffer[i].arg1 ? tacBuffer[i].arg1 : "");
-            }
-        } else {
-            printf("\t%s = %s %s %s\n",
-                tacBuffer[i].result ? tacBuffer[i].result : "",
-                tacBuffer[i].arg1 ? tacBuffer[i].arg1 : "",
-                tacBuffer[i].op ? tacBuffer[i].op : "",
-                tacBuffer[i].arg2 ? tacBuffer[i].arg2 : "");
-        }
-    }
-    printf("\n");
-}
+#include <stdint.h>
+#include <execinfo.h>
+#include <llvm-c/Core.h>
+#include <llvm-c/Analysis.h>
+#include <llvm-c/Target.h>
+#include <llvm-c/ExecutionEngine.h>
 
 #define HASH_SIZE 100
 
@@ -125,18 +55,20 @@ Symbol* findSymbol(const char* id) {
 }
 
 void insertSymbol(const char* id, double value, VarType type) {
-    Symbol* sym = findSymbol(id);
-    if (sym != NULL) {
-        sym->value = value;
-        sym->type = type;
-    } else {
-        unsigned int index = hash(id);
-        sym = malloc(sizeof(Symbol));
-        sym->id = strdup(id);
-        sym->value = value;
-        sym->type = type;
-        sym->next = currentScope->table[index];
-        currentScope->table[index] = sym;
+    if(currentScope) {
+        Symbol* sym = findSymbol(id);
+        if (sym != NULL) {
+            sym->value = value;
+            sym->type = type;
+        } else {
+            unsigned int index = hash(id);
+            sym = malloc(sizeof(Symbol));
+            sym->id = strdup(id);
+            sym->value = value;
+            sym->type = type;
+            sym->next = currentScope->table[index];
+            currentScope->table[index] = sym;
+        }
     }
 }
 
@@ -182,8 +114,60 @@ void freeSymbolTable(SymbolTable* table) {
     }
 }
 
+#define MAX_VARS 1000
+
+char* var_names[MAX_VARS];
+LLVMValueRef var_values[MAX_VARS];
+int var_count = 0;
+
+LLVMModuleRef module;
+LLVMBuilderRef builder;
+LLVMContextRef context;
+LLVMValueRef mainFunc;
+LLVMBasicBlockRef entry;
+
+void allocaVars(const char* name, VarType type) {
+    if (var_count >= MAX_VARS) {
+        fprintf(stderr, "Error: too many variables.\n");
+        exit(1);
+    }
+
+    LLVMTypeRef llvm_type;
+    switch (type) {
+        case TYPE_INT:   llvm_type = LLVMInt32TypeInContext(context); break;
+        case TYPE_FLOAT: llvm_type = LLVMDoubleTypeInContext(context); break;
+        case TYPE_CHAR:  llvm_type = LLVMInt8TypeInContext(context); break;
+        case TYPE_BOOL:  llvm_type = LLVMInt1TypeInContext(context); break;
+        default:         llvm_type = LLVMDoubleTypeInContext(context); break;
+    }
+    LLVMValueRef alloc = LLVMBuildAlloca(builder, llvm_type, name);
+    var_names[var_count] = strdup(name);
+    var_values[var_count++] = alloc;
+}
+
+LLVMValueRef getVarLLVM(const char* name) {
+    for (int i = 0; i < var_count; ++i)
+        if (strcmp(var_names[i], name) == 0)
+            return var_values[i];
+    
+    return NULL;
+}
+
+LLVMValueRef createGlobalString(const char* str, const char* name) {
+    LLVMValueRef str_const = LLVMConstStringInContext(context, str, strlen(str), 1);
+    LLVMValueRef global = LLVMAddGlobal(module, LLVMTypeOf(str_const), name);
+    LLVMSetInitializer(global, str_const);
+    LLVMSetGlobalConstant(global, 1);
+    LLVMSetLinkage(global, LLVMPrivateLinkage);
+    return global;
+}
+
+LLVMValueRef aux;
+
+int yylex();
 int yywrap( );
 void yyerror(const char* str);
+extern int yylineno;
 
 int if_condition = 1;
 int if_else_condition = 0;
@@ -194,8 +178,14 @@ int if_else_condition = 0;
     struct {
         double value;
         VarType type;
-        char* result;
+        LLVMValueRef llvm_value;
     } number;
+    struct {
+        LLVMBasicBlockRef ifBB, elseBB, endIFBB;
+    } if_else_blocks;
+    struct {
+        LLVMBasicBlockRef condBB, bodyBB, endWHILEBB;
+    } while_blocks;
     char* id;
 }
 
@@ -239,14 +229,15 @@ int if_else_condition = 0;
 
 /* declare non-terminals */
 %type <number> expression soma_sub mult_div term comparison log_exp cast
-%type program declaration comand assignment if else write while
-
+%type program declaration comand assignment write 
+%type <if_else_blocks> if_then else if_then_aux if_then_aux2
+%type <while_blocks> while while_aux
 
 /* give us more detailed errors */
 %define parse.error verbose
 
-%%
 
+%%
 
 program: /* empty */ {}
        | comand program {}
@@ -257,27 +248,27 @@ program: /* empty */ {}
 
 
 declaration: INT ID DONE {
-                addTAC("declare", "int", $2, NULL);
                 if(if_condition == 1) {
                     insertSymbol($2, -DBL_MAX, TYPE_INT);
+                    allocaVars($2, TYPE_INT);
                 }
            }
            | FLOAT ID DONE {
-                addTAC("declare", "float", $2, NULL);
                 if(if_condition == 1) {
                     insertSymbol($2, -DBL_MAX, TYPE_FLOAT);
+                    allocaVars($2, TYPE_FLOAT);
                 }
            }
            | CHAR ID DONE {
-                addTAC("declare", "char", $2, NULL);
                 if(if_condition == 1) {
                     insertSymbol($2, -DBL_MAX, TYPE_CHAR);
+                    allocaVars($2, TYPE_CHAR);
                 }
            }
            | BOOL ID DONE {
-                addTAC("declare", "bool", $2, NULL);
                 if(if_condition == 1) {
                     insertSymbol($2, -DBL_MAX, TYPE_BOOL);
+                    allocaVars($2, TYPE_BOOL);
                 }
            }
            ;
@@ -286,23 +277,53 @@ declaration: INT ID DONE {
 
 
 comand: assignment {}
-      | if {}
+      | if_then {}
+      | while {}
       | write {}
       | read {}
-      | while {}
       ;
 
 
 
 assignment: ID RECEIVE expression DONE {
-                addTAC(NULL, $3.result, NULL, $1);
+                Symbol* symbol = findSymbol($1);
+                LLVMValueRef var = getVarLLVM($1);
+                LLVMTypeRef llvm_type;
+                if (symbol) {
+                    switch (symbol->type) {
+                        case TYPE_INT:   llvm_type = LLVMInt32TypeInContext(context); break;
+                        case TYPE_FLOAT: llvm_type = LLVMDoubleTypeInContext(context); break;
+                        case TYPE_CHAR:  llvm_type = LLVMInt8TypeInContext(context); break;
+                        case TYPE_BOOL:  llvm_type = LLVMInt1TypeInContext(context); break;
+                        default:         llvm_type = LLVMInt32TypeInContext(context); break;
+                    }
+                }
+                LLVMValueRef value = $3.llvm_value;
+                if(symbol) {
+                    if (symbol->type == $3.type) {
+                        LLVMBuildStore(builder, value, var);
+                    }
+                    // Cast se necessário
+                    else if (symbol->type == TYPE_FLOAT && $3.type == TYPE_INT) {
+                        value = LLVMBuildSIToFP(builder, value, llvm_type, "inttofloat");
+                        LLVMBuildStore(builder, value, var);
+                    }
+                    else if (symbol->type == TYPE_INT && $3.type == TYPE_FLOAT) {
+                        printf("Warning: casting float to int for variable '%s' at line %d.\n", $1, yylineno);
+                        value = LLVMBuildFPToSI(builder, value, llvm_type, "floattoint");
+                        LLVMBuildStore(builder, value, var);
+                    }
+                }
+
+                // Atualiza a tabela de símbolos
                 if(if_condition == 1) {
-                    Symbol* symbol = findSymbol($1);
-                    if (symbol != NULL) {
+                    if (symbol) {
                         if (symbol->type == $3.type) {
                             insertSymbol($1, $3.value, symbol->type);
                         } else if (symbol->type == TYPE_FLOAT && $3.type == TYPE_INT) {
                             insertSymbol($1, $3.value, symbol->type);
+                        } else if (symbol->type == TYPE_INT && $3.type == TYPE_FLOAT) {
+                            insertSymbol($1, (int)$3.value, symbol->type);
                         } else {
                             fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
                         }
@@ -316,55 +337,59 @@ assignment: ID RECEIVE expression DONE {
 
 
 
-if: IF LEFTPAR expression RIGHTPAR {
-        pushScope();
-        if ($3.type == TYPE_BOOL) {
-            if_condition = $3.value;
-            if_else_condition = $3.value;
+if_then: IF LEFTPAR expression RIGHTPAR {
+            pushScope();
+            if ($3.type == TYPE_BOOL) {
+                if_condition = $3.value;
+                if_else_condition = $3.value;
+            } else {
+                fprintf(stderr, "Error: condition is not boolean at line %d.\n", yylineno);
+                if_condition = 0;
+            }
+            aux = $3.llvm_value;
+        } if_then_aux LEFTKEYS program RIGHTKEYS if_then_aux2 {
+            if (if_condition == 0) {
+                popScope();
+                if_condition = 1;
+            }
+
+            // Ao final do bloco if, faz branch para o fim do if
+            LLVMBuildBr(builder, $10.endIFBB);
+
+            // Entra no bloco else para continuar parsing
+            LLVMPositionBuilderAtEnd(builder, $6.elseBB);
         } else {
-            fprintf(stderr, "Error: condition is not boolean at line %d.\n", yylineno);
-            if_condition = 0;
+            // Ao final do else, faz branch para o fim do if
+            LLVMBuildBr(builder, $10.endIFBB);
+
+            // Posiciona o builder no bloco de saída do if
+            LLVMPositionBuilderAtEnd(builder, $10.endIFBB);
         }
+        ;
 
-        char labelTrue[10], labelFalse[10];
-        sprintf(labelTrue, "L%d", labelCount++);
-        sprintf(labelFalse, "L%d", labelCount++);
+if_then_aux: {
+    // Cria blocos para if, else e fim
+    $$.ifBB = LLVMAppendBasicBlockInContext(context, mainFunc, "if");
+    $$.elseBB = LLVMAppendBasicBlockInContext(context, mainFunc, "else");
 
-        // Gera TAC para a condição
-        addTAC("if", $3.result, "goto", labelTrue);
-        addTAC("goto", labelFalse, NULL, NULL);
+    // Gera branch condicional
+    LLVMBuildCondBr(builder, aux, $$.ifBB, $$.elseBB);
 
-        // Label para o bloco "if"
-        addTAC(labelTrue, ":", NULL, NULL);
+    // Entra no bloco do if
+    LLVMPositionBuilderAtEnd(builder, $$.ifBB);
+};
 
-        strcpy(label, labelFalse);
-    } LEFTKEYS program RIGHTKEYS {
-        if (if_condition == 0) {
-            popScope();
-            if_condition = 1;
-        }
-    } else {}
-    ;
+if_then_aux2: {
+    $$.endIFBB = LLVMAppendBasicBlockInContext(context, mainFunc, "endif");
+};
 
 else: /* empty */ {}
     | ELSE {
         pushScope();
         if (if_else_condition == 1) {
             if_condition = 0;
-        } 
-
-        char labelEnd[10];
-        sprintf(labelEnd, "L%d", labelCount++);
-        addTAC("goto", labelEnd, NULL, NULL);
-
-        // Label para o bloco "else" ou saída
-        addTAC(label, ":", NULL, NULL);
-
-        strcpy(label, labelEnd);
+        }
     } LEFTKEYS program RIGHTKEYS {
-        // Gera TAC para o bloco "else"
-        addTAC(label, ":", NULL, NULL);
-
         if (if_condition == 0) {
             if_condition = 1;
         }
@@ -377,98 +402,139 @@ else: /* empty */ {}
 
 
 
+while: WHILE while_aux LEFTPAR expression RIGHTPAR {
+        LLVMBuildCondBr(builder, $4.llvm_value, $2.bodyBB, $2.endWHILEBB);
+
+        // Corpo do while
+        LLVMPositionBuilderAtEnd(builder, $2.bodyBB);
+    } LEFTKEYS program RIGHTKEYS {
+        // Ao final do corpo, volta para o condicional
+        LLVMBuildBr(builder, $2.condBB);
+
+        // Posiciona o builder no bloco de saída do while
+        LLVMPositionBuilderAtEnd(builder, $2.endWHILEBB);
+    }
+    ;
+
+while_aux: {
+    // Cria blocos para condicional, corpo e fim do while
+        $$.condBB = LLVMAppendBasicBlockInContext(context, mainFunc, "while.cond");
+        $$.bodyBB = LLVMAppendBasicBlockInContext(context, mainFunc, "while.body");
+        $$.endWHILEBB = LLVMAppendBasicBlockInContext(context, mainFunc, "while.end");
+
+        // Branch para o bloco condicional
+        LLVMBuildBr(builder, $$.condBB);
+
+        // Condicional
+        LLVMPositionBuilderAtEnd(builder, $$.condBB);
+};
 
 write: WRITE LEFTPAR ID RIGHTPAR DONE {
-        addTAC("write", $3, NULL, NULL);
-        if (if_condition == 1) {
-            Symbol* sym = findSymbol($3);
-            if (sym == NULL) {
-                fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", $3, yylineno);
-            }
-            else if(sym->value == -DBL_MAX) {
-                fprintf(stderr, "Error: variable '%s' is uninitialized at line %d.\n", $3, yylineno);
-            }
-            else {
-                if (sym->type == TYPE_INT) {
-                    printf("%s = %d (Type == INT)\n", $3, (int)sym->value);
-                } else if (sym->type == TYPE_BOOL) {
-                    printf("%s = %d (Type == BOOL)\n", $3, (int)sym->value);
-                } else if (sym->type == TYPE_FLOAT) {
-                    printf("%s = %.2lf (Type == FLOAT)\n", $3, sym->value);
-                } else if (sym->type == TYPE_CHAR) {
-                    printf("%s = %c (Type == CHAR)\n", $3, (char)sym->value);
-                } else {
+        Symbol* sym = findSymbol($3);
+        if (sym == NULL) {
+            fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", $3, yylineno);
+        }
+        else if(sym->value == -DBL_MAX) {
+            fprintf(stderr, "Error: variable '%s' is uninitialized at line %d.\n", $3, yylineno);
+        }
+        else {
+            LLVMValueRef var = getVarLLVM($3);
+            LLVMValueRef loaded[1];
+            LLVMValueRef write_func;
+            switch (sym->type) {
+                case TYPE_INT:
+                    write_func = LLVMGetNamedFunction(module, "write_int");
+                    loaded[0] = LLVMBuildLoad2(builder, LLVMInt32TypeInContext(context), var, "loadtmp");
+                    LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(write_func)), write_func, loaded, 1, "");
+                    break;
+                case TYPE_FLOAT:
+                    write_func = LLVMGetNamedFunction(module, "write_float");
+                    loaded[0] = LLVMBuildLoad2(builder, LLVMDoubleTypeInContext(context), var, "loadtmp");
+                    LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(write_func)), write_func, loaded, 1, "");
+                    break;
+                case TYPE_BOOL:
+                    write_func = LLVMGetNamedFunction(module, "write_bool");
+                    loaded[0] = LLVMBuildLoad2(builder, LLVMInt1TypeInContext(context), var, "loadtmp");
+                    LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(write_func)), write_func, loaded, 1, "");
+                    break;
+                case TYPE_CHAR:
+                    write_func = LLVMGetNamedFunction(module, "write_char");
+                    loaded[0] = LLVMBuildLoad2(builder, LLVMInt8TypeInContext(context), var, "loadtmp");
+                    LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(write_func)), write_func, loaded, 1, "");
+                    break;
+                default:
                     fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", $3, yylineno);
-                }
             }
         }
      }
-     | WRITE LEFTPAR NUMBER RIGHTPAR DONE {
-        char temp[16];
-        sprintf(temp, "%lf", $3.value);
-        addTAC("write", temp, NULL, NULL);
-        if (if_condition == 1) {
-            if ($3.type == TYPE_INT) {
-                printf("%d (Type == INT)\n", (int)$3.value);
-            } else if ($3.type == TYPE_FLOAT) {
-                printf("%lf (Type == FLOAT)\n", $3.value);
-            } else if ($3.type == TYPE_CHAR) {
-                printf("%c (Type == CHAR)\n", (char)$3.value);
-            } else {
+    | WRITE LEFTPAR NUMBER RIGHTPAR DONE {
+        LLVMValueRef write_func;
+        LLVMValueRef arg[1];
+        switch ($3.type) {
+            case TYPE_INT:
+                write_func = LLVMGetNamedFunction(module, "write_int");
+                arg[0] = LLVMConstInt(LLVMInt32TypeInContext(context), (int)$3.value, 0);
+                LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(write_func)), write_func, arg, 1, "");
+                break;
+            case TYPE_FLOAT:
+                write_func = LLVMGetNamedFunction(module, "write_float");
+                arg[0] = LLVMConstReal(LLVMDoubleTypeInContext(context), $3.value);
+                LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(write_func)), write_func, arg, 1, "");
+                break;
+            case TYPE_CHAR:
+                write_func = LLVMGetNamedFunction(module, "write_char");
+                arg[0] = LLVMConstInt(LLVMInt8TypeInContext(context), (char)$3.value, 0);
+                LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(write_func)), write_func, arg, 1, "");
+                break;
+            case TYPE_BOOL:
+                write_func = LLVMGetNamedFunction(module, "write_bool");
+                arg[0] = LLVMConstInt(LLVMInt1TypeInContext(context), (int)$3.value, 0);
+                LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(write_func)), write_func, arg, 1, "");
+                break;
+            default:
                 fprintf(stderr, "Error: unsupported type for number at line %d.\n", yylineno);
-            }
         }
-     }
-     | WRITE LEFTPAR STRING RIGHTPAR DONE {
-        addTAC("write", $3, NULL, NULL);
-        if (if_condition == 1) {
-            printf("%s\n", $3);
-        }
-        free($3); // Free the string after printing
-     }
-     ;
+    }
+    | WRITE LEFTPAR STRING RIGHTPAR DONE {
+        LLVMValueRef write_func = LLVMGetNamedFunction(module, "write_string");
+        LLVMValueRef str = LLVMBuildPointerCast(builder, createGlobalString($3, "str_literal"), LLVMPointerType(LLVMInt8TypeInContext(context), 0), "");
+        LLVMValueRef arg[1];
+        arg[0] = str;
+        LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(write_func)), write_func, arg, 1, "");
+        free($3);
+    }
+    ;
 
 
 read: READ LEFTPAR ID RIGHTPAR DONE {
-        addTAC("read", $3, NULL, NULL);
-        if (if_condition == 1) {
-            Symbol* sym = findSymbol($3);
-            if (sym == NULL) {
-                fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", $3, yylineno);
-            }
-            else {
-                FILE* input = fopen("/dev/tty", "r");
-                if (input == NULL) {
-                    fprintf(stderr, "Error: unable to read from keyboard.\n");
-                    exit(1);
-                }
-                switch (sym->type) {
-                        case TYPE_INT: printf("Enter value for variable '%s with Type == INT': ", $3); break;
-                        case TYPE_BOOL: printf("Enter value for variable '%s with Type == BOOL': ", $3); break;
-                        case TYPE_FLOAT: printf("Enter value for variable '%s with Type == FLOAT': ", $3); break;
-                        case TYPE_CHAR: printf("Enter value for variable '%s with Type == CHAR': ", $3); break;
-                        default: break;
-                }
-                if (sym->type == TYPE_INT) {
-                    int value = 0;
-                    fscanf(input, "%d", &value);
-                    insertSymbol(sym->id, (double)value, TYPE_INT);
-                } else if (sym->type == TYPE_FLOAT) {
-                    double value = 0.0;
-                    fscanf(input, "%lf", &value);
-                    insertSymbol(sym->id, value, TYPE_FLOAT);
-                } else if (sym->type == TYPE_CHAR) {
-                    char value = 'a';
-                    fscanf(input, " %c", &value);
-                    insertSymbol(sym->id, value, TYPE_CHAR);
-                } else if (sym->type == TYPE_BOOL) {
-                    double value = 0.0;
-                    fscanf(input, "%lf", &value);
-                    insertSymbol(sym->id, value ? 1.0 : 0.0, TYPE_BOOL);
-                } else {
-                    fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", sym->id, yylineno);
-                }
-                fclose(input);
+        Symbol* sym = findSymbol($3);
+        if (sym == NULL) {
+            fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", $3, yylineno);
+        }
+        else {
+            LLVMValueRef var = getVarLLVM($3);
+            LLVMValueRef arg[1];
+            arg[0] = var;
+            LLVMValueRef read_func;
+            switch (sym->type) {
+                case TYPE_INT:
+                    read_func = LLVMGetNamedFunction(module, "read_int");
+                    LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(read_func)), read_func, arg, 1, "");
+                    break;
+                case TYPE_FLOAT:
+                    read_func = LLVMGetNamedFunction(module, "read_float");
+                    LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(read_func)), read_func, arg, 1, "");
+                    break;
+                case TYPE_BOOL:
+                    read_func = LLVMGetNamedFunction(module, "read_bool");
+                    LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(read_func)), read_func, arg, 1, "");
+                    break;
+                case TYPE_CHAR:
+                    read_func = LLVMGetNamedFunction(module, "read_char");
+                    LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(read_func)), read_func, arg, 1, "");
+                    break;
+                default:
+                    fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", $3, yylineno);
             }
         }
     }
@@ -476,56 +542,31 @@ read: READ LEFTPAR ID RIGHTPAR DONE {
 
 
 
-while: WHILE LEFTPAR expression RIGHTPAR {
-            char labelStart[10], labelLoop[10], labelEnd[10];
-            sprintf(labelStart, "L%d", labelCount++);
-            sprintf(labelLoop, "L%d", labelCount++);
-            sprintf(labelEnd, "L%d", labelCount++);
-
-            // Label para o início do loop
-            addTAC(labelStart, ":", NULL, NULL);
-
-            // Gera TAC para a condição
-            addTAC("if", $3.result, "goto", labelLoop);
-            addTAC("goto", labelEnd, NULL, NULL);
-
-            // Label para o fim do loop
-            addTAC(labelLoop, ":", NULL, NULL);
-
-            strcpy(label, labelEnd);
-            strcpy(label0, labelStart);
-     } LEFTKEYS program RIGHTKEYS {
-            // Gera TAC para voltar ao início do loop
-            addTAC("goto", label0, NULL, NULL);
-
-            // Label para o fim do loop
-            addTAC(label, ":", NULL, NULL);
-     }
-     ;
-
-
-
-expression: soma_sub { $$.value = $1.value; $$.type = $1.type; $$.result = $1.result; }
-		  | mult_div { $$.value = $1.value; $$.type = $1.type; $$.result = $1.result; }
-          | LEFTPAR expression RIGHTPAR { $$.value = $2.value; $$.type = $2.type; $$.result = $2.result; }
-          | comparison { $$.value = $1.value; $$.type = $1.type; $$.result = $1.result; }
-          | log_exp { $$.value = $1.value; $$.type = $1.type; $$.result = $1.result; }
-          | cast { $$.value = $1.value; $$.type = $1.type; $$.result = $1.result; }
-		  | term { $$.value = $1.value; $$.type = $1.type; $$.result = $1.result; }
+expression: soma_sub { $$.value = $1.value; $$.type = $1.type; $$.llvm_value = $1.llvm_value; }
+		  | mult_div { $$.value = $1.value; $$.type = $1.type; $$.llvm_value = $1.llvm_value; }
+          | LEFTPAR expression RIGHTPAR { $$.value = $2.value; $$.type = $2.type; $$.llvm_value = $2.llvm_value; }
+          | comparison { $$.value = $1.value; $$.type = $1.type; $$.llvm_value = $1.llvm_value; }
+          | log_exp { $$.value = $1.value; $$.type = $1.type; $$.llvm_value = $1.llvm_value; }
+          | cast { $$.value = $1.value; $$.type = $1.type; $$.llvm_value = $1.llvm_value; }
+		  | term { $$.value = $1.value; $$.type = $1.type; $$.llvm_value = $1.llvm_value; }
 		  ;
 
 soma_sub: expression PLUS expression { 
-                char temp[16];
-                sprintf(temp, "t%d", tacIndex);
-                addTAC("+", $1.result, $3.result, temp);
-                $$.result = strdup(temp);
                 if ($1.type == TYPE_INT && $3.type == TYPE_INT) {
                     $$.value = $1.value + $3.value;
                     $$.type = TYPE_INT;
-                } else if ((($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && $3.type == TYPE_FLOAT)
-                        || ($1.type == TYPE_FLOAT && ($3.type == TYPE_INT || $3.type == TYPE_FLOAT))) {
+                    $$.llvm_value = LLVMBuildAdd(builder, $1.llvm_value, $3.llvm_value, "addtmp");
+                } else if ((($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && ($3.type == TYPE_INT || $3.type == TYPE_FLOAT))) {
+                    // Promove para float se necessário
+                    LLVMValueRef left = $1.llvm_value;
+                    LLVMValueRef right = $3.llvm_value;
+                    if ($1.type == TYPE_INT)
+                        left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
+                    if ($3.type == TYPE_INT)
+                        right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
                     $$.value = $1.value + $3.value;
                     $$.type = TYPE_FLOAT;
+                    $$.llvm_value = LLVMBuildFAdd(builder, left, right, "faddtmp");
                 } else {
                     fprintf(stderr, "Error: incompatible types for addition at line %d.\n", yylineno);
                     $$.value = -1;
@@ -533,17 +574,21 @@ soma_sub: expression PLUS expression {
                 }
         }
     	| expression MIN  expression {
-                char temp[16];
-                sprintf(temp, "t%d", tacIndex);
-                addTAC("-", $1.result, $3.result, temp);
-                $$.result = strdup(temp);
                 if ($1.type == TYPE_INT && $3.type == TYPE_INT) {
                     $$.value = $1.value - $3.value;
                     $$.type = TYPE_INT;
-                } else if ((($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && $3.type == TYPE_FLOAT)
-                        || ($1.type == TYPE_FLOAT && ($3.type == TYPE_INT || $3.type == TYPE_FLOAT))) {
+                    $$.llvm_value = LLVMBuildSub(builder, $1.llvm_value, $3.llvm_value, "subtmp");
+                } else if ((($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && ($3.type == TYPE_INT || $3.type == TYPE_FLOAT))) {
+                    // Promove para float se necessário
+                    LLVMValueRef left = $1.llvm_value;
+                    LLVMValueRef right = $3.llvm_value;
+                    if ($1.type == TYPE_INT)
+                        left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
+                    if ($3.type == TYPE_INT)
+                        right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
                     $$.value = $1.value - $3.value;
                     $$.type = TYPE_FLOAT;
+                    $$.llvm_value = LLVMBuildFSub(builder, left, right, "fsubtmp");
                 } else {
                     fprintf(stderr, "Error: incompatible types for subtraction at line %d.\n", yylineno);
                     $$.value = -1;
@@ -553,17 +598,21 @@ soma_sub: expression PLUS expression {
 		;
 
 mult_div: expression MULT expression {
-                char temp[16];
-                sprintf(temp, "t%d", tacIndex);
-                addTAC("*", $1.result, $3.result, temp);
-                $$.result = strdup(temp);
                 if ($1.type == TYPE_INT && $3.type == TYPE_INT) {
                     $$.value = $1.value * $3.value;
                     $$.type = TYPE_INT;
-                } else if ((($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && $3.type == TYPE_FLOAT)
-                        || ($1.type == TYPE_FLOAT && ($3.type == TYPE_INT || $3.type == TYPE_FLOAT))) {
+                    $$.llvm_value = LLVMBuildMul(builder, $1.llvm_value, $3.llvm_value, "multtmp");
+                } else if ((($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && ($3.type == TYPE_INT || $3.type == TYPE_FLOAT))) {
+                    // Promove para float se necessário
+                    LLVMValueRef left = $1.llvm_value;
+                    LLVMValueRef right = $3.llvm_value;
+                    if ($1.type == TYPE_INT)
+                        left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
+                    if ($3.type == TYPE_INT)
+                        right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
                     $$.value = $1.value * $3.value;
                     $$.type = TYPE_FLOAT;
+                    $$.llvm_value = LLVMBuildFMul(builder, left, right, "fmulttmp");
                 } else {
                     fprintf(stderr, "Error: incompatible types for multiplication at line %d.\n", yylineno);
                     $$.value = -1;
@@ -571,138 +620,181 @@ mult_div: expression MULT expression {
                 }
         }
 		| expression DIV  expression { 
-                char temp[16];
-                sprintf(temp, "t%d", tacIndex);
-                addTAC("/", $1.result, $3.result, temp);
-                $$.result = strdup(temp);
                 if ($3.value == 0.0) {
                         fprintf(stderr, "Error: division by zero at line %d.\n", yylineno);
                         $$.value = -1;
                         $$.type = TYPE_UNKNOWN;
-                }
-                if ($1.type == TYPE_INT && $3.type == TYPE_INT) {
-                    $$.value = $1.value / $3.value;
-                    $$.type = TYPE_INT;
-                } else if ((($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && $3.type == TYPE_FLOAT)
-                        || ($1.type == TYPE_FLOAT && ($3.type == TYPE_INT || $3.type == TYPE_FLOAT))) {
-                    $$.value = $1.value / $3.value;
-                    $$.type = TYPE_FLOAT;
                 } else {
-                    fprintf(stderr, "Error: incompatible types for division at line %d.\n", yylineno);
-                    $$.value = -1;
-                    $$.type = TYPE_UNKNOWN;
+                    if ($1.type == TYPE_INT && $3.type == TYPE_INT) {
+                        $$.value = $1.value / $3.value;
+                        $$.type = TYPE_INT;
+                        $$.llvm_value = LLVMBuildSDiv(builder, $1.llvm_value, $3.llvm_value, "divtmp");
+                    } else if ((($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && ($3.type == TYPE_INT || $3.type == TYPE_FLOAT))) {
+                        // Promove para float se necessário
+                        LLVMValueRef left = $1.llvm_value;
+                        LLVMValueRef right = $3.llvm_value;
+                        if ($1.type == TYPE_INT)
+                            left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
+                        if ($3.type == TYPE_INT)
+                            right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
+                        $$.value = $1.value / $3.value;
+                        $$.type = TYPE_FLOAT;
+                        $$.llvm_value = LLVMBuildFDiv(builder, left, right, "fdivtmp");
+                    } else {
+                        fprintf(stderr, "Error: incompatible types for division at line %d.\n", yylineno);
+                        $$.value = -1;
+                        $$.type = TYPE_UNKNOWN;
+                    }
                 }
 		}
 		;
 
-comparison: expression LESS   expression {
-                char temp[16];
-                sprintf(temp, "t%d", tacIndex);
-                addTAC("<", $1.result, $3.result, temp);
-                $$.result = strdup(temp);
-                if(($1.type == TYPE_INT || $1.type == TYPE_FLOAT) && ($3.type == TYPE_INT || $3.type == TYPE_FLOAT)) {
+comparison: expression LESS expression {
+                if ($1.type == TYPE_INT && $3.type == TYPE_INT) {
                     $$.value = $1.value < $3.value;
                     $$.type = TYPE_BOOL;
-                }
-                else {
+                    $$.llvm_value = LLVMBuildICmp(builder, LLVMIntSLT, $1.llvm_value, $3.llvm_value, "cmptmp");
+                } else if (($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && ($3.type == TYPE_FLOAT || $3.type == TYPE_INT)) {
+                    // Promove para float se necessário
+                    LLVMValueRef left = $1.llvm_value;
+                    LLVMValueRef right = $3.llvm_value;
+                    if ($1.type == TYPE_INT)
+                        left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
+                    if ($3.type == TYPE_INT)
+                        right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
+                    $$.value = $1.value < $3.value;
+                    $$.type = TYPE_BOOL;
+                    $$.llvm_value = LLVMBuildFCmp(builder, LLVMRealULT, left, right, "cmptmp");
+                } else {
                     fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
                     $$.value = -1;
                     $$.type = TYPE_UNKNOWN;
                 }
-          }
-          | expression GREAT  expression {
-                char temp[16];
-                sprintf(temp, "t%d", tacIndex);
-                addTAC(">", $1.result, $3.result, temp);
-                $$.result = strdup(temp);
-                if(($1.type == TYPE_INT || $1.type == TYPE_FLOAT) && ($3.type == TYPE_INT || $3.type == TYPE_FLOAT)) {
+            }
+            | expression GREAT expression {
+                if ($1.type == TYPE_INT && $3.type == TYPE_INT) {
                     $$.value = $1.value > $3.value;
                     $$.type = TYPE_BOOL;
-                }
-                else {
+                    $$.llvm_value = LLVMBuildICmp(builder, LLVMIntSGT, $1.llvm_value, $3.llvm_value, "cmptmp");
+                } else if (($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && ($3.type == TYPE_FLOAT || $3.type == TYPE_INT)) {
+                    // Promove para float se necessário
+                    LLVMValueRef left = $1.llvm_value;
+                    LLVMValueRef right = $3.llvm_value;
+                    if ($1.type == TYPE_INT)
+                        left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
+                    if ($3.type == TYPE_INT)
+                        right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
+                    $$.value = $1.value > $3.value;
+                    $$.type = TYPE_BOOL;
+                    $$.llvm_value = LLVMBuildFCmp(builder, LLVMRealUGT, left, right, "fcmptmp");
+                } else {
                     fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
                     $$.value = -1;
                     $$.type = TYPE_UNKNOWN;
                 }
-          }
-          | expression LEQUAL expression {
-                char temp[16];
-                sprintf(temp, "t%d", tacIndex);
-                addTAC("<=", $1.result, $3.result, temp);
-                $$.result = strdup(temp);
-                if(($1.type == TYPE_INT || $1.type == TYPE_FLOAT) && ($3.type == TYPE_INT || $3.type == TYPE_FLOAT)) {
+            }
+            | expression LEQUAL expression {
+                if ($1.type == TYPE_INT && $3.type == TYPE_INT) {
                     $$.value = $1.value <= $3.value;
                     $$.type = TYPE_BOOL;
-                }
-                else {
+                    $$.llvm_value = LLVMBuildICmp(builder, LLVMIntSLE, $1.llvm_value, $3.llvm_value, "cmptmp");
+                } else if (($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && ($3.type == TYPE_FLOAT || $3.type == TYPE_INT)) {
+                    // Promove para float se necessário
+                    LLVMValueRef left = $1.llvm_value;
+                    LLVMValueRef right = $3.llvm_value;
+                    if ($1.type == TYPE_INT)
+                        left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
+                    if ($3.type == TYPE_INT)
+                        right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
+                    $$.value = $1.value <= $3.value;
+                    $$.type = TYPE_BOOL;
+                    $$.llvm_value = LLVMBuildFCmp(builder, LLVMRealULE, left, right, "fcmptmp");
+                } else {
                     fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
                     $$.value = -1;
                     $$.type = TYPE_UNKNOWN;
                 }
-          }
-          | expression GEQUAL expression {
-                char temp[16];
-                sprintf(temp, "t%d", tacIndex);
-                addTAC(">=", $1.result, $3.result, temp);
-                $$.result = strdup(temp);
-                if(($1.type == TYPE_INT || $1.type == TYPE_FLOAT) && ($3.type == TYPE_INT || $3.type == TYPE_FLOAT)) {
+            }
+            | expression GEQUAL expression {
+                if ($1.type == TYPE_INT && $3.type == TYPE_INT) {
                     $$.value = $1.value >= $3.value;
                     $$.type = TYPE_BOOL;
-                }
-                else {
+                    $$.llvm_value = LLVMBuildICmp(builder, LLVMIntSGE, $1.llvm_value, $3.llvm_value, "cmptmp");
+                } else if (($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && ($3.type == TYPE_FLOAT || $3.type == TYPE_INT)) {
+                    // Promove para float se necessário
+                    LLVMValueRef left = $1.llvm_value;
+                    LLVMValueRef right = $3.llvm_value;
+                    if ($1.type == TYPE_INT)
+                        left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
+                    if ($3.type == TYPE_INT)
+                        right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
+                    $$.value = $1.value >= $3.value;
+                    $$.type = TYPE_BOOL;
+                    $$.llvm_value = LLVMBuildFCmp(builder, LLVMRealUGE, left, right, "fcmptmp");
+                } else {
                     fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
                     $$.value = -1;
                     $$.type = TYPE_UNKNOWN;
                 }
-          }
-          | expression EQUAL  expression { 
-                char temp[16];
-                sprintf(temp, "t%d", tacIndex);
-                addTAC("==", $1.result, $3.result, temp);
-                $$.result = strdup(temp);
-                if(($1.type == TYPE_INT || $1.type == TYPE_FLOAT || $1.type == TYPE_BOOL) && ($3.type == TYPE_INT || $3.type == TYPE_FLOAT || $3.type == TYPE_BOOL)) {
+            }
+            | expression EQUAL  expression { 
+                if ($1.type == TYPE_INT && $3.type == TYPE_INT) {
                     $$.value = $1.value == $3.value;
                     $$.type = TYPE_BOOL;
-                }
-                else if ($1.type == TYPE_CHAR && $3.type == TYPE_CHAR) {
+                    $$.llvm_value = LLVMBuildICmp(builder, LLVMIntEQ, $1.llvm_value, $3.llvm_value, "cmptmp");
+                } else if (($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && ($3.type == TYPE_FLOAT || $3.type == TYPE_INT)) {
+                    // Promove para float se necessário
+                    LLVMValueRef left = $1.llvm_value;
+                    LLVMValueRef right = $3.llvm_value;
+                    if ($1.type == TYPE_INT)
+                        left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
+                    else if ($3.type == TYPE_INT)
+                        right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
                     $$.value = $1.value == $3.value;
                     $$.type = TYPE_BOOL;
-                }
-                else {
+                    $$.llvm_value = LLVMBuildFCmp(builder, LLVMRealUEQ, left, right, "fcmptmp");
+                } else if ($1.type == TYPE_CHAR && $3.type == TYPE_CHAR) {
+                    $$.value = $1.value == $3.value;
+                    $$.type = TYPE_BOOL;
+                    $$.llvm_value = LLVMBuildICmp(builder, LLVMIntEQ, $1.llvm_value, $3.llvm_value, "cmptmp");
+                } else {
                     fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
                     $$.value = -1;
                     $$.type = TYPE_UNKNOWN;
                 }
-          }
-          | expression NEQUAL expression {
-                char temp[16];
-                sprintf(temp, "t%d", tacIndex);
-                addTAC("!=", $1.result, $3.result, temp);
-                $$.result = strdup(temp);
-                if(($1.type == TYPE_INT || $1.type == TYPE_FLOAT || $1.type == TYPE_BOOL) && ($3.type == TYPE_INT || $3.type == TYPE_FLOAT || $3.type == TYPE_BOOL)) {
+            }
+            | expression NEQUAL expression {
+                if ($1.type == TYPE_INT && $3.type == TYPE_INT) {
                     $$.value = $1.value != $3.value;
                     $$.type = TYPE_BOOL;
-                }
-                else if ($1.type == TYPE_CHAR && $3.type == TYPE_CHAR) {
+                    $$.llvm_value = LLVMBuildICmp(builder, LLVMIntNE, $1.llvm_value, $3.llvm_value, "cmptmp");
+                } else if (($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && ($3.type == TYPE_FLOAT || $3.type == TYPE_INT)) {
+                    LLVMValueRef left = $1.llvm_value;
+                    LLVMValueRef right = $3.llvm_value;
+                    if ($1.type == TYPE_INT)
+                        left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
+                    if ($3.type == TYPE_INT)
+                        right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
                     $$.value = $1.value != $3.value;
                     $$.type = TYPE_BOOL;
-                }
-                else {
+                    $$.llvm_value = LLVMBuildFCmp(builder, LLVMRealUNE, left, right, "fcmptmp");
+                } else if ($1.type == TYPE_CHAR && $3.type == TYPE_CHAR) {
+                    $$.value = $1.value != $3.value;
+                    $$.type = TYPE_BOOL;
+                    $$.llvm_value = LLVMBuildICmp(builder, LLVMIntNE, $1.llvm_value, $3.llvm_value, "cmptmp");
+                } else {
                     fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
                     $$.value = -1;
                     $$.type = TYPE_UNKNOWN;
                 }
-           }
-          ;
+            }
+            ;
 
 log_exp: expression AND expression {
-            char temp[16];
-            sprintf(temp, "t%d", tacIndex);
-            addTAC("&&", $1.result, $3.result, temp);
-            $$.result = strdup(temp);
             if ($1.type == TYPE_BOOL && $3.type == TYPE_BOOL) {
                 $$.value = $1.value && $3.value;
                 $$.type = TYPE_BOOL;
+                $$.llvm_value = LLVMBuildAnd(builder, $1.llvm_value, $3.llvm_value, "andtmp");
             } else {
                 fprintf(stderr, "Error: logical AND between incompatible types at line %d.\n", yylineno);
                 $$.value = -1;
@@ -710,13 +802,10 @@ log_exp: expression AND expression {
             }
        }
        | expression OR  expression {
-            char temp[16];
-            sprintf(temp, "t%d", tacIndex);
-            addTAC("||", $1.result, $3.result, temp);
-            $$.result = strdup(temp);
             if ($1.type == TYPE_BOOL && $3.type == TYPE_BOOL) {
                 $$.value = $1.value || $3.value;
                 $$.type = TYPE_BOOL;
+                $$.llvm_value = LLVMBuildOr(builder, $1.llvm_value, $3.llvm_value, "ortmp");
             } else {
                 fprintf(stderr, "Error: logical OR between incompatible types at line %d.\n", yylineno);
                 $$.value = -1;
@@ -724,13 +813,10 @@ log_exp: expression AND expression {
             }
        }
        | NOT expression {
-            char temp[16];
-            sprintf(temp, "t%d", tacIndex);
-            addTAC("!", NULL, $2.result, temp);
-            $$.result = strdup(temp);
             if ($2.type == TYPE_BOOL) {
                 $$.value = !$2.value;
                 $$.type = TYPE_BOOL;
+                $$.llvm_value = LLVMBuildNot(builder, $2.llvm_value, "nottmp");
             } else {
                 fprintf(stderr, "Error: logical NOT on incompatible type at line %d.\n", yylineno);
                 $$.value = -1;
@@ -743,102 +829,85 @@ cast: LEFTPAR INT RIGHTPAR LEFTPAR expression RIGHTPAR {
         int temp = (int) $5.value;
         $$.value = (double) temp;
         $$.type = TYPE_INT;
-        char tempStr[16];
-        sprintf(tempStr, "t%d", tacIndex);
-        addTAC("(int)", NULL, $5.result, tempStr);
-        $$.result = strdup(tempStr);
+        $$.llvm_value = LLVMBuildFPToSI(builder, $5.llvm_value, LLVMInt32TypeInContext(context), "castint");
     }
     | LEFTPAR INT RIGHTPAR term {
         int temp = (int) $4.value;
         $$.value = (double) temp;
         $$.type = TYPE_INT;
-        char tempStr[16];
-        sprintf(tempStr, "t%d", tacIndex);
-        addTAC("(int)", NULL, $4.result, tempStr);
-        $$.result = strdup(tempStr);
+        $$.llvm_value = LLVMBuildFPToSI(builder, $4.llvm_value, LLVMInt32TypeInContext(context), "castint");
     }
     | LEFTPAR FLOAT RIGHTPAR LEFTPAR expression RIGHTPAR {
         $$.value = $5.value;
         $$.type = TYPE_FLOAT;
-        char tempStr[16];
-        sprintf(tempStr, "t%d", tacIndex);
-        addTAC("(float)", NULL, $5.result, tempStr);
-        $$.result = strdup(tempStr);
+        $$.llvm_value = LLVMBuildSIToFP(builder, $5.llvm_value, LLVMDoubleTypeInContext(context), "castfloat");
     }
     | LEFTPAR FLOAT RIGHTPAR term {
         $$.value = $4.value;
         $$.type = TYPE_FLOAT;
-        char tempStr[16];
-        sprintf(tempStr, "t%d", tacIndex);
-        addTAC("(float)", NULL, $4.result, tempStr);
-        $$.result = strdup(tempStr);
+        $$.llvm_value = LLVMBuildSIToFP(builder, $4.llvm_value, LLVMDoubleTypeInContext(context), "castfloat");
     }
     | LEFTPAR CHAR RIGHTPAR LEFTPAR expression RIGHTPAR {
         $$.value = (double) ((char) $5.value);
         $$.type = TYPE_CHAR;
-        char tempStr[16];
-        sprintf(tempStr, "t%d", tacIndex);
-        addTAC("(char)", NULL, $5.result, tempStr);
-        $$.result = strdup(tempStr);
+        $$.llvm_value = LLVMBuildTrunc(builder, $5.llvm_value, LLVMInt8TypeInContext(context), "castchar");
     }
     | LEFTPAR CHAR RIGHTPAR term {
         $$.value = (double) ((char) $4.value);
         $$.type = TYPE_CHAR;
-        char tempStr[16];
-        sprintf(tempStr, "t%d", tacIndex);
-        addTAC("(char)", NULL, $4.result, tempStr);
-        $$.result = strdup(tempStr);
+        $$.llvm_value = LLVMBuildTrunc(builder, $4.llvm_value, LLVMInt8TypeInContext(context), "castchar");
     }
     | LEFTPAR BOOL RIGHTPAR LEFTPAR expression RIGHTPAR {
-        if($5.value != 0.0) {
-            $$.value = 1.0;
-        } else {
-            $$.value = 0.0;
-        }
+        $$.value = ($5.value != 0.0) ? 1.0 : 0.0;
         $$.type = TYPE_BOOL;
-        char tempStr[16];
-        sprintf(tempStr, "t%d", tacIndex);
-        addTAC("(bool)", NULL, $5.result, tempStr);
-        $$.result = strdup(tempStr);
+        // Compara com zero para gerar i1
+        LLVMValueRef zero = LLVMConstInt(LLVMTypeOf($5.llvm_value), 0, 0);
+        $$.llvm_value = LLVMBuildICmp(builder, LLVMIntNE, $5.llvm_value, zero, "castbool");
     }
     | LEFTPAR BOOL RIGHTPAR term {
-        if($4.value != 0.0) {
-            $$.value = 1.0;
-        } else {
-            $$.value = 0.0;
-        }
+        $$.value = ($4.value != 0.0) ? 1.0 : 0.0;
         $$.type = TYPE_BOOL;
-        char tempStr[16];
-        sprintf(tempStr, "t%d", tacIndex);
-        addTAC("(bool)", NULL, $4.result, tempStr);
-        $$.result = strdup(tempStr);
+        // Compara com zero para gerar i1
+        LLVMValueRef zero = LLVMConstInt(LLVMTypeOf($4.llvm_value), 0, 0);
+        $$.llvm_value = LLVMBuildICmp(builder, LLVMIntNE, $4.llvm_value, zero, "castbool");
     }
     ;
 
 term: NUMBER { 
         $$.value = $1.value; 
         $$.type = $1.type; 
-        char temp[16];
-        sprintf(temp, "%g", $1.value);
-        $$.result = strdup(temp);
+        switch ($1.type) {
+            case TYPE_INT:   $$.llvm_value = LLVMConstInt(LLVMInt32TypeInContext(context), (int)$1.value, 0); break;
+            case TYPE_FLOAT: $$.llvm_value = LLVMConstReal(LLVMDoubleTypeInContext(context), $1.value); break;
+            case TYPE_CHAR:  $$.llvm_value = LLVMConstInt(LLVMInt8TypeInContext(context), (int)$1.value, 0); break;
+            case TYPE_BOOL:  $$.llvm_value = LLVMConstInt(LLVMInt1TypeInContext(context), (int)$1.value, 0); break;
+            default:         $$.llvm_value = LLVMConstReal(LLVMDoubleTypeInContext(context), $1.value); break;
+        }
     }
-    | ID { 
+    | ID {
         Symbol* sym = findSymbol($1);
         if (!sym) {
             fprintf(stderr, "Undeclared variable '%s' at line %d\n", $1, yylineno);
             $$.value = -1;
             $$.type = TYPE_UNKNOWN;
-            $$.result = "";
         } else {
             if (sym->value == -DBL_MAX) {
                 fprintf(stderr, "Uninitialized variable '%s' at line %d\n", $1, yylineno);
                 $$.value = -1;
                 $$.type = TYPE_UNKNOWN;
-                $$.result = NULL;
             } else {
                 $$.value = sym->value;
                 $$.type = sym->type;
-                $$.result = strdup(sym->id);
+                LLVMValueRef var = getVarLLVM($1);
+                LLVMTypeRef llvm_type;
+                switch (sym->type) {
+                    case TYPE_INT:   llvm_type = LLVMInt32TypeInContext(context); break;
+                    case TYPE_FLOAT: llvm_type = LLVMDoubleTypeInContext(context); break;
+                    case TYPE_CHAR:  llvm_type = LLVMInt8TypeInContext(context); break;
+                    case TYPE_BOOL:  llvm_type = LLVMInt1TypeInContext(context); break;
+                    default:         llvm_type = LLVMDoubleTypeInContext(context); break;
+                }
+                $$.llvm_value = LLVMBuildLoad2(builder, llvm_type, var, "loadtmp");
             }
         }
     }
@@ -856,7 +925,15 @@ void yyerror(const char* str) {
 }
 
 void handleSegfault(int sig) {
+    void *array[10];
+    size_t size;
+
     fprintf(stderr, "Segmentation fault (signal %d). Exiting gracefully.\n", sig);
+
+    // Captura o backtrace
+    size = backtrace(array, 10);
+    backtrace_symbols_fd(array, size, STDERR_FILENO);
+
     exit(1);
 }
 
@@ -899,8 +976,70 @@ void printSymbolTable(SymbolTable* table) {
 int main( ) {
     signal(SIGSEGV, handleSegfault); // Handle segmentation faults
     pushScope(); // Initialize the first scope
+
+    // Inicialização LLVM
+    context = LLVMContextCreate();
+    module = LLVMModuleCreateWithNameInContext("miniC", context);
+    builder = LLVMCreateBuilderInContext(context);
+
+    // Cria função write: void write(param)
+    LLVMTypeRef write_int_args[] = { LLVMInt32TypeInContext(context) };
+    LLVMTypeRef write_int_type = LLVMFunctionType(LLVMVoidTypeInContext(context), write_int_args, 1, 0);
+    LLVMAddFunction(module, "write_int", write_int_type);
+
+    LLVMTypeRef write_float_args[] = { LLVMDoubleTypeInContext(context) };
+    LLVMTypeRef write_float_type = LLVMFunctionType(LLVMVoidTypeInContext(context), write_float_args, 1, 0);
+    LLVMAddFunction(module, "write_float", write_float_type);
+
+    LLVMTypeRef write_char_args[] = { LLVMInt8TypeInContext(context) };
+    LLVMTypeRef write_char_type = LLVMFunctionType(LLVMVoidTypeInContext(context), write_char_args, 1, 0);
+    LLVMAddFunction(module, "write_char", write_char_type);
+
+    LLVMTypeRef write_bool_args[] = { LLVMInt1TypeInContext(context) };
+    LLVMTypeRef write_bool_type = LLVMFunctionType(LLVMVoidTypeInContext(context), write_bool_args, 1, 0);
+    LLVMAddFunction(module, "write_bool", write_bool_type);
+
+    LLVMTypeRef write_string_args[] = { LLVMPointerType(LLVMInt8TypeInContext(context), 0) };
+    LLVMTypeRef write_string_type = LLVMFunctionType(LLVMVoidTypeInContext(context), write_string_args, 1, 0);
+    LLVMAddFunction(module, "write_string", write_string_type);
+
+    // Cria função read: void read(param)
+    LLVMTypeRef read_int_args[] = { LLVMInt32TypeInContext(context) };
+    LLVMTypeRef read_int_type = LLVMFunctionType(LLVMVoidTypeInContext(context), read_int_args, 1, 0);
+    LLVMAddFunction(module, "read_int", read_int_type);
+
+    LLVMTypeRef read_float_args[] = { LLVMDoubleTypeInContext(context) };
+    LLVMTypeRef read_float_type = LLVMFunctionType(LLVMVoidTypeInContext(context), read_float_args, 1, 0);
+    LLVMAddFunction(module, "read_float", read_float_type);
+
+    LLVMTypeRef read_char_args[] = { LLVMInt8TypeInContext(context) };
+    LLVMTypeRef read_char_type = LLVMFunctionType(LLVMVoidTypeInContext(context), read_char_args, 1, 0);
+    LLVMAddFunction(module, "read_char", read_char_type);
+
+    LLVMTypeRef read_bool_args[] = { LLVMInt1TypeInContext(context) };
+    LLVMTypeRef read_bool_type = LLVMFunctionType(LLVMVoidTypeInContext(context), read_bool_args, 1, 0);
+    LLVMAddFunction(module, "read_bool", read_bool_type);
+
+    // Cria função main: int main()
+    LLVMTypeRef mainType = LLVMFunctionType(LLVMInt32TypeInContext(context), NULL, 0, 0);
+    mainFunc = LLVMAddFunction(module, "main", mainType);
+    entry = LLVMAppendBasicBlockInContext(context, mainFunc, "entry");
+    LLVMPositionBuilderAtEnd(builder, entry);
+
     yyparse( );
-    printTAC(); // Imprime o código de três endereços
+
+    // Retorno main
+    LLVMBuildRet(builder, LLVMConstInt(LLVMInt32TypeInContext(context), 0, 0));
+
+    // Imprime IR
+    char *irstr = LLVMPrintModuleToString(module);
+    printf("\nLLVM IR:\n%s\n", irstr);
+    LLVMDisposeMessage(irstr);
+
+    LLVMDisposeBuilder(builder);
+    LLVMDisposeModule(module);
+    LLVMContextDispose(context);
+    
     /* printSymbolTable(currentScope); // Print the symbol table */
     freeSymbolTable(currentScope); // Free the symbol table
     return 0;

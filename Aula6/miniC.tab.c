@@ -70,10 +70,6 @@
 #line 1 "miniC.y"
 
 #include "VarType.h"
-int yylex();
-extern int yylineno;
-#line 7 "miniC.y"
-
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -84,77 +80,12 @@ extern int yylineno;
 #include <float.h>
 #include <signal.h>
 #include <unistd.h>
-
-#define MAX_TAC 1000
-
-typedef struct TAC {
-    char* op;       // Operação (e.g., "IF", "GOTO", "+", "-", etc.)
-    char* arg1;     // Primeiro argumento
-    char* arg2;     // Segundo argumento (se aplicável)
-    char* result;   // Resultado ou label
-} TAC;
-
-TAC tacBuffer[MAX_TAC];
-int tacIndex = 0;
-int labelCount = 0; // Para gerar labels únicos
-char label[10];
-char label0[10];
-
-void addTAC(const char* op, const char* arg1, const char* arg2, const char* result) {
-    if (tacIndex >= MAX_TAC) {
-        fprintf(stderr, "Error: TAC buffer overflow.\n");
-        exit(1);
-    }
-    tacBuffer[tacIndex].op = op ? strdup(op) : NULL;
-    tacBuffer[tacIndex].arg1 = arg1 ? strdup(arg1) : NULL;
-    tacBuffer[tacIndex].arg2 = arg2 ? strdup(arg2) : NULL;
-    tacBuffer[tacIndex].result = result ? strdup(result) : NULL;
-    tacIndex++;
-}
-
-void printTAC() {
-    printf("\nThree-Address Code:\n");
-    for (int i = 0; i < tacIndex; i++) {
-        if (tacBuffer[i].op &&
-            strcmp(tacBuffer[i].op, "+") != 0 &&
-            strcmp(tacBuffer[i].op, "-") != 0 &&
-            strcmp(tacBuffer[i].op, "*") != 0 &&
-            strcmp(tacBuffer[i].op, "/") != 0 &&
-            strcmp(tacBuffer[i].op, ">") != 0 &&
-            strcmp(tacBuffer[i].op, "<") != 0 &&
-            strcmp(tacBuffer[i].op, ">=") != 0 &&
-            strcmp(tacBuffer[i].op, "<=") != 0 &&
-            strcmp(tacBuffer[i].op, "==") != 0 &&
-            strcmp(tacBuffer[i].op, "!=") != 0 &&
-            strcmp(tacBuffer[i].op, "&&") != 0 &&
-            strcmp(tacBuffer[i].op, "||") != 0 &&
-            strcmp(tacBuffer[i].op, "!") != 0 &&
-            strcmp(tacBuffer[i].op, "(int)") != 0 &&
-            strcmp(tacBuffer[i].op, "(float)") != 0 &&
-            strcmp(tacBuffer[i].op, "(char)") != 0 &&
-            strcmp(tacBuffer[i].op, "(bool)") != 0){
-            
-            if(strcmp(tacBuffer[i].arg1, ":") != 0) {
-                printf("\t%s %s %s %s\n",
-                    tacBuffer[i].op,
-                    tacBuffer[i].arg1 ? tacBuffer[i].arg1 : "",
-                    tacBuffer[i].arg2 ? tacBuffer[i].arg2 : "",
-                    tacBuffer[i].result ? tacBuffer[i].result : "");
-            } else {
-                printf("%s%s",
-                    tacBuffer[i].op,
-                    tacBuffer[i].arg1 ? tacBuffer[i].arg1 : "");
-            }
-        } else {
-            printf("\t%s = %s %s %s\n",
-                tacBuffer[i].result ? tacBuffer[i].result : "",
-                tacBuffer[i].arg1 ? tacBuffer[i].arg1 : "",
-                tacBuffer[i].op ? tacBuffer[i].op : "",
-                tacBuffer[i].arg2 ? tacBuffer[i].arg2 : "");
-        }
-    }
-    printf("\n");
-}
+#include <stdint.h>
+#include <execinfo.h>
+#include <llvm-c/Core.h>
+#include <llvm-c/Analysis.h>
+#include <llvm-c/Target.h>
+#include <llvm-c/ExecutionEngine.h>
 
 #define HASH_SIZE 100
 
@@ -194,18 +125,20 @@ Symbol* findSymbol(const char* id) {
 }
 
 void insertSymbol(const char* id, double value, VarType type) {
-    Symbol* sym = findSymbol(id);
-    if (sym != NULL) {
-        sym->value = value;
-        sym->type = type;
-    } else {
-        unsigned int index = hash(id);
-        sym = malloc(sizeof(Symbol));
-        sym->id = strdup(id);
-        sym->value = value;
-        sym->type = type;
-        sym->next = currentScope->table[index];
-        currentScope->table[index] = sym;
+    if(currentScope) {
+        Symbol* sym = findSymbol(id);
+        if (sym != NULL) {
+            sym->value = value;
+            sym->type = type;
+        } else {
+            unsigned int index = hash(id);
+            sym = malloc(sizeof(Symbol));
+            sym->id = strdup(id);
+            sym->value = value;
+            sym->type = type;
+            sym->next = currentScope->table[index];
+            currentScope->table[index] = sym;
+        }
     }
 }
 
@@ -251,14 +184,66 @@ void freeSymbolTable(SymbolTable* table) {
     }
 }
 
+#define MAX_VARS 1000
+
+char* var_names[MAX_VARS];
+LLVMValueRef var_values[MAX_VARS];
+int var_count = 0;
+
+LLVMModuleRef module;
+LLVMBuilderRef builder;
+LLVMContextRef context;
+LLVMValueRef mainFunc;
+LLVMBasicBlockRef entry;
+
+void allocaVars(const char* name, VarType type) {
+    if (var_count >= MAX_VARS) {
+        fprintf(stderr, "Error: too many variables.\n");
+        exit(1);
+    }
+
+    LLVMTypeRef llvm_type;
+    switch (type) {
+        case TYPE_INT:   llvm_type = LLVMInt32TypeInContext(context); break;
+        case TYPE_FLOAT: llvm_type = LLVMDoubleTypeInContext(context); break;
+        case TYPE_CHAR:  llvm_type = LLVMInt8TypeInContext(context); break;
+        case TYPE_BOOL:  llvm_type = LLVMInt1TypeInContext(context); break;
+        default:         llvm_type = LLVMDoubleTypeInContext(context); break;
+    }
+    LLVMValueRef alloc = LLVMBuildAlloca(builder, llvm_type, name);
+    var_names[var_count] = strdup(name);
+    var_values[var_count++] = alloc;
+}
+
+LLVMValueRef getVarLLVM(const char* name) {
+    for (int i = 0; i < var_count; ++i)
+        if (strcmp(var_names[i], name) == 0)
+            return var_values[i];
+    
+    return NULL;
+}
+
+LLVMValueRef createGlobalString(const char* str, const char* name) {
+    LLVMValueRef str_const = LLVMConstStringInContext(context, str, strlen(str), 1);
+    LLVMValueRef global = LLVMAddGlobal(module, LLVMTypeOf(str_const), name);
+    LLVMSetInitializer(global, str_const);
+    LLVMSetGlobalConstant(global, 1);
+    LLVMSetLinkage(global, LLVMPrivateLinkage);
+    return global;
+}
+
+LLVMValueRef aux;
+
+int yylex();
 int yywrap( );
 void yyerror(const char* str);
+extern int yylineno;
 
 int if_condition = 1;
 int if_else_condition = 0;
 
 
-#line 262 "miniC.tab.c"
+#line 247 "miniC.tab.c"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -325,22 +310,25 @@ enum yysymbol_kind_t
   YYSYMBOL_declaration = 36,               /* declaration  */
   YYSYMBOL_comand = 37,                    /* comand  */
   YYSYMBOL_assignment = 38,                /* assignment  */
-  YYSYMBOL_if = 39,                        /* if  */
+  YYSYMBOL_if_then = 39,                   /* if_then  */
   YYSYMBOL_40_1 = 40,                      /* $@1  */
   YYSYMBOL_41_2 = 41,                      /* $@2  */
-  YYSYMBOL_else = 42,                      /* else  */
-  YYSYMBOL_43_3 = 43,                      /* $@3  */
-  YYSYMBOL_write = 44,                     /* write  */
-  YYSYMBOL_read = 45,                      /* read  */
+  YYSYMBOL_if_then_aux = 42,               /* if_then_aux  */
+  YYSYMBOL_if_then_aux2 = 43,              /* if_then_aux2  */
+  YYSYMBOL_else = 44,                      /* else  */
+  YYSYMBOL_45_3 = 45,                      /* $@3  */
   YYSYMBOL_while = 46,                     /* while  */
   YYSYMBOL_47_4 = 47,                      /* $@4  */
-  YYSYMBOL_expression = 48,                /* expression  */
-  YYSYMBOL_soma_sub = 49,                  /* soma_sub  */
-  YYSYMBOL_mult_div = 50,                  /* mult_div  */
-  YYSYMBOL_comparison = 51,                /* comparison  */
-  YYSYMBOL_log_exp = 52,                   /* log_exp  */
-  YYSYMBOL_cast = 53,                      /* cast  */
-  YYSYMBOL_term = 54                       /* term  */
+  YYSYMBOL_while_aux = 48,                 /* while_aux  */
+  YYSYMBOL_write = 49,                     /* write  */
+  YYSYMBOL_read = 50,                      /* read  */
+  YYSYMBOL_expression = 51,                /* expression  */
+  YYSYMBOL_soma_sub = 52,                  /* soma_sub  */
+  YYSYMBOL_mult_div = 53,                  /* mult_div  */
+  YYSYMBOL_comparison = 54,                /* comparison  */
+  YYSYMBOL_log_exp = 55,                   /* log_exp  */
+  YYSYMBOL_cast = 56,                      /* cast  */
+  YYSYMBOL_term = 57                       /* term  */
 };
 typedef enum yysymbol_kind_t yysymbol_kind_t;
 
@@ -668,16 +656,16 @@ union yyalloc
 /* YYFINAL -- State number of the termination state.  */
 #define YYFINAL  29
 /* YYLAST -- Last index in YYTABLE.  */
-#define YYLAST   268
+#define YYLAST   277
 
 /* YYNTOKENS -- Number of terminals.  */
 #define YYNTOKENS  34
 /* YYNNTS -- Number of nonterminals.  */
-#define YYNNTS  21
+#define YYNNTS  24
 /* YYNRULES -- Number of rules.  */
-#define YYNRULES  57
+#define YYNRULES  60
 /* YYNSTATES -- Number of states.  */
-#define YYNSTATES  130
+#define YYNSTATES  133
 
 /* YYMAXUTOK -- Last valid token kind.  */
 #define YYMAXUTOK   288
@@ -729,12 +717,13 @@ static const yytype_int8 yytranslate[] =
 /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int16 yyrline[] =
 {
-       0,   251,   251,   252,   253,   254,   259,   265,   271,   277,
-     288,   289,   290,   291,   292,   297,   319,   341,   319,   349,
-     350,   350,   381,   406,   422,   432,   479,   479,   508,   509,
-     510,   511,   512,   513,   514,   517,   535,   555,   573,   598,
-     613,   628,   643,   658,   677,   698,   712,   726,   742,   751,
-     760,   768,   776,   784,   792,   804,   818,   825
+       0,   242,   242,   243,   244,   245,   250,   256,   262,   268,
+     279,   280,   281,   282,   283,   288,   340,   350,   340,   370,
+     382,   386,   387,   387,   405,   405,   419,   432,   470,   498,
+     509,   545,   546,   547,   548,   549,   550,   551,   554,   576,
+     600,   622,   652,   674,   696,   718,   740,   766,   793,   804,
+     815,   828,   834,   840,   845,   850,   855,   860,   867,   876,
+     887
 };
 #endif
 
@@ -755,8 +744,9 @@ static const char *const yytname[] =
   "STRING", "RECEIVE", "EQUAL", "NEQUAL", "LESS", "GREAT", "LEQUAL",
   "GEQUAL", "AND", "OR", "NOT", "PLUS", "MIN", "MULT", "DIV", "LEFTPAR",
   "RIGHTPAR", "DONE", "LEFTKEYS", "RIGHTKEYS", "$accept", "program",
-  "declaration", "comand", "assignment", "if", "$@1", "$@2", "else", "$@3",
-  "write", "read", "while", "$@4", "expression", "soma_sub", "mult_div",
+  "declaration", "comand", "assignment", "if_then", "$@1", "$@2",
+  "if_then_aux", "if_then_aux2", "else", "$@3", "while", "$@4",
+  "while_aux", "write", "read", "expression", "soma_sub", "mult_div",
   "comparison", "log_exp", "cast", "term", YY_NULLPTR
 };
 
@@ -767,7 +757,7 @@ yysymbol_name (yysymbol_kind_t yysymbol)
 }
 #endif
 
-#define YYPACT_NINF (-76)
+#define YYPACT_NINF (-64)
 
 #define yypact_value_is_default(Yyn) \
   ((Yyn) == YYPACT_NINF)
@@ -781,19 +771,20 @@ yysymbol_name (yysymbol_kind_t yysymbol)
    STATE-NUM.  */
 static const yytype_int16 yypact[] =
 {
-     217,    13,   -22,    -2,     3,     5,    14,    20,    22,    31,
-      12,    32,    13,    13,   -76,   -76,   -76,   -76,   -76,   -76,
-      49,    38,    41,    43,    45,    71,    92,    49,    49,   -76,
-     -76,   -76,   -76,   -76,    49,    58,    94,   -76,   -76,   -76,
-     -76,   -76,   -76,   -76,   -76,   -76,   -76,    66,    77,    88,
-      93,   111,    72,   -76,    95,   105,   110,   120,   126,    49,
-      49,    49,    49,    49,    49,    49,    49,    49,    49,    49,
-      49,   -76,    70,   124,   134,   139,   -76,   -76,    16,    18,
-      55,    73,   -76,   227,   227,   227,   227,   227,   227,   240,
-     214,   210,   210,   -76,   -76,   148,   -76,   -76,   -76,   -76,
-     153,    49,   -76,    49,   -76,    49,   -76,    49,   -76,    47,
-      47,   141,   156,   171,   186,   162,   167,   -76,   -76,   -76,
-     -76,   -76,   -76,   206,   -76,   -76,   183,    47,   188,   -76
+     226,    44,   -23,    10,    11,    19,    34,    29,    31,   -64,
+      33,    73,    44,    44,   -64,   -64,   -64,   -64,   -64,   -64,
+       1,    48,    54,    60,    61,    63,    15,    58,     1,   -64,
+     -64,   -64,   -64,   -64,     1,    -3,   105,   -64,   -64,   -64,
+     -64,   -64,   -64,   -64,   -64,   -64,   -64,    64,    65,    66,
+      67,     1,    85,   -64,    79,    87,    88,    89,   120,     1,
+       1,     1,     1,     1,     1,     1,     1,     1,     1,     1,
+       1,   -64,    62,    68,   103,   113,   135,   -64,    57,    59,
+      69,    71,   -64,   236,   236,   236,   236,   236,   236,   249,
+     223,    -8,    -8,   -64,   -64,   -64,   -64,   -64,   -64,   -64,
+     -64,     1,   -64,     1,   -64,     1,   -64,     1,   -64,   117,
+     127,   150,   165,   180,   195,    56,    56,   -64,   -64,   -64,
+     -64,   131,   141,   -64,   -64,   -64,    86,   -64,   -64,   147,
+      56,   156,   -64
 };
 
 /* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
@@ -801,35 +792,36 @@ static const yytype_int16 yypact[] =
    means the default is an error.  */
 static const yytype_int8 yydefact[] =
 {
-       0,     0,     0,     0,     0,     0,     0,     0,     0,     0,
+       0,     0,     0,     0,     0,     0,     0,     0,     0,    26,
        0,     0,     0,     0,    10,    11,    12,    13,    14,     5,
        0,     0,     0,     0,     0,     0,     0,     0,     0,     1,
-       4,     3,    57,    56,     0,     0,     0,    28,    29,    31,
-      32,    33,    34,     6,     8,     7,     9,     0,     0,     0,
-       0,     0,     0,    47,     0,     0,     0,     0,     0,     0,
+       4,     3,    60,    59,     0,     0,     0,    31,    32,    34,
+      35,    36,    37,     6,     8,     7,     9,     0,     0,     0,
+       0,     0,     0,    50,     0,     0,     0,     0,     0,     0,
        0,     0,     0,     0,     0,     0,     0,     0,     0,     0,
-       0,    16,     0,     0,     0,     0,    26,    15,     0,     0,
-       0,     0,    30,    43,    44,    39,    40,    41,    42,    45,
-      46,    35,    36,    37,    38,     0,    25,    22,    23,    24,
-       0,     0,    49,     0,    53,     0,    51,     0,    55,     0,
-       0,     0,     0,     0,     0,     0,     0,    48,    52,    50,
-      54,    17,    27,    19,    20,    18,     0,     0,     0,    21
+       0,    16,     0,     0,     0,     0,     0,    15,     0,     0,
+       0,     0,    33,    46,    47,    42,    43,    44,    45,    48,
+      49,    38,    39,    40,    41,    19,    30,    27,    28,    29,
+      24,     0,    52,     0,    56,     0,    54,     0,    58,     0,
+       0,     0,     0,     0,     0,     0,     0,    51,    55,    53,
+      57,     0,     0,    20,    25,    17,    21,    22,    18,     0,
+       0,     0,    23
 };
 
 /* YYPGOTO[NTERM-NUM].  */
 static const yytype_int8 yypgoto[] =
 {
-     -76,    -1,   -76,   -76,   -76,   -76,   -76,   -76,   -76,   -76,
-     -76,   -76,   -76,   -76,   -26,   -76,   -76,   -76,   -76,   -76,
-     -75
+     -64,    -1,   -64,   -64,   -64,   -64,   -64,   -64,   -64,   -64,
+     -64,   -64,   -64,   -64,   -64,   -64,   -64,   -27,   -64,   -64,
+     -64,   -64,   -64,   -63
 };
 
 /* YYDEFGOTO[NTERM-NUM].  */
-static const yytype_int8 yydefgoto[] =
+static const yytype_uint8 yydefgoto[] =
 {
-       0,    11,    12,    13,    14,    15,    95,   123,   125,   126,
-      16,    17,    18,   100,    36,    37,    38,    39,    40,    41,
-      42
+       0,    11,    12,    13,    14,    15,    95,   126,   109,   125,
+     128,   129,    16,   110,    27,    17,    18,    36,    37,    38,
+      39,    40,    41,    42
 };
 
 /* YYTABLE[YYPACT[STATE-NUM]] -- What to do in state STATE-NUM.  If
@@ -837,64 +829,66 @@ static const yytype_int8 yydefgoto[] =
    number is the opposite.  If YYTABLE_NINF, syntax error.  */
 static const yytype_int16 yytable[] =
 {
-      19,    51,    52,   102,   104,   106,   108,    20,    53,    58,
-      21,    30,    31,    -2,     1,    22,     2,    23,     3,     4,
-       5,     6,     7,     8,     9,    10,    24,    28,    32,    33,
-      32,    33,    29,    83,    84,    85,    86,    87,    88,    89,
-      90,    91,    92,    93,    94,   101,    -2,   103,     1,    25,
-       2,    26,     3,     4,     5,     6,     7,     8,     9,    10,
-      27,    32,    33,    54,    55,    56,    57,    32,    33,    43,
-      32,    33,    44,    34,    45,   111,    46,   112,    35,   113,
-      -2,   114,    34,    47,   105,    32,    33,    35,    59,    60,
-      61,    62,    63,    64,    65,    66,    72,    67,    68,    69,
-      70,    96,   107,    77,    48,    49,    50,    73,   115,   116,
-      59,    60,    61,    62,    63,    64,    65,    66,    74,    67,
-      68,    69,    70,    75,    71,    78,   128,    59,    60,    61,
-      62,    63,    64,    65,    66,    79,    67,    68,    69,    70,
-      80,    76,    59,    60,    61,    62,    63,    64,    65,    66,
-      81,    67,    68,    69,    70,    97,    82,    59,    60,    61,
-      62,    63,    64,    65,    66,    98,    67,    68,    69,    70,
-      99,   117,    59,    60,    61,    62,    63,    64,    65,    66,
-     109,    67,    68,    69,    70,   110,   118,    59,    60,    61,
-      62,    63,    64,    65,    66,   121,    67,    68,    69,    70,
-     122,   119,    59,    60,    61,    62,    63,    64,    65,    66,
-     124,    67,    68,    69,    70,   127,   120,    -2,     1,     0,
-       2,   129,     3,     4,     5,     6,     7,     8,     9,    10,
-      59,    60,    61,    62,    63,    64,    65,    69,    70,    67,
-      68,    69,    70,    -3,    -3,    -3,    -3,    -3,    -3,     0,
-       0,     0,    67,    68,    69,    70,    59,    60,    61,    62,
-      63,    64,     0,     0,     0,    67,    68,    69,    70
+      19,    52,    54,    55,    56,    57,    20,    53,    58,    32,
+      33,    30,    31,    32,    33,   102,   104,   106,   108,    69,
+      70,    34,    21,    22,    76,    34,    35,    48,    49,    50,
+      35,    23,    83,    84,    85,    86,    87,    88,    89,    90,
+      91,    92,    93,    94,    -2,     1,    24,     2,    28,     3,
+       4,     5,     6,     7,     8,     9,    10,     1,    25,     2,
+      26,     3,     4,     5,     6,     7,     8,     9,    10,    32,
+      33,    32,    33,    29,   111,    47,   112,    -2,   113,    43,
+     114,    32,    33,    32,    33,    44,   101,    51,   103,    -2,
+     127,    45,    46,    96,    72,    73,    74,    75,   105,    97,
+     107,    59,    60,    61,    62,    63,    64,    65,    66,    78,
+      67,    68,    69,    70,   121,   122,    77,    79,    80,    81,
+       0,    59,    60,    61,    62,    63,    64,    65,    66,   131,
+      67,    68,    69,    70,    98,    71,    59,    60,    61,    62,
+      63,    64,    65,    66,    99,    67,    68,    69,    70,   115,
+      82,    59,    60,    61,    62,    63,    64,    65,    66,   116,
+      67,    68,    69,    70,   123,   100,    59,    60,    61,    62,
+      63,    64,    65,    66,   124,    67,    68,    69,    70,   130,
+     117,    59,    60,    61,    62,    63,    64,    65,    66,   132,
+      67,    68,    69,    70,     0,   118,    59,    60,    61,    62,
+      63,    64,    65,    66,     0,    67,    68,    69,    70,     0,
+     119,    59,    60,    61,    62,    63,    64,    65,    66,     0,
+      67,    68,    69,    70,     0,   120,    -2,     1,     0,     2,
+       0,     3,     4,     5,     6,     7,     8,     9,    10,    59,
+      60,    61,    62,    63,    64,    65,     0,     0,    67,    68,
+      69,    70,    -3,    -3,    -3,    -3,    -3,    -3,     0,     0,
+       0,    67,    68,    69,    70,    59,    60,    61,    62,    63,
+      64,     0,     0,     0,    67,    68,    69,    70
 };
 
-static const yytype_int8 yycheck[] =
+static const yytype_int16 yycheck[] =
 {
-       1,    27,    28,    78,    79,    80,    81,    29,    34,    35,
-      12,    12,    13,     0,     1,    12,     3,    12,     5,     6,
-       7,     8,     9,    10,    11,    12,    12,    15,    12,    13,
-      12,    13,     0,    59,    60,    61,    62,    63,    64,    65,
-      66,    67,    68,    69,    70,    29,    33,    29,     1,    29,
-       3,    29,     5,     6,     7,     8,     9,    10,    11,    12,
-      29,    12,    13,     5,     6,     7,     8,    12,    13,    31,
-      12,    13,    31,    24,    31,   101,    31,   103,    29,   105,
-      33,   107,    24,    12,    29,    12,    13,    29,    16,    17,
-      18,    19,    20,    21,    22,    23,    30,    25,    26,    27,
-      28,    31,    29,    31,    12,    13,    14,    30,   109,   110,
-      16,    17,    18,    19,    20,    21,    22,    23,    30,    25,
-      26,    27,    28,    30,    30,    30,   127,    16,    17,    18,
-      19,    20,    21,    22,    23,    30,    25,    26,    27,    28,
-      30,    30,    16,    17,    18,    19,    20,    21,    22,    23,
-      30,    25,    26,    27,    28,    31,    30,    16,    17,    18,
-      19,    20,    21,    22,    23,    31,    25,    26,    27,    28,
-      31,    30,    16,    17,    18,    19,    20,    21,    22,    23,
-      32,    25,    26,    27,    28,    32,    30,    16,    17,    18,
-      19,    20,    21,    22,    23,    33,    25,    26,    27,    28,
-      33,    30,    16,    17,    18,    19,    20,    21,    22,    23,
-       4,    25,    26,    27,    28,    32,    30,     0,     1,    -1,
-       3,    33,     5,     6,     7,     8,     9,    10,    11,    12,
-      16,    17,    18,    19,    20,    21,    22,    27,    28,    25,
-      26,    27,    28,    16,    17,    18,    19,    20,    21,    -1,
-      -1,    -1,    25,    26,    27,    28,    16,    17,    18,    19,
-      20,    21,    -1,    -1,    -1,    25,    26,    27,    28
+       1,    28,     5,     6,     7,     8,    29,    34,    35,    12,
+      13,    12,    13,    12,    13,    78,    79,    80,    81,    27,
+      28,    24,    12,    12,    51,    24,    29,    12,    13,    14,
+      29,    12,    59,    60,    61,    62,    63,    64,    65,    66,
+      67,    68,    69,    70,     0,     1,    12,     3,    15,     5,
+       6,     7,     8,     9,    10,    11,    12,     1,    29,     3,
+      29,     5,     6,     7,     8,     9,    10,    11,    12,    12,
+      13,    12,    13,     0,   101,    12,   103,    33,   105,    31,
+     107,    12,    13,    12,    13,    31,    29,    29,    29,    33,
+       4,    31,    31,    31,    30,    30,    30,    30,    29,    31,
+      29,    16,    17,    18,    19,    20,    21,    22,    23,    30,
+      25,    26,    27,    28,   115,   116,    31,    30,    30,    30,
+      -1,    16,    17,    18,    19,    20,    21,    22,    23,   130,
+      25,    26,    27,    28,    31,    30,    16,    17,    18,    19,
+      20,    21,    22,    23,    31,    25,    26,    27,    28,    32,
+      30,    16,    17,    18,    19,    20,    21,    22,    23,    32,
+      25,    26,    27,    28,    33,    30,    16,    17,    18,    19,
+      20,    21,    22,    23,    33,    25,    26,    27,    28,    32,
+      30,    16,    17,    18,    19,    20,    21,    22,    23,    33,
+      25,    26,    27,    28,    -1,    30,    16,    17,    18,    19,
+      20,    21,    22,    23,    -1,    25,    26,    27,    28,    -1,
+      30,    16,    17,    18,    19,    20,    21,    22,    23,    -1,
+      25,    26,    27,    28,    -1,    30,     0,     1,    -1,     3,
+      -1,     5,     6,     7,     8,     9,    10,    11,    12,    16,
+      17,    18,    19,    20,    21,    22,    -1,    -1,    25,    26,
+      27,    28,    16,    17,    18,    19,    20,    21,    -1,    -1,
+      -1,    25,    26,    27,    28,    16,    17,    18,    19,    20,
+      21,    -1,    -1,    -1,    25,    26,    27,    28
 };
 
 /* YYSTOS[STATE-NUM] -- The symbol kind of the accessing symbol of
@@ -902,18 +896,19 @@ static const yytype_int8 yycheck[] =
 static const yytype_int8 yystos[] =
 {
        0,     1,     3,     5,     6,     7,     8,     9,    10,    11,
-      12,    35,    36,    37,    38,    39,    44,    45,    46,    35,
-      29,    12,    12,    12,    12,    29,    29,    29,    15,     0,
-      35,    35,    12,    13,    24,    29,    48,    49,    50,    51,
-      52,    53,    54,    31,    31,    31,    31,    12,    12,    13,
-      14,    48,    48,    48,     5,     6,     7,     8,    48,    16,
+      12,    35,    36,    37,    38,    39,    46,    49,    50,    35,
+      29,    12,    12,    12,    12,    29,    29,    48,    15,     0,
+      35,    35,    12,    13,    24,    29,    51,    52,    53,    54,
+      55,    56,    57,    31,    31,    31,    31,    12,    12,    13,
+      14,    29,    51,    51,     5,     6,     7,     8,    51,    16,
       17,    18,    19,    20,    21,    22,    23,    25,    26,    27,
-      28,    30,    30,    30,    30,    30,    30,    31,    30,    30,
-      30,    30,    30,    48,    48,    48,    48,    48,    48,    48,
-      48,    48,    48,    48,    48,    40,    31,    31,    31,    31,
-      47,    29,    54,    29,    54,    29,    54,    29,    54,    32,
-      32,    48,    48,    48,    48,    35,    35,    30,    30,    30,
-      30,    33,    33,    41,     4,    42,    43,    32,    35,    33
+      28,    30,    30,    30,    30,    30,    51,    31,    30,    30,
+      30,    30,    30,    51,    51,    51,    51,    51,    51,    51,
+      51,    51,    51,    51,    51,    40,    31,    31,    31,    31,
+      30,    29,    57,    29,    57,    29,    57,    29,    57,    42,
+      47,    51,    51,    51,    51,    32,    32,    30,    30,    30,
+      30,    35,    35,    33,    33,    43,    41,     4,    44,    45,
+      32,    35,    33
 };
 
 /* YYR1[RULE-NUM] -- Symbol kind of the left-hand side of rule RULE-NUM.  */
@@ -921,21 +916,23 @@ static const yytype_int8 yyr1[] =
 {
        0,    34,    35,    35,    35,    35,    36,    36,    36,    36,
       37,    37,    37,    37,    37,    38,    40,    41,    39,    42,
-      43,    42,    44,    44,    44,    45,    47,    46,    48,    48,
-      48,    48,    48,    48,    48,    49,    49,    50,    50,    51,
-      51,    51,    51,    51,    51,    52,    52,    52,    53,    53,
-      53,    53,    53,    53,    53,    53,    54,    54
+      43,    44,    45,    44,    47,    46,    48,    49,    49,    49,
+      50,    51,    51,    51,    51,    51,    51,    51,    52,    52,
+      53,    53,    54,    54,    54,    54,    54,    54,    55,    55,
+      55,    56,    56,    56,    56,    56,    56,    56,    56,    57,
+      57
 };
 
 /* YYR2[RULE-NUM] -- Number of symbols on the right-hand side of rule RULE-NUM.  */
 static const yytype_int8 yyr2[] =
 {
        0,     2,     0,     2,     2,     2,     3,     3,     3,     3,
-       1,     1,     1,     1,     1,     4,     0,     0,    10,     0,
-       0,     5,     5,     5,     5,     5,     0,     8,     1,     1,
-       3,     1,     1,     1,     1,     3,     3,     3,     3,     3,
-       3,     3,     3,     3,     3,     3,     3,     2,     6,     4,
-       6,     4,     6,     4,     6,     4,     1,     1
+       1,     1,     1,     1,     1,     4,     0,     0,    12,     0,
+       0,     0,     0,     5,     0,     9,     0,     5,     5,     5,
+       5,     1,     1,     3,     1,     1,     1,     1,     3,     3,
+       3,     3,     3,     3,     3,     3,     3,     3,     3,     3,
+       2,     6,     4,     6,     4,     6,     4,     6,     4,     1,
+       1
 };
 
 
@@ -1669,114 +1666,144 @@ yyreduce:
   switch (yyn)
     {
   case 2: /* program: %empty  */
-#line 251 "miniC.y"
+#line 242 "miniC.y"
                      {}
-#line 1675 "miniC.tab.c"
+#line 1672 "miniC.tab.c"
     break;
 
   case 3: /* program: comand program  */
-#line 252 "miniC.y"
+#line 243 "miniC.y"
                         {}
-#line 1681 "miniC.tab.c"
+#line 1678 "miniC.tab.c"
     break;
 
   case 4: /* program: declaration program  */
-#line 253 "miniC.y"
+#line 244 "miniC.y"
                              {}
-#line 1687 "miniC.tab.c"
+#line 1684 "miniC.tab.c"
     break;
 
   case 5: /* program: error program  */
-#line 254 "miniC.y"
+#line 245 "miniC.y"
                        { yyerrok; yyclearin; }
-#line 1693 "miniC.tab.c"
+#line 1690 "miniC.tab.c"
     break;
 
   case 6: /* declaration: INT ID DONE  */
-#line 259 "miniC.y"
+#line 250 "miniC.y"
                          {
-                addTAC("declare", "int", (yyvsp[-1].id), NULL);
                 if(if_condition == 1) {
                     insertSymbol((yyvsp[-1].id), -DBL_MAX, TYPE_INT);
+                    allocaVars((yyvsp[-1].id), TYPE_INT);
                 }
            }
-#line 1704 "miniC.tab.c"
+#line 1701 "miniC.tab.c"
     break;
 
   case 7: /* declaration: FLOAT ID DONE  */
-#line 265 "miniC.y"
+#line 256 "miniC.y"
                            {
-                addTAC("declare", "float", (yyvsp[-1].id), NULL);
                 if(if_condition == 1) {
                     insertSymbol((yyvsp[-1].id), -DBL_MAX, TYPE_FLOAT);
+                    allocaVars((yyvsp[-1].id), TYPE_FLOAT);
                 }
            }
-#line 1715 "miniC.tab.c"
+#line 1712 "miniC.tab.c"
     break;
 
   case 8: /* declaration: CHAR ID DONE  */
-#line 271 "miniC.y"
+#line 262 "miniC.y"
                           {
-                addTAC("declare", "char", (yyvsp[-1].id), NULL);
                 if(if_condition == 1) {
                     insertSymbol((yyvsp[-1].id), -DBL_MAX, TYPE_CHAR);
+                    allocaVars((yyvsp[-1].id), TYPE_CHAR);
                 }
            }
-#line 1726 "miniC.tab.c"
+#line 1723 "miniC.tab.c"
     break;
 
   case 9: /* declaration: BOOL ID DONE  */
-#line 277 "miniC.y"
+#line 268 "miniC.y"
                           {
-                addTAC("declare", "bool", (yyvsp[-1].id), NULL);
                 if(if_condition == 1) {
                     insertSymbol((yyvsp[-1].id), -DBL_MAX, TYPE_BOOL);
+                    allocaVars((yyvsp[-1].id), TYPE_BOOL);
                 }
            }
-#line 1737 "miniC.tab.c"
+#line 1734 "miniC.tab.c"
     break;
 
   case 10: /* comand: assignment  */
-#line 288 "miniC.y"
+#line 279 "miniC.y"
                    {}
-#line 1743 "miniC.tab.c"
+#line 1740 "miniC.tab.c"
     break;
 
-  case 11: /* comand: if  */
-#line 289 "miniC.y"
-           {}
-#line 1749 "miniC.tab.c"
+  case 11: /* comand: if_then  */
+#line 280 "miniC.y"
+                {}
+#line 1746 "miniC.tab.c"
     break;
 
-  case 12: /* comand: write  */
-#line 290 "miniC.y"
+  case 12: /* comand: while  */
+#line 281 "miniC.y"
               {}
-#line 1755 "miniC.tab.c"
+#line 1752 "miniC.tab.c"
     break;
 
-  case 13: /* comand: read  */
-#line 291 "miniC.y"
+  case 13: /* comand: write  */
+#line 282 "miniC.y"
+              {}
+#line 1758 "miniC.tab.c"
+    break;
+
+  case 14: /* comand: read  */
+#line 283 "miniC.y"
              {}
-#line 1761 "miniC.tab.c"
-    break;
-
-  case 14: /* comand: while  */
-#line 292 "miniC.y"
-              {}
-#line 1767 "miniC.tab.c"
+#line 1764 "miniC.tab.c"
     break;
 
   case 15: /* assignment: ID RECEIVE expression DONE  */
-#line 297 "miniC.y"
+#line 288 "miniC.y"
                                        {
-                addTAC(NULL, (yyvsp[-1].number).result, NULL, (yyvsp[-3].id));
+                Symbol* symbol = findSymbol((yyvsp[-3].id));
+                LLVMValueRef var = getVarLLVM((yyvsp[-3].id));
+                LLVMTypeRef llvm_type;
+                if (symbol) {
+                    switch (symbol->type) {
+                        case TYPE_INT:   llvm_type = LLVMInt32TypeInContext(context); break;
+                        case TYPE_FLOAT: llvm_type = LLVMDoubleTypeInContext(context); break;
+                        case TYPE_CHAR:  llvm_type = LLVMInt8TypeInContext(context); break;
+                        case TYPE_BOOL:  llvm_type = LLVMInt1TypeInContext(context); break;
+                        default:         llvm_type = LLVMInt32TypeInContext(context); break;
+                    }
+                }
+                LLVMValueRef value = (yyvsp[-1].number).llvm_value;
+                if(symbol) {
+                    if (symbol->type == (yyvsp[-1].number).type) {
+                        LLVMBuildStore(builder, value, var);
+                    }
+                    // Cast se necessário
+                    else if (symbol->type == TYPE_FLOAT && (yyvsp[-1].number).type == TYPE_INT) {
+                        value = LLVMBuildSIToFP(builder, value, llvm_type, "inttofloat");
+                        LLVMBuildStore(builder, value, var);
+                    }
+                    else if (symbol->type == TYPE_INT && (yyvsp[-1].number).type == TYPE_FLOAT) {
+                        printf("Warning: casting float to int for variable '%s' at line %d.\n", (yyvsp[-3].id), yylineno);
+                        value = LLVMBuildFPToSI(builder, value, llvm_type, "floattoint");
+                        LLVMBuildStore(builder, value, var);
+                    }
+                }
+
+                // Atualiza a tabela de símbolos
                 if(if_condition == 1) {
-                    Symbol* symbol = findSymbol((yyvsp[-3].id));
-                    if (symbol != NULL) {
+                    if (symbol) {
                         if (symbol->type == (yyvsp[-1].number).type) {
                             insertSymbol((yyvsp[-3].id), (yyvsp[-1].number).value, symbol->type);
                         } else if (symbol->type == TYPE_FLOAT && (yyvsp[-1].number).type == TYPE_INT) {
                             insertSymbol((yyvsp[-3].id), (yyvsp[-1].number).value, symbol->type);
+                        } else if (symbol->type == TYPE_INT && (yyvsp[-1].number).type == TYPE_FLOAT) {
+                            insertSymbol((yyvsp[-3].id), (int)(yyvsp[-1].number).value, symbol->type);
                         } else {
                             fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
                         }
@@ -1785,86 +1812,98 @@ yyreduce:
                     }
                 }
 		  }
-#line 1789 "miniC.tab.c"
+#line 1816 "miniC.tab.c"
     break;
 
   case 16: /* $@1: %empty  */
-#line 319 "miniC.y"
-                                   {
-        pushScope();
-        if ((yyvsp[-1].number).type == TYPE_BOOL) {
-            if_condition = (yyvsp[-1].number).value;
-            if_else_condition = (yyvsp[-1].number).value;
-        } else {
-            fprintf(stderr, "Error: condition is not boolean at line %d.\n", yylineno);
-            if_condition = 0;
+#line 340 "miniC.y"
+                                        {
+            pushScope();
+            if ((yyvsp[-1].number).type == TYPE_BOOL) {
+                if_condition = (yyvsp[-1].number).value;
+                if_else_condition = (yyvsp[-1].number).value;
+            } else {
+                fprintf(stderr, "Error: condition is not boolean at line %d.\n", yylineno);
+                if_condition = 0;
+            }
+            aux = (yyvsp[-1].number).llvm_value;
         }
-
-        char labelTrue[10], labelFalse[10];
-        sprintf(labelTrue, "L%d", labelCount++);
-        sprintf(labelFalse, "L%d", labelCount++);
-
-        // Gera TAC para a condição
-        addTAC("if", (yyvsp[-1].number).result, "goto", labelTrue);
-        addTAC("goto", labelFalse, NULL, NULL);
-
-        // Label para o bloco "if"
-        addTAC(labelTrue, ":", NULL, NULL);
-
-        strcpy(label, labelFalse);
-    }
-#line 1817 "miniC.tab.c"
+#line 1832 "miniC.tab.c"
     break;
 
   case 17: /* $@2: %empty  */
-#line 341 "miniC.y"
-                                 {
-        if (if_condition == 0) {
-            popScope();
-            if_condition = 1;
-        }
-    }
-#line 1828 "miniC.tab.c"
-    break;
-
-  case 18: /* if: IF LEFTPAR expression RIGHTPAR $@1 LEFTKEYS program RIGHTKEYS $@2 else  */
-#line 346 "miniC.y"
-           {}
-#line 1834 "miniC.tab.c"
-    break;
-
-  case 19: /* else: %empty  */
-#line 349 "miniC.y"
-                  {}
-#line 1840 "miniC.tab.c"
-    break;
-
-  case 20: /* $@3: %empty  */
 #line 350 "miniC.y"
+                                                              {
+            if (if_condition == 0) {
+                popScope();
+                if_condition = 1;
+            }
+
+            // Ao final do bloco if, faz branch para o fim do if
+            LLVMBuildBr(builder, (yyvsp[0].if_else_blocks).endIFBB);
+
+            // Entra no bloco else para continuar parsing
+            LLVMPositionBuilderAtEnd(builder, (yyvsp[-4].if_else_blocks).elseBB);
+        }
+#line 1849 "miniC.tab.c"
+    break;
+
+  case 18: /* if_then: IF LEFTPAR expression RIGHTPAR $@1 if_then_aux LEFTKEYS program RIGHTKEYS if_then_aux2 $@2 else  */
+#line 361 "miniC.y"
+               {
+            // Ao final do else, faz branch para o fim do if
+            LLVMBuildBr(builder, (yyvsp[-2].if_else_blocks).endIFBB);
+
+            // Posiciona o builder no bloco de saída do if
+            LLVMPositionBuilderAtEnd(builder, (yyvsp[-2].if_else_blocks).endIFBB);
+        }
+#line 1861 "miniC.tab.c"
+    break;
+
+  case 19: /* if_then_aux: %empty  */
+#line 370 "miniC.y"
+             {
+    // Cria blocos para if, else e fim
+    (yyval.if_else_blocks).ifBB = LLVMAppendBasicBlockInContext(context, mainFunc, "if");
+    (yyval.if_else_blocks).elseBB = LLVMAppendBasicBlockInContext(context, mainFunc, "else");
+
+    // Gera branch condicional
+    LLVMBuildCondBr(builder, aux, (yyval.if_else_blocks).ifBB, (yyval.if_else_blocks).elseBB);
+
+    // Entra no bloco do if
+    LLVMPositionBuilderAtEnd(builder, (yyval.if_else_blocks).ifBB);
+}
+#line 1877 "miniC.tab.c"
+    break;
+
+  case 20: /* if_then_aux2: %empty  */
+#line 382 "miniC.y"
+              {
+    (yyval.if_else_blocks).endIFBB = LLVMAppendBasicBlockInContext(context, mainFunc, "endif");
+}
+#line 1885 "miniC.tab.c"
+    break;
+
+  case 21: /* else: %empty  */
+#line 386 "miniC.y"
+                  {}
+#line 1891 "miniC.tab.c"
+    break;
+
+  case 22: /* $@3: %empty  */
+#line 387 "miniC.y"
            {
         pushScope();
         if (if_else_condition == 1) {
             if_condition = 0;
-        } 
-
-        char labelEnd[10];
-        sprintf(labelEnd, "L%d", labelCount++);
-        addTAC("goto", labelEnd, NULL, NULL);
-
-        // Label para o bloco "else" ou saída
-        addTAC(label, ":", NULL, NULL);
-
-        strcpy(label, labelEnd);
+        }
     }
-#line 1860 "miniC.tab.c"
+#line 1902 "miniC.tab.c"
     break;
 
-  case 21: /* else: ELSE $@3 LEFTKEYS program RIGHTKEYS  */
-#line 364 "miniC.y"
+  case 23: /* else: ELSE $@3 LEFTKEYS program RIGHTKEYS  */
+#line 392 "miniC.y"
                                  {
-        // Gera TAC para o bloco "else"
-        addTAC(label, ":", NULL, NULL);
-
         if (if_condition == 0) {
             if_condition = 1;
         }
@@ -1873,633 +1912,684 @@ yyreduce:
             popScope();
         }
     }
-#line 1877 "miniC.tab.c"
+#line 1916 "miniC.tab.c"
     break;
 
-  case 22: /* write: WRITE LEFTPAR ID RIGHTPAR DONE  */
-#line 381 "miniC.y"
-                                      {
-        addTAC("write", (yyvsp[-2].id), NULL, NULL);
-        if (if_condition == 1) {
-            Symbol* sym = findSymbol((yyvsp[-2].id));
-            if (sym == NULL) {
-                fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", (yyvsp[-2].id), yylineno);
-            }
-            else if(sym->value == -DBL_MAX) {
-                fprintf(stderr, "Error: variable '%s' is uninitialized at line %d.\n", (yyvsp[-2].id), yylineno);
-            }
-            else {
-                if (sym->type == TYPE_INT) {
-                    printf("%s = %d (Type == INT)\n", (yyvsp[-2].id), (int)sym->value);
-                } else if (sym->type == TYPE_BOOL) {
-                    printf("%s = %d (Type == BOOL)\n", (yyvsp[-2].id), (int)sym->value);
-                } else if (sym->type == TYPE_FLOAT) {
-                    printf("%s = %.2lf (Type == FLOAT)\n", (yyvsp[-2].id), sym->value);
-                } else if (sym->type == TYPE_CHAR) {
-                    printf("%s = %c (Type == CHAR)\n", (yyvsp[-2].id), (char)sym->value);
-                } else {
-                    fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", (yyvsp[-2].id), yylineno);
-                }
-            }
-        }
-     }
-#line 1907 "miniC.tab.c"
+  case 24: /* $@4: %empty  */
+#line 405 "miniC.y"
+                                                   {
+        LLVMBuildCondBr(builder, (yyvsp[-1].number).llvm_value, (yyvsp[-3].while_blocks).bodyBB, (yyvsp[-3].while_blocks).endWHILEBB);
+
+        // Corpo do while
+        LLVMPositionBuilderAtEnd(builder, (yyvsp[-3].while_blocks).bodyBB);
+    }
+#line 1927 "miniC.tab.c"
     break;
 
-  case 23: /* write: WRITE LEFTPAR NUMBER RIGHTPAR DONE  */
-#line 406 "miniC.y"
-                                          {
-        char temp[16];
-        sprintf(temp, "%lf", (yyvsp[-2].number).value);
-        addTAC("write", temp, NULL, NULL);
-        if (if_condition == 1) {
-            if ((yyvsp[-2].number).type == TYPE_INT) {
-                printf("%d (Type == INT)\n", (int)(yyvsp[-2].number).value);
-            } else if ((yyvsp[-2].number).type == TYPE_FLOAT) {
-                printf("%lf (Type == FLOAT)\n", (yyvsp[-2].number).value);
-            } else if ((yyvsp[-2].number).type == TYPE_CHAR) {
-                printf("%c (Type == CHAR)\n", (char)(yyvsp[-2].number).value);
-            } else {
-                fprintf(stderr, "Error: unsupported type for number at line %d.\n", yylineno);
-            }
-        }
-     }
-#line 1928 "miniC.tab.c"
+  case 25: /* while: WHILE while_aux LEFTPAR expression RIGHTPAR $@4 LEFTKEYS program RIGHTKEYS  */
+#line 410 "miniC.y"
+                                 {
+        // Ao final do corpo, volta para o condicional
+        LLVMBuildBr(builder, (yyvsp[-7].while_blocks).condBB);
+
+        // Posiciona o builder no bloco de saída do while
+        LLVMPositionBuilderAtEnd(builder, (yyvsp[-7].while_blocks).endWHILEBB);
+    }
+#line 1939 "miniC.tab.c"
     break;
 
-  case 24: /* write: WRITE LEFTPAR STRING RIGHTPAR DONE  */
-#line 422 "miniC.y"
-                                          {
-        addTAC("write", (yyvsp[-2].id), NULL, NULL);
-        if (if_condition == 1) {
-            printf("%s\n", (yyvsp[-2].id));
-        }
-        free((yyvsp[-2].id)); // Free the string after printing
-     }
-#line 1940 "miniC.tab.c"
+  case 26: /* while_aux: %empty  */
+#line 419 "miniC.y"
+           {
+    // Cria blocos para condicional, corpo e fim do while
+        (yyval.while_blocks).condBB = LLVMAppendBasicBlockInContext(context, mainFunc, "while.cond");
+        (yyval.while_blocks).bodyBB = LLVMAppendBasicBlockInContext(context, mainFunc, "while.body");
+        (yyval.while_blocks).endWHILEBB = LLVMAppendBasicBlockInContext(context, mainFunc, "while.end");
+
+        // Branch para o bloco condicional
+        LLVMBuildBr(builder, (yyval.while_blocks).condBB);
+
+        // Condicional
+        LLVMPositionBuilderAtEnd(builder, (yyval.while_blocks).condBB);
+}
+#line 1956 "miniC.tab.c"
     break;
 
-  case 25: /* read: READ LEFTPAR ID RIGHTPAR DONE  */
+  case 27: /* write: WRITE LEFTPAR ID RIGHTPAR DONE  */
 #line 432 "miniC.y"
-                                    {
-        addTAC("read", (yyvsp[-2].id), NULL, NULL);
-        if (if_condition == 1) {
-            Symbol* sym = findSymbol((yyvsp[-2].id));
-            if (sym == NULL) {
-                fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", (yyvsp[-2].id), yylineno);
+                                      {
+        Symbol* sym = findSymbol((yyvsp[-2].id));
+        if (sym == NULL) {
+            fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", (yyvsp[-2].id), yylineno);
+        }
+        else if(sym->value == -DBL_MAX) {
+            fprintf(stderr, "Error: variable '%s' is uninitialized at line %d.\n", (yyvsp[-2].id), yylineno);
+        }
+        else {
+            LLVMValueRef var = getVarLLVM((yyvsp[-2].id));
+            LLVMValueRef loaded[1];
+            LLVMValueRef write_func;
+            switch (sym->type) {
+                case TYPE_INT:
+                    write_func = LLVMGetNamedFunction(module, "write_int");
+                    loaded[0] = LLVMBuildLoad2(builder, LLVMInt32TypeInContext(context), var, "loadtmp");
+                    LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(write_func)), write_func, loaded, 1, "");
+                    break;
+                case TYPE_FLOAT:
+                    write_func = LLVMGetNamedFunction(module, "write_float");
+                    loaded[0] = LLVMBuildLoad2(builder, LLVMDoubleTypeInContext(context), var, "loadtmp");
+                    LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(write_func)), write_func, loaded, 1, "");
+                    break;
+                case TYPE_BOOL:
+                    write_func = LLVMGetNamedFunction(module, "write_bool");
+                    loaded[0] = LLVMBuildLoad2(builder, LLVMInt1TypeInContext(context), var, "loadtmp");
+                    LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(write_func)), write_func, loaded, 1, "");
+                    break;
+                case TYPE_CHAR:
+                    write_func = LLVMGetNamedFunction(module, "write_char");
+                    loaded[0] = LLVMBuildLoad2(builder, LLVMInt8TypeInContext(context), var, "loadtmp");
+                    LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(write_func)), write_func, loaded, 1, "");
+                    break;
+                default:
+                    fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", (yyvsp[-2].id), yylineno);
             }
-            else {
-                FILE* input = fopen("/dev/tty", "r");
-                if (input == NULL) {
-                    fprintf(stderr, "Error: unable to read from keyboard.\n");
-                    exit(1);
-                }
-                switch (sym->type) {
-                        case TYPE_INT: printf("Enter value for variable '%s with Type == INT': ", (yyvsp[-2].id)); break;
-                        case TYPE_BOOL: printf("Enter value for variable '%s with Type == BOOL': ", (yyvsp[-2].id)); break;
-                        case TYPE_FLOAT: printf("Enter value for variable '%s with Type == FLOAT': ", (yyvsp[-2].id)); break;
-                        case TYPE_CHAR: printf("Enter value for variable '%s with Type == CHAR': ", (yyvsp[-2].id)); break;
-                        default: break;
-                }
-                if (sym->type == TYPE_INT) {
-                    int value = 0;
-                    fscanf(input, "%d", &value);
-                    insertSymbol(sym->id, (double)value, TYPE_INT);
-                } else if (sym->type == TYPE_FLOAT) {
-                    double value = 0.0;
-                    fscanf(input, "%lf", &value);
-                    insertSymbol(sym->id, value, TYPE_FLOAT);
-                } else if (sym->type == TYPE_CHAR) {
-                    char value = 'a';
-                    fscanf(input, " %c", &value);
-                    insertSymbol(sym->id, value, TYPE_CHAR);
-                } else if (sym->type == TYPE_BOOL) {
-                    double value = 0.0;
-                    fscanf(input, "%lf", &value);
-                    insertSymbol(sym->id, value ? 1.0 : 0.0, TYPE_BOOL);
-                } else {
-                    fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", sym->id, yylineno);
-                }
-                fclose(input);
+        }
+     }
+#line 1999 "miniC.tab.c"
+    break;
+
+  case 28: /* write: WRITE LEFTPAR NUMBER RIGHTPAR DONE  */
+#line 470 "miniC.y"
+                                         {
+        LLVMValueRef write_func;
+        LLVMValueRef arg[1];
+        switch ((yyvsp[-2].number).type) {
+            case TYPE_INT:
+                write_func = LLVMGetNamedFunction(module, "write_int");
+                arg[0] = LLVMConstInt(LLVMInt32TypeInContext(context), (int)(yyvsp[-2].number).value, 0);
+                LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(write_func)), write_func, arg, 1, "");
+                break;
+            case TYPE_FLOAT:
+                write_func = LLVMGetNamedFunction(module, "write_float");
+                arg[0] = LLVMConstReal(LLVMDoubleTypeInContext(context), (yyvsp[-2].number).value);
+                LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(write_func)), write_func, arg, 1, "");
+                break;
+            case TYPE_CHAR:
+                write_func = LLVMGetNamedFunction(module, "write_char");
+                arg[0] = LLVMConstInt(LLVMInt8TypeInContext(context), (char)(yyvsp[-2].number).value, 0);
+                LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(write_func)), write_func, arg, 1, "");
+                break;
+            case TYPE_BOOL:
+                write_func = LLVMGetNamedFunction(module, "write_bool");
+                arg[0] = LLVMConstInt(LLVMInt1TypeInContext(context), (int)(yyvsp[-2].number).value, 0);
+                LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(write_func)), write_func, arg, 1, "");
+                break;
+            default:
+                fprintf(stderr, "Error: unsupported type for number at line %d.\n", yylineno);
+        }
+    }
+#line 2032 "miniC.tab.c"
+    break;
+
+  case 29: /* write: WRITE LEFTPAR STRING RIGHTPAR DONE  */
+#line 498 "miniC.y"
+                                         {
+        LLVMValueRef write_func = LLVMGetNamedFunction(module, "write_string");
+        LLVMValueRef str = LLVMBuildPointerCast(builder, createGlobalString((yyvsp[-2].id), "str_literal"), LLVMPointerType(LLVMInt8TypeInContext(context), 0), "");
+        LLVMValueRef arg[1];
+        arg[0] = str;
+        LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(write_func)), write_func, arg, 1, "");
+        free((yyvsp[-2].id));
+    }
+#line 2045 "miniC.tab.c"
+    break;
+
+  case 30: /* read: READ LEFTPAR ID RIGHTPAR DONE  */
+#line 509 "miniC.y"
+                                    {
+        Symbol* sym = findSymbol((yyvsp[-2].id));
+        if (sym == NULL) {
+            fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", (yyvsp[-2].id), yylineno);
+        }
+        else {
+            LLVMValueRef var = getVarLLVM((yyvsp[-2].id));
+            LLVMValueRef arg[1];
+            arg[0] = var;
+            LLVMValueRef read_func;
+            switch (sym->type) {
+                case TYPE_INT:
+                    read_func = LLVMGetNamedFunction(module, "read_int");
+                    LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(read_func)), read_func, arg, 1, "");
+                    break;
+                case TYPE_FLOAT:
+                    read_func = LLVMGetNamedFunction(module, "read_float");
+                    LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(read_func)), read_func, arg, 1, "");
+                    break;
+                case TYPE_BOOL:
+                    read_func = LLVMGetNamedFunction(module, "read_bool");
+                    LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(read_func)), read_func, arg, 1, "");
+                    break;
+                case TYPE_CHAR:
+                    read_func = LLVMGetNamedFunction(module, "read_char");
+                    LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(read_func)), read_func, arg, 1, "");
+                    break;
+                default:
+                    fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", (yyvsp[-2].id), yylineno);
             }
         }
     }
-#line 1988 "miniC.tab.c"
+#line 2082 "miniC.tab.c"
     break;
 
-  case 26: /* $@4: %empty  */
-#line 479 "miniC.y"
-                                         {
-            char labelStart[10], labelLoop[10], labelEnd[10];
-            sprintf(labelStart, "L%d", labelCount++);
-            sprintf(labelLoop, "L%d", labelCount++);
-            sprintf(labelEnd, "L%d", labelCount++);
-
-            // Label para o início do loop
-            addTAC(labelStart, ":", NULL, NULL);
-
-            // Gera TAC para a condição
-            addTAC("if", (yyvsp[-1].number).result, "goto", labelLoop);
-            addTAC("goto", labelEnd, NULL, NULL);
-
-            // Label para o fim do loop
-            addTAC(labelLoop, ":", NULL, NULL);
-
-            strcpy(label, labelEnd);
-            strcpy(label0, labelStart);
-     }
-#line 2012 "miniC.tab.c"
+  case 31: /* expression: soma_sub  */
+#line 545 "miniC.y"
+                     { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; }
+#line 2088 "miniC.tab.c"
     break;
 
-  case 27: /* while: WHILE LEFTPAR expression RIGHTPAR $@4 LEFTKEYS program RIGHTKEYS  */
-#line 497 "miniC.y"
-                                  {
-            // Gera TAC para voltar ao início do loop
-            addTAC("goto", label0, NULL, NULL);
-
-            // Label para o fim do loop
-            addTAC(label, ":", NULL, NULL);
-     }
-#line 2024 "miniC.tab.c"
+  case 32: /* expression: mult_div  */
+#line 546 "miniC.y"
+                             { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; }
+#line 2094 "miniC.tab.c"
     break;
 
-  case 28: /* expression: soma_sub  */
-#line 508 "miniC.y"
-                     { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).result = (yyvsp[0].number).result; }
-#line 2030 "miniC.tab.c"
+  case 33: /* expression: LEFTPAR expression RIGHTPAR  */
+#line 547 "miniC.y"
+                                        { (yyval.number).value = (yyvsp[-1].number).value; (yyval.number).type = (yyvsp[-1].number).type; (yyval.number).llvm_value = (yyvsp[-1].number).llvm_value; }
+#line 2100 "miniC.tab.c"
     break;
 
-  case 29: /* expression: mult_div  */
-#line 509 "miniC.y"
-                             { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).result = (yyvsp[0].number).result; }
-#line 2036 "miniC.tab.c"
+  case 34: /* expression: comparison  */
+#line 548 "miniC.y"
+                       { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; }
+#line 2106 "miniC.tab.c"
     break;
 
-  case 30: /* expression: LEFTPAR expression RIGHTPAR  */
-#line 510 "miniC.y"
-                                        { (yyval.number).value = (yyvsp[-1].number).value; (yyval.number).type = (yyvsp[-1].number).type; (yyval.number).result = (yyvsp[-1].number).result; }
-#line 2042 "miniC.tab.c"
+  case 35: /* expression: log_exp  */
+#line 549 "miniC.y"
+                    { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; }
+#line 2112 "miniC.tab.c"
     break;
 
-  case 31: /* expression: comparison  */
-#line 511 "miniC.y"
-                       { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).result = (yyvsp[0].number).result; }
-#line 2048 "miniC.tab.c"
+  case 36: /* expression: cast  */
+#line 550 "miniC.y"
+                 { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; }
+#line 2118 "miniC.tab.c"
     break;
 
-  case 32: /* expression: log_exp  */
-#line 512 "miniC.y"
-                    { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).result = (yyvsp[0].number).result; }
-#line 2054 "miniC.tab.c"
+  case 37: /* expression: term  */
+#line 551 "miniC.y"
+                         { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; }
+#line 2124 "miniC.tab.c"
     break;
 
-  case 33: /* expression: cast  */
-#line 513 "miniC.y"
-                 { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).result = (yyvsp[0].number).result; }
-#line 2060 "miniC.tab.c"
-    break;
-
-  case 34: /* expression: term  */
-#line 514 "miniC.y"
-                         { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).result = (yyvsp[0].number).result; }
-#line 2066 "miniC.tab.c"
-    break;
-
-  case 35: /* soma_sub: expression PLUS expression  */
-#line 517 "miniC.y"
+  case 38: /* soma_sub: expression PLUS expression  */
+#line 554 "miniC.y"
                                      { 
-                char temp[16];
-                sprintf(temp, "t%d", tacIndex);
-                addTAC("+", (yyvsp[-2].number).result, (yyvsp[0].number).result, temp);
-                (yyval.number).result = strdup(temp);
                 if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value + (yyvsp[0].number).value;
                     (yyval.number).type = TYPE_INT;
-                } else if ((((yyvsp[-2].number).type == TYPE_FLOAT || (yyvsp[-2].number).type == TYPE_INT) && (yyvsp[0].number).type == TYPE_FLOAT)
-                        || ((yyvsp[-2].number).type == TYPE_FLOAT && ((yyvsp[0].number).type == TYPE_INT || (yyvsp[0].number).type == TYPE_FLOAT))) {
+                    (yyval.number).llvm_value = LLVMBuildAdd(builder, (yyvsp[-2].number).llvm_value, (yyvsp[0].number).llvm_value, "addtmp");
+                } else if ((((yyvsp[-2].number).type == TYPE_FLOAT || (yyvsp[-2].number).type == TYPE_INT) && ((yyvsp[0].number).type == TYPE_INT || (yyvsp[0].number).type == TYPE_FLOAT))) {
+                    // Promove para float se necessário
+                    LLVMValueRef left = (yyvsp[-2].number).llvm_value;
+                    LLVMValueRef right = (yyvsp[0].number).llvm_value;
+                    if ((yyvsp[-2].number).type == TYPE_INT)
+                        left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
+                    if ((yyvsp[0].number).type == TYPE_INT)
+                        right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
                     (yyval.number).value = (yyvsp[-2].number).value + (yyvsp[0].number).value;
                     (yyval.number).type = TYPE_FLOAT;
+                    (yyval.number).llvm_value = LLVMBuildFAdd(builder, left, right, "faddtmp");
                 } else {
                     fprintf(stderr, "Error: incompatible types for addition at line %d.\n", yylineno);
                     (yyval.number).value = -1;
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
         }
-#line 2089 "miniC.tab.c"
+#line 2151 "miniC.tab.c"
     break;
 
-  case 36: /* soma_sub: expression MIN expression  */
-#line 535 "miniC.y"
+  case 39: /* soma_sub: expression MIN expression  */
+#line 576 "miniC.y"
                                      {
-                char temp[16];
-                sprintf(temp, "t%d", tacIndex);
-                addTAC("-", (yyvsp[-2].number).result, (yyvsp[0].number).result, temp);
-                (yyval.number).result = strdup(temp);
                 if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value - (yyvsp[0].number).value;
                     (yyval.number).type = TYPE_INT;
-                } else if ((((yyvsp[-2].number).type == TYPE_FLOAT || (yyvsp[-2].number).type == TYPE_INT) && (yyvsp[0].number).type == TYPE_FLOAT)
-                        || ((yyvsp[-2].number).type == TYPE_FLOAT && ((yyvsp[0].number).type == TYPE_INT || (yyvsp[0].number).type == TYPE_FLOAT))) {
+                    (yyval.number).llvm_value = LLVMBuildSub(builder, (yyvsp[-2].number).llvm_value, (yyvsp[0].number).llvm_value, "subtmp");
+                } else if ((((yyvsp[-2].number).type == TYPE_FLOAT || (yyvsp[-2].number).type == TYPE_INT) && ((yyvsp[0].number).type == TYPE_INT || (yyvsp[0].number).type == TYPE_FLOAT))) {
+                    // Promove para float se necessário
+                    LLVMValueRef left = (yyvsp[-2].number).llvm_value;
+                    LLVMValueRef right = (yyvsp[0].number).llvm_value;
+                    if ((yyvsp[-2].number).type == TYPE_INT)
+                        left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
+                    if ((yyvsp[0].number).type == TYPE_INT)
+                        right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
                     (yyval.number).value = (yyvsp[-2].number).value - (yyvsp[0].number).value;
                     (yyval.number).type = TYPE_FLOAT;
+                    (yyval.number).llvm_value = LLVMBuildFSub(builder, left, right, "fsubtmp");
                 } else {
                     fprintf(stderr, "Error: incompatible types for subtraction at line %d.\n", yylineno);
                     (yyval.number).value = -1;
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
         }
-#line 2112 "miniC.tab.c"
+#line 2178 "miniC.tab.c"
     break;
 
-  case 37: /* mult_div: expression MULT expression  */
-#line 555 "miniC.y"
+  case 40: /* mult_div: expression MULT expression  */
+#line 600 "miniC.y"
                                      {
-                char temp[16];
-                sprintf(temp, "t%d", tacIndex);
-                addTAC("*", (yyvsp[-2].number).result, (yyvsp[0].number).result, temp);
-                (yyval.number).result = strdup(temp);
                 if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value * (yyvsp[0].number).value;
                     (yyval.number).type = TYPE_INT;
-                } else if ((((yyvsp[-2].number).type == TYPE_FLOAT || (yyvsp[-2].number).type == TYPE_INT) && (yyvsp[0].number).type == TYPE_FLOAT)
-                        || ((yyvsp[-2].number).type == TYPE_FLOAT && ((yyvsp[0].number).type == TYPE_INT || (yyvsp[0].number).type == TYPE_FLOAT))) {
+                    (yyval.number).llvm_value = LLVMBuildMul(builder, (yyvsp[-2].number).llvm_value, (yyvsp[0].number).llvm_value, "multtmp");
+                } else if ((((yyvsp[-2].number).type == TYPE_FLOAT || (yyvsp[-2].number).type == TYPE_INT) && ((yyvsp[0].number).type == TYPE_INT || (yyvsp[0].number).type == TYPE_FLOAT))) {
+                    // Promove para float se necessário
+                    LLVMValueRef left = (yyvsp[-2].number).llvm_value;
+                    LLVMValueRef right = (yyvsp[0].number).llvm_value;
+                    if ((yyvsp[-2].number).type == TYPE_INT)
+                        left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
+                    if ((yyvsp[0].number).type == TYPE_INT)
+                        right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
                     (yyval.number).value = (yyvsp[-2].number).value * (yyvsp[0].number).value;
                     (yyval.number).type = TYPE_FLOAT;
+                    (yyval.number).llvm_value = LLVMBuildFMul(builder, left, right, "fmulttmp");
                 } else {
                     fprintf(stderr, "Error: incompatible types for multiplication at line %d.\n", yylineno);
                     (yyval.number).value = -1;
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
         }
-#line 2135 "miniC.tab.c"
+#line 2205 "miniC.tab.c"
     break;
 
-  case 38: /* mult_div: expression DIV expression  */
-#line 573 "miniC.y"
+  case 41: /* mult_div: expression DIV expression  */
+#line 622 "miniC.y"
                                              { 
-                char temp[16];
-                sprintf(temp, "t%d", tacIndex);
-                addTAC("/", (yyvsp[-2].number).result, (yyvsp[0].number).result, temp);
-                (yyval.number).result = strdup(temp);
                 if ((yyvsp[0].number).value == 0.0) {
                         fprintf(stderr, "Error: division by zero at line %d.\n", yylineno);
                         (yyval.number).value = -1;
                         (yyval.number).type = TYPE_UNKNOWN;
-                }
-                if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
-                    (yyval.number).value = (yyvsp[-2].number).value / (yyvsp[0].number).value;
-                    (yyval.number).type = TYPE_INT;
-                } else if ((((yyvsp[-2].number).type == TYPE_FLOAT || (yyvsp[-2].number).type == TYPE_INT) && (yyvsp[0].number).type == TYPE_FLOAT)
-                        || ((yyvsp[-2].number).type == TYPE_FLOAT && ((yyvsp[0].number).type == TYPE_INT || (yyvsp[0].number).type == TYPE_FLOAT))) {
-                    (yyval.number).value = (yyvsp[-2].number).value / (yyvsp[0].number).value;
-                    (yyval.number).type = TYPE_FLOAT;
                 } else {
-                    fprintf(stderr, "Error: incompatible types for division at line %d.\n", yylineno);
-                    (yyval.number).value = -1;
-                    (yyval.number).type = TYPE_UNKNOWN;
+                    if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
+                        (yyval.number).value = (yyvsp[-2].number).value / (yyvsp[0].number).value;
+                        (yyval.number).type = TYPE_INT;
+                        (yyval.number).llvm_value = LLVMBuildSDiv(builder, (yyvsp[-2].number).llvm_value, (yyvsp[0].number).llvm_value, "divtmp");
+                    } else if ((((yyvsp[-2].number).type == TYPE_FLOAT || (yyvsp[-2].number).type == TYPE_INT) && ((yyvsp[0].number).type == TYPE_INT || (yyvsp[0].number).type == TYPE_FLOAT))) {
+                        // Promove para float se necessário
+                        LLVMValueRef left = (yyvsp[-2].number).llvm_value;
+                        LLVMValueRef right = (yyvsp[0].number).llvm_value;
+                        if ((yyvsp[-2].number).type == TYPE_INT)
+                            left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
+                        if ((yyvsp[0].number).type == TYPE_INT)
+                            right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
+                        (yyval.number).value = (yyvsp[-2].number).value / (yyvsp[0].number).value;
+                        (yyval.number).type = TYPE_FLOAT;
+                        (yyval.number).llvm_value = LLVMBuildFDiv(builder, left, right, "fdivtmp");
+                    } else {
+                        fprintf(stderr, "Error: incompatible types for division at line %d.\n", yylineno);
+                        (yyval.number).value = -1;
+                        (yyval.number).type = TYPE_UNKNOWN;
+                    }
                 }
 		}
-#line 2163 "miniC.tab.c"
+#line 2238 "miniC.tab.c"
     break;
 
-  case 39: /* comparison: expression LESS expression  */
-#line 598 "miniC.y"
-                                         {
-                char temp[16];
-                sprintf(temp, "t%d", tacIndex);
-                addTAC("<", (yyvsp[-2].number).result, (yyvsp[0].number).result, temp);
-                (yyval.number).result = strdup(temp);
-                if(((yyvsp[-2].number).type == TYPE_INT || (yyvsp[-2].number).type == TYPE_FLOAT) && ((yyvsp[0].number).type == TYPE_INT || (yyvsp[0].number).type == TYPE_FLOAT)) {
+  case 42: /* comparison: expression LESS expression  */
+#line 652 "miniC.y"
+                                       {
+                if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value < (yyvsp[0].number).value;
                     (yyval.number).type = TYPE_BOOL;
-                }
-                else {
+                    (yyval.number).llvm_value = LLVMBuildICmp(builder, LLVMIntSLT, (yyvsp[-2].number).llvm_value, (yyvsp[0].number).llvm_value, "cmptmp");
+                } else if (((yyvsp[-2].number).type == TYPE_FLOAT || (yyvsp[-2].number).type == TYPE_INT) && ((yyvsp[0].number).type == TYPE_FLOAT || (yyvsp[0].number).type == TYPE_INT)) {
+                    // Promove para float se necessário
+                    LLVMValueRef left = (yyvsp[-2].number).llvm_value;
+                    LLVMValueRef right = (yyvsp[0].number).llvm_value;
+                    if ((yyvsp[-2].number).type == TYPE_INT)
+                        left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
+                    if ((yyvsp[0].number).type == TYPE_INT)
+                        right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
+                    (yyval.number).value = (yyvsp[-2].number).value < (yyvsp[0].number).value;
+                    (yyval.number).type = TYPE_BOOL;
+                    (yyval.number).llvm_value = LLVMBuildFCmp(builder, LLVMRealULT, left, right, "cmptmp");
+                } else {
                     fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
                     (yyval.number).value = -1;
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
-          }
-#line 2183 "miniC.tab.c"
+            }
+#line 2265 "miniC.tab.c"
     break;
 
-  case 40: /* comparison: expression GREAT expression  */
-#line 613 "miniC.y"
-                                         {
-                char temp[16];
-                sprintf(temp, "t%d", tacIndex);
-                addTAC(">", (yyvsp[-2].number).result, (yyvsp[0].number).result, temp);
-                (yyval.number).result = strdup(temp);
-                if(((yyvsp[-2].number).type == TYPE_INT || (yyvsp[-2].number).type == TYPE_FLOAT) && ((yyvsp[0].number).type == TYPE_INT || (yyvsp[0].number).type == TYPE_FLOAT)) {
+  case 43: /* comparison: expression GREAT expression  */
+#line 674 "miniC.y"
+                                          {
+                if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value > (yyvsp[0].number).value;
                     (yyval.number).type = TYPE_BOOL;
-                }
-                else {
+                    (yyval.number).llvm_value = LLVMBuildICmp(builder, LLVMIntSGT, (yyvsp[-2].number).llvm_value, (yyvsp[0].number).llvm_value, "cmptmp");
+                } else if (((yyvsp[-2].number).type == TYPE_FLOAT || (yyvsp[-2].number).type == TYPE_INT) && ((yyvsp[0].number).type == TYPE_FLOAT || (yyvsp[0].number).type == TYPE_INT)) {
+                    // Promove para float se necessário
+                    LLVMValueRef left = (yyvsp[-2].number).llvm_value;
+                    LLVMValueRef right = (yyvsp[0].number).llvm_value;
+                    if ((yyvsp[-2].number).type == TYPE_INT)
+                        left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
+                    if ((yyvsp[0].number).type == TYPE_INT)
+                        right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
+                    (yyval.number).value = (yyvsp[-2].number).value > (yyvsp[0].number).value;
+                    (yyval.number).type = TYPE_BOOL;
+                    (yyval.number).llvm_value = LLVMBuildFCmp(builder, LLVMRealUGT, left, right, "fcmptmp");
+                } else {
                     fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
                     (yyval.number).value = -1;
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
-          }
-#line 2203 "miniC.tab.c"
+            }
+#line 2292 "miniC.tab.c"
     break;
 
-  case 41: /* comparison: expression LEQUAL expression  */
-#line 628 "miniC.y"
-                                         {
-                char temp[16];
-                sprintf(temp, "t%d", tacIndex);
-                addTAC("<=", (yyvsp[-2].number).result, (yyvsp[0].number).result, temp);
-                (yyval.number).result = strdup(temp);
-                if(((yyvsp[-2].number).type == TYPE_INT || (yyvsp[-2].number).type == TYPE_FLOAT) && ((yyvsp[0].number).type == TYPE_INT || (yyvsp[0].number).type == TYPE_FLOAT)) {
+  case 44: /* comparison: expression LEQUAL expression  */
+#line 696 "miniC.y"
+                                           {
+                if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value <= (yyvsp[0].number).value;
                     (yyval.number).type = TYPE_BOOL;
-                }
-                else {
+                    (yyval.number).llvm_value = LLVMBuildICmp(builder, LLVMIntSLE, (yyvsp[-2].number).llvm_value, (yyvsp[0].number).llvm_value, "cmptmp");
+                } else if (((yyvsp[-2].number).type == TYPE_FLOAT || (yyvsp[-2].number).type == TYPE_INT) && ((yyvsp[0].number).type == TYPE_FLOAT || (yyvsp[0].number).type == TYPE_INT)) {
+                    // Promove para float se necessário
+                    LLVMValueRef left = (yyvsp[-2].number).llvm_value;
+                    LLVMValueRef right = (yyvsp[0].number).llvm_value;
+                    if ((yyvsp[-2].number).type == TYPE_INT)
+                        left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
+                    if ((yyvsp[0].number).type == TYPE_INT)
+                        right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
+                    (yyval.number).value = (yyvsp[-2].number).value <= (yyvsp[0].number).value;
+                    (yyval.number).type = TYPE_BOOL;
+                    (yyval.number).llvm_value = LLVMBuildFCmp(builder, LLVMRealULE, left, right, "fcmptmp");
+                } else {
                     fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
                     (yyval.number).value = -1;
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
-          }
-#line 2223 "miniC.tab.c"
+            }
+#line 2319 "miniC.tab.c"
     break;
 
-  case 42: /* comparison: expression GEQUAL expression  */
-#line 643 "miniC.y"
-                                         {
-                char temp[16];
-                sprintf(temp, "t%d", tacIndex);
-                addTAC(">=", (yyvsp[-2].number).result, (yyvsp[0].number).result, temp);
-                (yyval.number).result = strdup(temp);
-                if(((yyvsp[-2].number).type == TYPE_INT || (yyvsp[-2].number).type == TYPE_FLOAT) && ((yyvsp[0].number).type == TYPE_INT || (yyvsp[0].number).type == TYPE_FLOAT)) {
+  case 45: /* comparison: expression GEQUAL expression  */
+#line 718 "miniC.y"
+                                           {
+                if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value >= (yyvsp[0].number).value;
                     (yyval.number).type = TYPE_BOOL;
-                }
-                else {
+                    (yyval.number).llvm_value = LLVMBuildICmp(builder, LLVMIntSGE, (yyvsp[-2].number).llvm_value, (yyvsp[0].number).llvm_value, "cmptmp");
+                } else if (((yyvsp[-2].number).type == TYPE_FLOAT || (yyvsp[-2].number).type == TYPE_INT) && ((yyvsp[0].number).type == TYPE_FLOAT || (yyvsp[0].number).type == TYPE_INT)) {
+                    // Promove para float se necessário
+                    LLVMValueRef left = (yyvsp[-2].number).llvm_value;
+                    LLVMValueRef right = (yyvsp[0].number).llvm_value;
+                    if ((yyvsp[-2].number).type == TYPE_INT)
+                        left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
+                    if ((yyvsp[0].number).type == TYPE_INT)
+                        right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
+                    (yyval.number).value = (yyvsp[-2].number).value >= (yyvsp[0].number).value;
+                    (yyval.number).type = TYPE_BOOL;
+                    (yyval.number).llvm_value = LLVMBuildFCmp(builder, LLVMRealUGE, left, right, "fcmptmp");
+                } else {
                     fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
                     (yyval.number).value = -1;
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
-          }
-#line 2243 "miniC.tab.c"
+            }
+#line 2346 "miniC.tab.c"
     break;
 
-  case 43: /* comparison: expression EQUAL expression  */
-#line 658 "miniC.y"
-                                         { 
-                char temp[16];
-                sprintf(temp, "t%d", tacIndex);
-                addTAC("==", (yyvsp[-2].number).result, (yyvsp[0].number).result, temp);
-                (yyval.number).result = strdup(temp);
-                if(((yyvsp[-2].number).type == TYPE_INT || (yyvsp[-2].number).type == TYPE_FLOAT || (yyvsp[-2].number).type == TYPE_BOOL) && ((yyvsp[0].number).type == TYPE_INT || (yyvsp[0].number).type == TYPE_FLOAT || (yyvsp[0].number).type == TYPE_BOOL)) {
+  case 46: /* comparison: expression EQUAL expression  */
+#line 740 "miniC.y"
+                                           { 
+                if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value == (yyvsp[0].number).value;
                     (yyval.number).type = TYPE_BOOL;
-                }
-                else if ((yyvsp[-2].number).type == TYPE_CHAR && (yyvsp[0].number).type == TYPE_CHAR) {
+                    (yyval.number).llvm_value = LLVMBuildICmp(builder, LLVMIntEQ, (yyvsp[-2].number).llvm_value, (yyvsp[0].number).llvm_value, "cmptmp");
+                } else if (((yyvsp[-2].number).type == TYPE_FLOAT || (yyvsp[-2].number).type == TYPE_INT) && ((yyvsp[0].number).type == TYPE_FLOAT || (yyvsp[0].number).type == TYPE_INT)) {
+                    // Promove para float se necessário
+                    LLVMValueRef left = (yyvsp[-2].number).llvm_value;
+                    LLVMValueRef right = (yyvsp[0].number).llvm_value;
+                    if ((yyvsp[-2].number).type == TYPE_INT)
+                        left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
+                    else if ((yyvsp[0].number).type == TYPE_INT)
+                        right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
                     (yyval.number).value = (yyvsp[-2].number).value == (yyvsp[0].number).value;
                     (yyval.number).type = TYPE_BOOL;
-                }
-                else {
+                    (yyval.number).llvm_value = LLVMBuildFCmp(builder, LLVMRealUEQ, left, right, "fcmptmp");
+                } else if ((yyvsp[-2].number).type == TYPE_CHAR && (yyvsp[0].number).type == TYPE_CHAR) {
+                    (yyval.number).value = (yyvsp[-2].number).value == (yyvsp[0].number).value;
+                    (yyval.number).type = TYPE_BOOL;
+                    (yyval.number).llvm_value = LLVMBuildICmp(builder, LLVMIntEQ, (yyvsp[-2].number).llvm_value, (yyvsp[0].number).llvm_value, "cmptmp");
+                } else {
                     fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
                     (yyval.number).value = -1;
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
-          }
-#line 2267 "miniC.tab.c"
+            }
+#line 2377 "miniC.tab.c"
     break;
 
-  case 44: /* comparison: expression NEQUAL expression  */
-#line 677 "miniC.y"
-                                         {
-                char temp[16];
-                sprintf(temp, "t%d", tacIndex);
-                addTAC("!=", (yyvsp[-2].number).result, (yyvsp[0].number).result, temp);
-                (yyval.number).result = strdup(temp);
-                if(((yyvsp[-2].number).type == TYPE_INT || (yyvsp[-2].number).type == TYPE_FLOAT || (yyvsp[-2].number).type == TYPE_BOOL) && ((yyvsp[0].number).type == TYPE_INT || (yyvsp[0].number).type == TYPE_FLOAT || (yyvsp[0].number).type == TYPE_BOOL)) {
+  case 47: /* comparison: expression NEQUAL expression  */
+#line 766 "miniC.y"
+                                           {
+                if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value != (yyvsp[0].number).value;
                     (yyval.number).type = TYPE_BOOL;
-                }
-                else if ((yyvsp[-2].number).type == TYPE_CHAR && (yyvsp[0].number).type == TYPE_CHAR) {
+                    (yyval.number).llvm_value = LLVMBuildICmp(builder, LLVMIntNE, (yyvsp[-2].number).llvm_value, (yyvsp[0].number).llvm_value, "cmptmp");
+                } else if (((yyvsp[-2].number).type == TYPE_FLOAT || (yyvsp[-2].number).type == TYPE_INT) && ((yyvsp[0].number).type == TYPE_FLOAT || (yyvsp[0].number).type == TYPE_INT)) {
+                    LLVMValueRef left = (yyvsp[-2].number).llvm_value;
+                    LLVMValueRef right = (yyvsp[0].number).llvm_value;
+                    if ((yyvsp[-2].number).type == TYPE_INT)
+                        left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
+                    if ((yyvsp[0].number).type == TYPE_INT)
+                        right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
                     (yyval.number).value = (yyvsp[-2].number).value != (yyvsp[0].number).value;
                     (yyval.number).type = TYPE_BOOL;
-                }
-                else {
+                    (yyval.number).llvm_value = LLVMBuildFCmp(builder, LLVMRealUNE, left, right, "fcmptmp");
+                } else if ((yyvsp[-2].number).type == TYPE_CHAR && (yyvsp[0].number).type == TYPE_CHAR) {
+                    (yyval.number).value = (yyvsp[-2].number).value != (yyvsp[0].number).value;
+                    (yyval.number).type = TYPE_BOOL;
+                    (yyval.number).llvm_value = LLVMBuildICmp(builder, LLVMIntNE, (yyvsp[-2].number).llvm_value, (yyvsp[0].number).llvm_value, "cmptmp");
+                } else {
                     fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
                     (yyval.number).value = -1;
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
-           }
-#line 2291 "miniC.tab.c"
+            }
+#line 2407 "miniC.tab.c"
     break;
 
-  case 45: /* log_exp: expression AND expression  */
-#line 698 "miniC.y"
+  case 48: /* log_exp: expression AND expression  */
+#line 793 "miniC.y"
                                    {
-            char temp[16];
-            sprintf(temp, "t%d", tacIndex);
-            addTAC("&&", (yyvsp[-2].number).result, (yyvsp[0].number).result, temp);
-            (yyval.number).result = strdup(temp);
             if ((yyvsp[-2].number).type == TYPE_BOOL && (yyvsp[0].number).type == TYPE_BOOL) {
                 (yyval.number).value = (yyvsp[-2].number).value && (yyvsp[0].number).value;
                 (yyval.number).type = TYPE_BOOL;
+                (yyval.number).llvm_value = LLVMBuildAnd(builder, (yyvsp[-2].number).llvm_value, (yyvsp[0].number).llvm_value, "andtmp");
             } else {
                 fprintf(stderr, "Error: logical AND between incompatible types at line %d.\n", yylineno);
                 (yyval.number).value = -1;
                 (yyval.number).type = TYPE_UNKNOWN;
             }
        }
-#line 2310 "miniC.tab.c"
+#line 2423 "miniC.tab.c"
     break;
 
-  case 46: /* log_exp: expression OR expression  */
-#line 712 "miniC.y"
+  case 49: /* log_exp: expression OR expression  */
+#line 804 "miniC.y"
                                    {
-            char temp[16];
-            sprintf(temp, "t%d", tacIndex);
-            addTAC("||", (yyvsp[-2].number).result, (yyvsp[0].number).result, temp);
-            (yyval.number).result = strdup(temp);
             if ((yyvsp[-2].number).type == TYPE_BOOL && (yyvsp[0].number).type == TYPE_BOOL) {
                 (yyval.number).value = (yyvsp[-2].number).value || (yyvsp[0].number).value;
                 (yyval.number).type = TYPE_BOOL;
+                (yyval.number).llvm_value = LLVMBuildOr(builder, (yyvsp[-2].number).llvm_value, (yyvsp[0].number).llvm_value, "ortmp");
             } else {
                 fprintf(stderr, "Error: logical OR between incompatible types at line %d.\n", yylineno);
                 (yyval.number).value = -1;
                 (yyval.number).type = TYPE_UNKNOWN;
             }
        }
-#line 2329 "miniC.tab.c"
+#line 2439 "miniC.tab.c"
     break;
 
-  case 47: /* log_exp: NOT expression  */
-#line 726 "miniC.y"
+  case 50: /* log_exp: NOT expression  */
+#line 815 "miniC.y"
                         {
-            char temp[16];
-            sprintf(temp, "t%d", tacIndex);
-            addTAC("!", NULL, (yyvsp[0].number).result, temp);
-            (yyval.number).result = strdup(temp);
             if ((yyvsp[0].number).type == TYPE_BOOL) {
                 (yyval.number).value = !(yyvsp[0].number).value;
                 (yyval.number).type = TYPE_BOOL;
+                (yyval.number).llvm_value = LLVMBuildNot(builder, (yyvsp[0].number).llvm_value, "nottmp");
             } else {
                 fprintf(stderr, "Error: logical NOT on incompatible type at line %d.\n", yylineno);
                 (yyval.number).value = -1;
                 (yyval.number).type = TYPE_UNKNOWN;
             }
         }
-#line 2348 "miniC.tab.c"
+#line 2455 "miniC.tab.c"
     break;
 
-  case 48: /* cast: LEFTPAR INT RIGHTPAR LEFTPAR expression RIGHTPAR  */
-#line 742 "miniC.y"
+  case 51: /* cast: LEFTPAR INT RIGHTPAR LEFTPAR expression RIGHTPAR  */
+#line 828 "miniC.y"
                                                        {
         int temp = (int) (yyvsp[-1].number).value;
         (yyval.number).value = (double) temp;
         (yyval.number).type = TYPE_INT;
-        char tempStr[16];
-        sprintf(tempStr, "t%d", tacIndex);
-        addTAC("(int)", NULL, (yyvsp[-1].number).result, tempStr);
-        (yyval.number).result = strdup(tempStr);
+        (yyval.number).llvm_value = LLVMBuildFPToSI(builder, (yyvsp[-1].number).llvm_value, LLVMInt32TypeInContext(context), "castint");
     }
-#line 2362 "miniC.tab.c"
+#line 2466 "miniC.tab.c"
     break;
 
-  case 49: /* cast: LEFTPAR INT RIGHTPAR term  */
-#line 751 "miniC.y"
+  case 52: /* cast: LEFTPAR INT RIGHTPAR term  */
+#line 834 "miniC.y"
                                 {
         int temp = (int) (yyvsp[0].number).value;
         (yyval.number).value = (double) temp;
         (yyval.number).type = TYPE_INT;
-        char tempStr[16];
-        sprintf(tempStr, "t%d", tacIndex);
-        addTAC("(int)", NULL, (yyvsp[0].number).result, tempStr);
-        (yyval.number).result = strdup(tempStr);
+        (yyval.number).llvm_value = LLVMBuildFPToSI(builder, (yyvsp[0].number).llvm_value, LLVMInt32TypeInContext(context), "castint");
     }
-#line 2376 "miniC.tab.c"
+#line 2477 "miniC.tab.c"
     break;
 
-  case 50: /* cast: LEFTPAR FLOAT RIGHTPAR LEFTPAR expression RIGHTPAR  */
-#line 760 "miniC.y"
+  case 53: /* cast: LEFTPAR FLOAT RIGHTPAR LEFTPAR expression RIGHTPAR  */
+#line 840 "miniC.y"
                                                          {
         (yyval.number).value = (yyvsp[-1].number).value;
         (yyval.number).type = TYPE_FLOAT;
-        char tempStr[16];
-        sprintf(tempStr, "t%d", tacIndex);
-        addTAC("(float)", NULL, (yyvsp[-1].number).result, tempStr);
-        (yyval.number).result = strdup(tempStr);
+        (yyval.number).llvm_value = LLVMBuildSIToFP(builder, (yyvsp[-1].number).llvm_value, LLVMDoubleTypeInContext(context), "castfloat");
     }
-#line 2389 "miniC.tab.c"
+#line 2487 "miniC.tab.c"
     break;
 
-  case 51: /* cast: LEFTPAR FLOAT RIGHTPAR term  */
-#line 768 "miniC.y"
+  case 54: /* cast: LEFTPAR FLOAT RIGHTPAR term  */
+#line 845 "miniC.y"
                                   {
         (yyval.number).value = (yyvsp[0].number).value;
         (yyval.number).type = TYPE_FLOAT;
-        char tempStr[16];
-        sprintf(tempStr, "t%d", tacIndex);
-        addTAC("(float)", NULL, (yyvsp[0].number).result, tempStr);
-        (yyval.number).result = strdup(tempStr);
+        (yyval.number).llvm_value = LLVMBuildSIToFP(builder, (yyvsp[0].number).llvm_value, LLVMDoubleTypeInContext(context), "castfloat");
     }
-#line 2402 "miniC.tab.c"
+#line 2497 "miniC.tab.c"
     break;
 
-  case 52: /* cast: LEFTPAR CHAR RIGHTPAR LEFTPAR expression RIGHTPAR  */
-#line 776 "miniC.y"
+  case 55: /* cast: LEFTPAR CHAR RIGHTPAR LEFTPAR expression RIGHTPAR  */
+#line 850 "miniC.y"
                                                         {
         (yyval.number).value = (double) ((char) (yyvsp[-1].number).value);
         (yyval.number).type = TYPE_CHAR;
-        char tempStr[16];
-        sprintf(tempStr, "t%d", tacIndex);
-        addTAC("(char)", NULL, (yyvsp[-1].number).result, tempStr);
-        (yyval.number).result = strdup(tempStr);
+        (yyval.number).llvm_value = LLVMBuildTrunc(builder, (yyvsp[-1].number).llvm_value, LLVMInt8TypeInContext(context), "castchar");
     }
-#line 2415 "miniC.tab.c"
+#line 2507 "miniC.tab.c"
     break;
 
-  case 53: /* cast: LEFTPAR CHAR RIGHTPAR term  */
-#line 784 "miniC.y"
+  case 56: /* cast: LEFTPAR CHAR RIGHTPAR term  */
+#line 855 "miniC.y"
                                  {
         (yyval.number).value = (double) ((char) (yyvsp[0].number).value);
         (yyval.number).type = TYPE_CHAR;
-        char tempStr[16];
-        sprintf(tempStr, "t%d", tacIndex);
-        addTAC("(char)", NULL, (yyvsp[0].number).result, tempStr);
-        (yyval.number).result = strdup(tempStr);
+        (yyval.number).llvm_value = LLVMBuildTrunc(builder, (yyvsp[0].number).llvm_value, LLVMInt8TypeInContext(context), "castchar");
     }
-#line 2428 "miniC.tab.c"
+#line 2517 "miniC.tab.c"
     break;
 
-  case 54: /* cast: LEFTPAR BOOL RIGHTPAR LEFTPAR expression RIGHTPAR  */
-#line 792 "miniC.y"
+  case 57: /* cast: LEFTPAR BOOL RIGHTPAR LEFTPAR expression RIGHTPAR  */
+#line 860 "miniC.y"
                                                         {
-        if((yyvsp[-1].number).value != 0.0) {
-            (yyval.number).value = 1.0;
-        } else {
-            (yyval.number).value = 0.0;
-        }
+        (yyval.number).value = ((yyvsp[-1].number).value != 0.0) ? 1.0 : 0.0;
         (yyval.number).type = TYPE_BOOL;
-        char tempStr[16];
-        sprintf(tempStr, "t%d", tacIndex);
-        addTAC("(bool)", NULL, (yyvsp[-1].number).result, tempStr);
-        (yyval.number).result = strdup(tempStr);
+        // Compara com zero para gerar i1
+        LLVMValueRef zero = LLVMConstInt(LLVMTypeOf((yyvsp[-1].number).llvm_value), 0, 0);
+        (yyval.number).llvm_value = LLVMBuildICmp(builder, LLVMIntNE, (yyvsp[-1].number).llvm_value, zero, "castbool");
     }
-#line 2445 "miniC.tab.c"
+#line 2529 "miniC.tab.c"
     break;
 
-  case 55: /* cast: LEFTPAR BOOL RIGHTPAR term  */
-#line 804 "miniC.y"
+  case 58: /* cast: LEFTPAR BOOL RIGHTPAR term  */
+#line 867 "miniC.y"
                                  {
-        if((yyvsp[0].number).value != 0.0) {
-            (yyval.number).value = 1.0;
-        } else {
-            (yyval.number).value = 0.0;
-        }
+        (yyval.number).value = ((yyvsp[0].number).value != 0.0) ? 1.0 : 0.0;
         (yyval.number).type = TYPE_BOOL;
-        char tempStr[16];
-        sprintf(tempStr, "t%d", tacIndex);
-        addTAC("(bool)", NULL, (yyvsp[0].number).result, tempStr);
-        (yyval.number).result = strdup(tempStr);
+        // Compara com zero para gerar i1
+        LLVMValueRef zero = LLVMConstInt(LLVMTypeOf((yyvsp[0].number).llvm_value), 0, 0);
+        (yyval.number).llvm_value = LLVMBuildICmp(builder, LLVMIntNE, (yyvsp[0].number).llvm_value, zero, "castbool");
     }
-#line 2462 "miniC.tab.c"
+#line 2541 "miniC.tab.c"
     break;
 
-  case 56: /* term: NUMBER  */
-#line 818 "miniC.y"
+  case 59: /* term: NUMBER  */
+#line 876 "miniC.y"
              { 
         (yyval.number).value = (yyvsp[0].number).value; 
         (yyval.number).type = (yyvsp[0].number).type; 
-        char temp[16];
-        sprintf(temp, "%g", (yyvsp[0].number).value);
-        (yyval.number).result = strdup(temp);
+        switch ((yyvsp[0].number).type) {
+            case TYPE_INT:   (yyval.number).llvm_value = LLVMConstInt(LLVMInt32TypeInContext(context), (int)(yyvsp[0].number).value, 0); break;
+            case TYPE_FLOAT: (yyval.number).llvm_value = LLVMConstReal(LLVMDoubleTypeInContext(context), (yyvsp[0].number).value); break;
+            case TYPE_CHAR:  (yyval.number).llvm_value = LLVMConstInt(LLVMInt8TypeInContext(context), (int)(yyvsp[0].number).value, 0); break;
+            case TYPE_BOOL:  (yyval.number).llvm_value = LLVMConstInt(LLVMInt1TypeInContext(context), (int)(yyvsp[0].number).value, 0); break;
+            default:         (yyval.number).llvm_value = LLVMConstReal(LLVMDoubleTypeInContext(context), (yyvsp[0].number).value); break;
+        }
     }
-#line 2474 "miniC.tab.c"
+#line 2557 "miniC.tab.c"
     break;
 
-  case 57: /* term: ID  */
-#line 825 "miniC.y"
-         { 
+  case 60: /* term: ID  */
+#line 887 "miniC.y"
+         {
         Symbol* sym = findSymbol((yyvsp[0].id));
         if (!sym) {
             fprintf(stderr, "Undeclared variable '%s' at line %d\n", (yyvsp[0].id), yylineno);
             (yyval.number).value = -1;
             (yyval.number).type = TYPE_UNKNOWN;
-            (yyval.number).result = "";
         } else {
             if (sym->value == -DBL_MAX) {
                 fprintf(stderr, "Uninitialized variable '%s' at line %d\n", (yyvsp[0].id), yylineno);
                 (yyval.number).value = -1;
                 (yyval.number).type = TYPE_UNKNOWN;
-                (yyval.number).result = NULL;
             } else {
                 (yyval.number).value = sym->value;
                 (yyval.number).type = sym->type;
-                (yyval.number).result = strdup(sym->id);
+                LLVMValueRef var = getVarLLVM((yyvsp[0].id));
+                LLVMTypeRef llvm_type;
+                switch (sym->type) {
+                    case TYPE_INT:   llvm_type = LLVMInt32TypeInContext(context); break;
+                    case TYPE_FLOAT: llvm_type = LLVMDoubleTypeInContext(context); break;
+                    case TYPE_CHAR:  llvm_type = LLVMInt8TypeInContext(context); break;
+                    case TYPE_BOOL:  llvm_type = LLVMInt1TypeInContext(context); break;
+                    default:         llvm_type = LLVMDoubleTypeInContext(context); break;
+                }
+                (yyval.number).llvm_value = LLVMBuildLoad2(builder, llvm_type, var, "loadtmp");
             }
         }
     }
-#line 2499 "miniC.tab.c"
+#line 2589 "miniC.tab.c"
     break;
 
 
-#line 2503 "miniC.tab.c"
+#line 2593 "miniC.tab.c"
 
       default: break;
     }
@@ -2723,7 +2813,7 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 848 "miniC.y"
+#line 917 "miniC.y"
 
 
 int yywrap( ) {
@@ -2735,7 +2825,15 @@ void yyerror(const char* str) {
 }
 
 void handleSegfault(int sig) {
+    void *array[10];
+    size_t size;
+
     fprintf(stderr, "Segmentation fault (signal %d). Exiting gracefully.\n", sig);
+
+    // Captura o backtrace
+    size = backtrace(array, 10);
+    backtrace_symbols_fd(array, size, STDERR_FILENO);
+
     exit(1);
 }
 
@@ -2778,8 +2876,70 @@ void printSymbolTable(SymbolTable* table) {
 int main( ) {
     signal(SIGSEGV, handleSegfault); // Handle segmentation faults
     pushScope(); // Initialize the first scope
+
+    // Inicialização LLVM
+    context = LLVMContextCreate();
+    module = LLVMModuleCreateWithNameInContext("miniC", context);
+    builder = LLVMCreateBuilderInContext(context);
+
+    // Cria função write: void write(param)
+    LLVMTypeRef write_int_args[] = { LLVMInt32TypeInContext(context) };
+    LLVMTypeRef write_int_type = LLVMFunctionType(LLVMVoidTypeInContext(context), write_int_args, 1, 0);
+    LLVMAddFunction(module, "write_int", write_int_type);
+
+    LLVMTypeRef write_float_args[] = { LLVMDoubleTypeInContext(context) };
+    LLVMTypeRef write_float_type = LLVMFunctionType(LLVMVoidTypeInContext(context), write_float_args, 1, 0);
+    LLVMAddFunction(module, "write_float", write_float_type);
+
+    LLVMTypeRef write_char_args[] = { LLVMInt8TypeInContext(context) };
+    LLVMTypeRef write_char_type = LLVMFunctionType(LLVMVoidTypeInContext(context), write_char_args, 1, 0);
+    LLVMAddFunction(module, "write_char", write_char_type);
+
+    LLVMTypeRef write_bool_args[] = { LLVMInt1TypeInContext(context) };
+    LLVMTypeRef write_bool_type = LLVMFunctionType(LLVMVoidTypeInContext(context), write_bool_args, 1, 0);
+    LLVMAddFunction(module, "write_bool", write_bool_type);
+
+    LLVMTypeRef write_string_args[] = { LLVMPointerType(LLVMInt8TypeInContext(context), 0) };
+    LLVMTypeRef write_string_type = LLVMFunctionType(LLVMVoidTypeInContext(context), write_string_args, 1, 0);
+    LLVMAddFunction(module, "write_string", write_string_type);
+
+    // Cria função read: void read(param)
+    LLVMTypeRef read_int_args[] = { LLVMInt32TypeInContext(context) };
+    LLVMTypeRef read_int_type = LLVMFunctionType(LLVMVoidTypeInContext(context), read_int_args, 1, 0);
+    LLVMAddFunction(module, "read_int", read_int_type);
+
+    LLVMTypeRef read_float_args[] = { LLVMDoubleTypeInContext(context) };
+    LLVMTypeRef read_float_type = LLVMFunctionType(LLVMVoidTypeInContext(context), read_float_args, 1, 0);
+    LLVMAddFunction(module, "read_float", read_float_type);
+
+    LLVMTypeRef read_char_args[] = { LLVMInt8TypeInContext(context) };
+    LLVMTypeRef read_char_type = LLVMFunctionType(LLVMVoidTypeInContext(context), read_char_args, 1, 0);
+    LLVMAddFunction(module, "read_char", read_char_type);
+
+    LLVMTypeRef read_bool_args[] = { LLVMInt1TypeInContext(context) };
+    LLVMTypeRef read_bool_type = LLVMFunctionType(LLVMVoidTypeInContext(context), read_bool_args, 1, 0);
+    LLVMAddFunction(module, "read_bool", read_bool_type);
+
+    // Cria função main: int main()
+    LLVMTypeRef mainType = LLVMFunctionType(LLVMInt32TypeInContext(context), NULL, 0, 0);
+    mainFunc = LLVMAddFunction(module, "main", mainType);
+    entry = LLVMAppendBasicBlockInContext(context, mainFunc, "entry");
+    LLVMPositionBuilderAtEnd(builder, entry);
+
     yyparse( );
-    printTAC(); // Imprime o código de três endereços
+
+    // Retorno main
+    LLVMBuildRet(builder, LLVMConstInt(LLVMInt32TypeInContext(context), 0, 0));
+
+    // Imprime IR
+    char *irstr = LLVMPrintModuleToString(module);
+    printf("\nLLVM IR:\n%s\n", irstr);
+    LLVMDisposeMessage(irstr);
+
+    LLVMDisposeBuilder(builder);
+    LLVMDisposeModule(module);
+    LLVMContextDispose(context);
+    
     /* printSymbolTable(currentScope); // Print the symbol table */
     freeSymbolTable(currentScope); // Free the symbol table
     return 0;
