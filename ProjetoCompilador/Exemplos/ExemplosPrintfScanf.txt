@@ -1,0 +1,57 @@
+// Teste completo para o compilador miniC
+
+int a;
+float b;
+char c;
+bool d;
+
+a = 10;
+b = 2.5;
+c = 'x';
+d = true;
+
+// write(a);
+// write(b);
+// write(c);
+// write(d);
+
+a = b + 1; // Erro semântico: atribuição float para int sem cast explícito
+
+b = a / 0; // Erro semântico: divisão por zero
+
+e = 5; // Erro semântico: variável não declarada
+
+if (a > 0) {
+    b = a + b;
+    if (b > 0) {
+        a = 25;
+        if (d) {
+            a = 5 * (7 + b);
+        }
+    }
+    else {
+        b = 5.5;
+    }
+}
+else {
+    a = a + b;
+}
+
+while (a > 0) {
+    b = b + 1;
+    a = a - 1;
+}
+
+// read(a);
+// read(b);
+// read(c);
+// read(d);
+
+// write("Fim do teste!");
+
+@ // Erro léxico: caractere inválido
+
+int g   // Erro sintático: falta de ponto e vírgula na declaração
+g = 2; 
+
+// write(g); // Erro semântico: variável não inicializada (dependendo da sua implementação)
