@@ -10,10 +10,10 @@ b = 2.5;
 c = 'x';
 d = true;
 
-// write(a);
-// write(b);
-// write(c);
-// write(d);
+printf(a);
+printf(b);
+printf(c);
+printf(d);
 
 a = b + 1; // Erro semântico: atribuição float para int sem cast explícito
 
@@ -42,16 +42,18 @@ while (a > 0) {
     a = a - 1;
 }
 
-// read(a);
-// read(b);
-// read(c);
-// read(d);
+scanf(a);
+scanf(b);
+scanf(c);
+scanf(d);
 
-// write("Fim do teste!");
+printf("Fim do teste!");
+
+printf(a);
 
 @ // Erro léxico: caractere inválido
 
 int g   // Erro sintático: falta de ponto e vírgula na declaração
 g = 2; 
 
-// write(g); // Erro semântico: variável não inicializada (dependendo da sua implementação)
+// printf(g); // Erro semântico: variável não inicializada (dependendo da sua implementação)

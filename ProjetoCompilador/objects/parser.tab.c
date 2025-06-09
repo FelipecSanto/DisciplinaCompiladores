@@ -562,11 +562,11 @@ static const yytype_int16 yyrline[] =
 {
        0,    67,    67,    68,    69,    70,    75,    81,    87,    93,
      103,   104,   105,   106,   107,   112,   164,   174,   164,   194,
-     206,   210,   211,   211,   229,   229,   243,   256,   294,   322,
-     333,   369,   370,   371,   372,   373,   374,   375,   378,   400,
-     424,   446,   476,   498,   520,   542,   564,   590,   617,   628,
-     639,   652,   658,   664,   669,   674,   679,   684,   691,   700,
-     710,   737
+     206,   210,   211,   211,   229,   229,   243,   256,   297,   321,
+     331,   365,   366,   367,   368,   369,   370,   371,   374,   396,
+     420,   442,   472,   494,   516,   538,   560,   586,   613,   624,
+     635,   648,   654,   660,   665,   670,   675,   680,   687,   696,
+     706,   733
 };
 #endif
 
@@ -1806,173 +1806,169 @@ yyreduce:
   case 27: /* printf: PRINTF LEFTPAR ID RIGHTPAR DONE  */
 #line 256 "compiler/parser.y"
                                         {
-        Symbol* sym = findSymbol((yyvsp[-2].id));
-        if (sym == NULL) {
-            fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", (yyvsp[-2].id), yylineno);
-        }
-        else if(sym->value == -DBL_MAX) {
-            fprintf(stderr, "Error: variable '%s' is uninitialized at line %d.\n", (yyvsp[-2].id), yylineno);
-        }
-        else {
-            LLVMValueRef var = getVarLLVM((yyvsp[-2].id));
-            LLVMValueRef loaded[1];
-            LLVMValueRef printf_func;
-            switch (sym->type) {
-                case TYPE_INT:
-                    printf_func = LLVMGetNamedFunction(module, "printf_int");
-                    loaded[0] = LLVMBuildLoad2(builder, LLVMInt32TypeInContext(context), var, "loadtmp");
-                    LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(printf_func)), printf_func, loaded, 1, "");
-                    break;
-                case TYPE_FLOAT:
-                    printf_func = LLVMGetNamedFunction(module, "printf_float");
-                    loaded[0] = LLVMBuildLoad2(builder, LLVMDoubleTypeInContext(context), var, "loadtmp");
-                    LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(printf_func)), printf_func, loaded, 1, "");
-                    break;
-                case TYPE_BOOL:
-                    printf_func = LLVMGetNamedFunction(module, "printf_bool");
-                    loaded[0] = LLVMBuildLoad2(builder, LLVMInt1TypeInContext(context), var, "loadtmp");
-                    LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(printf_func)), printf_func, loaded, 1, "");
-                    break;
-                case TYPE_CHAR:
-                    printf_func = LLVMGetNamedFunction(module, "printf_char");
-                    loaded[0] = LLVMBuildLoad2(builder, LLVMInt8TypeInContext(context), var, "loadtmp");
-                    LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(printf_func)), printf_func, loaded, 1, "");
-                    break;
-                default:
-                    fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", (yyvsp[-2].id), yylineno);
+            Symbol* sym = findSymbol((yyvsp[-2].id));
+            if (sym == NULL) {
+                fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", (yyvsp[-2].id), yylineno);
+            } else if(sym->value == -DBL_MAX) {
+                fprintf(stderr, "Error: variable '%s' is uninitialized at line %d.\n", (yyvsp[-2].id), yylineno);
+            } else {
+                LLVMValueRef fmt = NULL;
+                switch (sym->type) {
+                    case TYPE_INT:
+                        fmt = fmt_int;
+                        break;
+                    case TYPE_FLOAT:
+                        fmt = fmt_float;
+                        break;
+                    case TYPE_CHAR:
+                        fmt = fmt_char;
+                        break;
+                    case TYPE_BOOL:
+                        fmt = fmt_bool;
+                        break;
+                    default:
+                        fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", (yyvsp[-2].id), yylineno);
+                }
+                if (fmt) {
+                    LLVMValueRef var = getVarLLVM((yyvsp[-2].id));
+                    LLVMTypeRef llvm_type;
+                    switch (sym->type) {
+                        case TYPE_INT:   llvm_type = LLVMInt32TypeInContext(context); break;
+                        case TYPE_FLOAT: llvm_type = LLVMDoubleTypeInContext(context); break;
+                        case TYPE_CHAR:  llvm_type = LLVMInt8TypeInContext(context); break;
+                        case TYPE_BOOL:  llvm_type = LLVMInt1TypeInContext(context); break;
+                        default:         llvm_type = LLVMDoubleTypeInContext(context); break;
+                    }
+                    LLVMValueRef loaded = LLVMBuildLoad2(builder, llvm_type, var, "loadtmp");
+                    LLVMValueRef args[2] = { fmt, loaded };
+                    LLVMValueRef printf_func = LLVMGetNamedFunction(module, "printf");
+                    LLVMBuildCall2(builder, printf_type, printf_func, args, 2, "");
+                }
             }
         }
-     }
-#line 1847 "objects/parser.tab.c"
+#line 1850 "objects/parser.tab.c"
     break;
 
   case 28: /* printf: PRINTF LEFTPAR NUMBER RIGHTPAR DONE  */
-#line 294 "compiler/parser.y"
-                                          {
-        LLVMValueRef printf_func;
-        LLVMValueRef arg[1];
-        switch ((yyvsp[-2].number).type) {
-            case TYPE_INT:
-                printf_func = LLVMGetNamedFunction(module, "printf_int");
-                arg[0] = LLVMConstInt(LLVMInt32TypeInContext(context), (int)(yyvsp[-2].number).value, 0);
-                LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(printf_func)), printf_func, arg, 1, "");
-                break;
-            case TYPE_FLOAT:
-                printf_func = LLVMGetNamedFunction(module, "printf_float");
-                arg[0] = LLVMConstReal(LLVMDoubleTypeInContext(context), (yyvsp[-2].number).value);
-                LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(printf_func)), printf_func, arg, 1, "");
-                break;
-            case TYPE_CHAR:
-                printf_func = LLVMGetNamedFunction(module, "printf_char");
-                arg[0] = LLVMConstInt(LLVMInt8TypeInContext(context), (char)(yyvsp[-2].number).value, 0);
-                LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(printf_func)), printf_func, arg, 1, "");
-                break;
-            case TYPE_BOOL:
-                printf_func = LLVMGetNamedFunction(module, "printf_bool");
-                arg[0] = LLVMConstInt(LLVMInt1TypeInContext(context), (int)(yyvsp[-2].number).value, 0);
-                LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(printf_func)), printf_func, arg, 1, "");
-                break;
-            default:
-                fprintf(stderr, "Error: unsupported type for number at line %d.\n", yylineno);
+#line 297 "compiler/parser.y"
+                                              {
+            LLVMValueRef fmt = NULL;
+            switch ((yyvsp[-2].number).type) {
+                case TYPE_INT:
+                    fmt = fmt_int;
+                    break;
+                case TYPE_FLOAT:
+                    fmt = fmt_float;
+                    break;
+                case TYPE_CHAR:
+                    fmt = fmt_char;
+                    break;
+                case TYPE_BOOL:
+                    fmt = fmt_bool;
+                    break;
+                default:
+                    fprintf(stderr, "Error: unsupported type for number at line %d.\n", yylineno);
+            }
+            if (fmt) {
+                LLVMValueRef args[2] = { fmt, (yyvsp[-2].number).llvm_value };
+                LLVMValueRef printf_func = LLVMGetNamedFunction(module, "printf");
+                LLVMBuildCall2(builder, printf_type, printf_func, args, 2, "");
+            }
         }
-    }
-#line 1880 "objects/parser.tab.c"
+#line 1879 "objects/parser.tab.c"
     break;
 
   case 29: /* printf: PRINTF LEFTPAR STRING RIGHTPAR DONE  */
-#line 322 "compiler/parser.y"
-                                          {
-        LLVMValueRef printf_func = LLVMGetNamedFunction(module, "printf_string");
-        LLVMValueRef str = LLVMBuildPointerCast(builder, createGlobalString((yyvsp[-2].id), "str_literal"), LLVMPointerType(LLVMInt8TypeInContext(context), 0), "");
-        LLVMValueRef arg[1];
-        arg[0] = str;
-        LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(printf_func)), printf_func, arg, 1, "");
-        free((yyvsp[-2].id));
-    }
-#line 1893 "objects/parser.tab.c"
+#line 321 "compiler/parser.y"
+                                              {
+            LLVMValueRef fmt = fmt_str;
+            LLVMValueRef args[1] = { fmt };
+            LLVMValueRef printf_func = LLVMGetNamedFunction(module, "printf");
+            LLVMBuildCall2(builder, printf_type, printf_func, args, 1, "");
+            free((yyvsp[-2].id));
+        }
+#line 1891 "objects/parser.tab.c"
     break;
 
   case 30: /* scanf: SCANF LEFTPAR ID RIGHTPAR DONE  */
-#line 333 "compiler/parser.y"
-                                      {
-        Symbol* sym = findSymbol((yyvsp[-2].id));
-        if (sym == NULL) {
-            fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", (yyvsp[-2].id), yylineno);
-        }
-        else {
-            LLVMValueRef var = getVarLLVM((yyvsp[-2].id));
-            LLVMValueRef arg[1];
-            arg[0] = var;
-            LLVMValueRef scanf_func;
-            switch (sym->type) {
-                case TYPE_INT:
-                    scanf_func = LLVMGetNamedFunction(module, "scanf_int");
-                    LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(scanf_func)), scanf_func, arg, 1, "");
-                    break;
-                case TYPE_FLOAT:
-                    scanf_func = LLVMGetNamedFunction(module, "scanf_float");
-                    LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(scanf_func)), scanf_func, arg, 1, "");
-                    break;
-                case TYPE_BOOL:
-                    scanf_func = LLVMGetNamedFunction(module, "scanf_bool");
-                    LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(scanf_func)), scanf_func, arg, 1, "");
-                    break;
-                case TYPE_CHAR:
-                    scanf_func = LLVMGetNamedFunction(module, "scanf_char");
-                    LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(scanf_func)), scanf_func, arg, 1, "");
-                    break;
-                default:
-                    fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", (yyvsp[-2].id), yylineno);
+#line 331 "compiler/parser.y"
+                                       {
+            Symbol* sym = findSymbol((yyvsp[-2].id));
+            if (sym == NULL) {
+                fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", (yyvsp[-2].id), yylineno);
+            } else {
+                LLVMValueRef fmt = NULL;
+                switch (sym->type) {
+                    case TYPE_INT:
+                        fmt = fmt_int;
+                        break;
+                    case TYPE_FLOAT:
+                        fmt = fmt_float;
+                        break;
+                    case TYPE_CHAR:
+                        fmt = fmt_char;
+                        break;
+                    case TYPE_BOOL:
+                        fmt = fmt_bool;
+                        break;
+                    default:
+                        fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", (yyvsp[-2].id), yylineno);
+                }
+                if (fmt) {
+                    LLVMValueRef var = getVarLLVM((yyvsp[-2].id));
+                    LLVMValueRef args[2] = { fmt, var };
+                    LLVMValueRef scanf_func = LLVMGetNamedFunction(module, "scanf");
+                    LLVMBuildCall2(builder, scanf_type, scanf_func, args, 2, "");
+                }
             }
         }
-    }
-#line 1930 "objects/parser.tab.c"
+#line 1926 "objects/parser.tab.c"
     break;
 
   case 31: /* expression: soma_sub  */
-#line 369 "compiler/parser.y"
+#line 365 "compiler/parser.y"
                      { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; }
-#line 1936 "objects/parser.tab.c"
+#line 1932 "objects/parser.tab.c"
     break;
 
   case 32: /* expression: mult_div  */
-#line 370 "compiler/parser.y"
+#line 366 "compiler/parser.y"
                              { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; }
-#line 1942 "objects/parser.tab.c"
+#line 1938 "objects/parser.tab.c"
     break;
 
   case 33: /* expression: LEFTPAR expression RIGHTPAR  */
-#line 371 "compiler/parser.y"
+#line 367 "compiler/parser.y"
                                         { (yyval.number).value = (yyvsp[-1].number).value; (yyval.number).type = (yyvsp[-1].number).type; (yyval.number).llvm_value = (yyvsp[-1].number).llvm_value; }
-#line 1948 "objects/parser.tab.c"
+#line 1944 "objects/parser.tab.c"
     break;
 
   case 34: /* expression: comparison  */
-#line 372 "compiler/parser.y"
+#line 368 "compiler/parser.y"
                        { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; }
-#line 1954 "objects/parser.tab.c"
+#line 1950 "objects/parser.tab.c"
     break;
 
   case 35: /* expression: log_exp  */
-#line 373 "compiler/parser.y"
+#line 369 "compiler/parser.y"
                     { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; }
-#line 1960 "objects/parser.tab.c"
+#line 1956 "objects/parser.tab.c"
     break;
 
   case 36: /* expression: cast  */
-#line 374 "compiler/parser.y"
+#line 370 "compiler/parser.y"
                  { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; }
-#line 1966 "objects/parser.tab.c"
+#line 1962 "objects/parser.tab.c"
     break;
 
   case 37: /* expression: term  */
-#line 375 "compiler/parser.y"
+#line 371 "compiler/parser.y"
                          { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; }
-#line 1972 "objects/parser.tab.c"
+#line 1968 "objects/parser.tab.c"
     break;
 
   case 38: /* soma_sub: expression PLUS expression  */
-#line 378 "compiler/parser.y"
+#line 374 "compiler/parser.y"
                                      { 
                 if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value + (yyvsp[0].number).value;
@@ -1995,11 +1991,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
         }
-#line 1999 "objects/parser.tab.c"
+#line 1995 "objects/parser.tab.c"
     break;
 
   case 39: /* soma_sub: expression MIN expression  */
-#line 400 "compiler/parser.y"
+#line 396 "compiler/parser.y"
                                      {
                 if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value - (yyvsp[0].number).value;
@@ -2022,11 +2018,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
         }
-#line 2026 "objects/parser.tab.c"
+#line 2022 "objects/parser.tab.c"
     break;
 
   case 40: /* mult_div: expression MULT expression  */
-#line 424 "compiler/parser.y"
+#line 420 "compiler/parser.y"
                                      {
                 if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value * (yyvsp[0].number).value;
@@ -2049,11 +2045,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
         }
-#line 2053 "objects/parser.tab.c"
+#line 2049 "objects/parser.tab.c"
     break;
 
   case 41: /* mult_div: expression DIV expression  */
-#line 446 "compiler/parser.y"
+#line 442 "compiler/parser.y"
                                              { 
                 if ((yyvsp[0].number).value == 0.0) {
                         fprintf(stderr, "Error: division by zero at line %d.\n", yylineno);
@@ -2082,11 +2078,11 @@ yyreduce:
                     }
                 }
 		}
-#line 2086 "objects/parser.tab.c"
+#line 2082 "objects/parser.tab.c"
     break;
 
   case 42: /* comparison: expression LESS expression  */
-#line 476 "compiler/parser.y"
+#line 472 "compiler/parser.y"
                                        {
                 if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value < (yyvsp[0].number).value;
@@ -2109,11 +2105,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
             }
-#line 2113 "objects/parser.tab.c"
+#line 2109 "objects/parser.tab.c"
     break;
 
   case 43: /* comparison: expression GREAT expression  */
-#line 498 "compiler/parser.y"
+#line 494 "compiler/parser.y"
                                           {
                 if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value > (yyvsp[0].number).value;
@@ -2136,11 +2132,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
             }
-#line 2140 "objects/parser.tab.c"
+#line 2136 "objects/parser.tab.c"
     break;
 
   case 44: /* comparison: expression LEQUAL expression  */
-#line 520 "compiler/parser.y"
+#line 516 "compiler/parser.y"
                                            {
                 if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value <= (yyvsp[0].number).value;
@@ -2163,11 +2159,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
             }
-#line 2167 "objects/parser.tab.c"
+#line 2163 "objects/parser.tab.c"
     break;
 
   case 45: /* comparison: expression GEQUAL expression  */
-#line 542 "compiler/parser.y"
+#line 538 "compiler/parser.y"
                                            {
                 if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value >= (yyvsp[0].number).value;
@@ -2190,11 +2186,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
             }
-#line 2194 "objects/parser.tab.c"
+#line 2190 "objects/parser.tab.c"
     break;
 
   case 46: /* comparison: expression EQUAL expression  */
-#line 564 "compiler/parser.y"
+#line 560 "compiler/parser.y"
                                            { 
                 if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value == (yyvsp[0].number).value;
@@ -2221,11 +2217,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
             }
-#line 2225 "objects/parser.tab.c"
+#line 2221 "objects/parser.tab.c"
     break;
 
   case 47: /* comparison: expression NEQUAL expression  */
-#line 590 "compiler/parser.y"
+#line 586 "compiler/parser.y"
                                            {
                 if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value != (yyvsp[0].number).value;
@@ -2251,11 +2247,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
             }
-#line 2255 "objects/parser.tab.c"
+#line 2251 "objects/parser.tab.c"
     break;
 
   case 48: /* log_exp: expression AND expression  */
-#line 617 "compiler/parser.y"
+#line 613 "compiler/parser.y"
                                    {
             if ((yyvsp[-2].number).type == TYPE_BOOL && (yyvsp[0].number).type == TYPE_BOOL) {
                 (yyval.number).value = (yyvsp[-2].number).value && (yyvsp[0].number).value;
@@ -2267,11 +2263,11 @@ yyreduce:
                 (yyval.number).type = TYPE_UNKNOWN;
             }
        }
-#line 2271 "objects/parser.tab.c"
+#line 2267 "objects/parser.tab.c"
     break;
 
   case 49: /* log_exp: expression OR expression  */
-#line 628 "compiler/parser.y"
+#line 624 "compiler/parser.y"
                                    {
             if ((yyvsp[-2].number).type == TYPE_BOOL && (yyvsp[0].number).type == TYPE_BOOL) {
                 (yyval.number).value = (yyvsp[-2].number).value || (yyvsp[0].number).value;
@@ -2283,11 +2279,11 @@ yyreduce:
                 (yyval.number).type = TYPE_UNKNOWN;
             }
        }
-#line 2287 "objects/parser.tab.c"
+#line 2283 "objects/parser.tab.c"
     break;
 
   case 50: /* log_exp: NOT expression  */
-#line 639 "compiler/parser.y"
+#line 635 "compiler/parser.y"
                         {
             if ((yyvsp[0].number).type == TYPE_BOOL) {
                 (yyval.number).value = !(yyvsp[0].number).value;
@@ -2299,73 +2295,73 @@ yyreduce:
                 (yyval.number).type = TYPE_UNKNOWN;
             }
         }
-#line 2303 "objects/parser.tab.c"
+#line 2299 "objects/parser.tab.c"
     break;
 
   case 51: /* cast: LEFTPAR INT RIGHTPAR LEFTPAR expression RIGHTPAR  */
-#line 652 "compiler/parser.y"
+#line 648 "compiler/parser.y"
                                                        {
         int temp = (int) (yyvsp[-1].number).value;
         (yyval.number).value = (double) temp;
         (yyval.number).type = TYPE_INT;
         (yyval.number).llvm_value = LLVMBuildFPToSI(builder, (yyvsp[-1].number).llvm_value, LLVMInt32TypeInContext(context), "castint");
     }
-#line 2314 "objects/parser.tab.c"
+#line 2310 "objects/parser.tab.c"
     break;
 
   case 52: /* cast: LEFTPAR INT RIGHTPAR term  */
-#line 658 "compiler/parser.y"
+#line 654 "compiler/parser.y"
                                 {
         int temp = (int) (yyvsp[0].number).value;
         (yyval.number).value = (double) temp;
         (yyval.number).type = TYPE_INT;
         (yyval.number).llvm_value = LLVMBuildFPToSI(builder, (yyvsp[0].number).llvm_value, LLVMInt32TypeInContext(context), "castint");
     }
-#line 2325 "objects/parser.tab.c"
+#line 2321 "objects/parser.tab.c"
     break;
 
   case 53: /* cast: LEFTPAR FLOAT RIGHTPAR LEFTPAR expression RIGHTPAR  */
-#line 664 "compiler/parser.y"
+#line 660 "compiler/parser.y"
                                                          {
         (yyval.number).value = (yyvsp[-1].number).value;
         (yyval.number).type = TYPE_FLOAT;
         (yyval.number).llvm_value = LLVMBuildSIToFP(builder, (yyvsp[-1].number).llvm_value, LLVMDoubleTypeInContext(context), "castfloat");
     }
-#line 2335 "objects/parser.tab.c"
+#line 2331 "objects/parser.tab.c"
     break;
 
   case 54: /* cast: LEFTPAR FLOAT RIGHTPAR term  */
-#line 669 "compiler/parser.y"
+#line 665 "compiler/parser.y"
                                   {
         (yyval.number).value = (yyvsp[0].number).value;
         (yyval.number).type = TYPE_FLOAT;
         (yyval.number).llvm_value = LLVMBuildSIToFP(builder, (yyvsp[0].number).llvm_value, LLVMDoubleTypeInContext(context), "castfloat");
     }
-#line 2345 "objects/parser.tab.c"
+#line 2341 "objects/parser.tab.c"
     break;
 
   case 55: /* cast: LEFTPAR CHAR RIGHTPAR LEFTPAR expression RIGHTPAR  */
-#line 674 "compiler/parser.y"
+#line 670 "compiler/parser.y"
                                                         {
         (yyval.number).value = (double) ((char) (yyvsp[-1].number).value);
         (yyval.number).type = TYPE_CHAR;
         (yyval.number).llvm_value = LLVMBuildTrunc(builder, (yyvsp[-1].number).llvm_value, LLVMInt8TypeInContext(context), "castchar");
     }
-#line 2355 "objects/parser.tab.c"
+#line 2351 "objects/parser.tab.c"
     break;
 
   case 56: /* cast: LEFTPAR CHAR RIGHTPAR term  */
-#line 679 "compiler/parser.y"
+#line 675 "compiler/parser.y"
                                  {
         (yyval.number).value = (double) ((char) (yyvsp[0].number).value);
         (yyval.number).type = TYPE_CHAR;
         (yyval.number).llvm_value = LLVMBuildTrunc(builder, (yyvsp[0].number).llvm_value, LLVMInt8TypeInContext(context), "castchar");
     }
-#line 2365 "objects/parser.tab.c"
+#line 2361 "objects/parser.tab.c"
     break;
 
   case 57: /* cast: LEFTPAR BOOL RIGHTPAR LEFTPAR expression RIGHTPAR  */
-#line 684 "compiler/parser.y"
+#line 680 "compiler/parser.y"
                                                         {
         (yyval.number).value = ((yyvsp[-1].number).value != 0.0) ? 1.0 : 0.0;
         (yyval.number).type = TYPE_BOOL;
@@ -2373,11 +2369,11 @@ yyreduce:
         LLVMValueRef zero = LLVMConstInt(LLVMTypeOf((yyvsp[-1].number).llvm_value), 0, 0);
         (yyval.number).llvm_value = LLVMBuildICmp(builder, LLVMIntNE, (yyvsp[-1].number).llvm_value, zero, "castbool");
     }
-#line 2377 "objects/parser.tab.c"
+#line 2373 "objects/parser.tab.c"
     break;
 
   case 58: /* cast: LEFTPAR BOOL RIGHTPAR term  */
-#line 691 "compiler/parser.y"
+#line 687 "compiler/parser.y"
                                  {
         (yyval.number).value = ((yyvsp[0].number).value != 0.0) ? 1.0 : 0.0;
         (yyval.number).type = TYPE_BOOL;
@@ -2385,11 +2381,11 @@ yyreduce:
         LLVMValueRef zero = LLVMConstInt(LLVMTypeOf((yyvsp[0].number).llvm_value), 0, 0);
         (yyval.number).llvm_value = LLVMBuildICmp(builder, LLVMIntNE, (yyvsp[0].number).llvm_value, zero, "castbool");
     }
-#line 2389 "objects/parser.tab.c"
+#line 2385 "objects/parser.tab.c"
     break;
 
   case 59: /* term: NUMBER  */
-#line 700 "compiler/parser.y"
+#line 696 "compiler/parser.y"
              { 
         (yyval.number).value = (yyvsp[0].number).value; 
         (yyval.number).type = (yyvsp[0].number).type; 
@@ -2400,11 +2396,11 @@ yyreduce:
             default:         (yyval.number).llvm_value = LLVMConstReal(LLVMDoubleTypeInContext(context), (yyvsp[0].number).value); break;
         }
     }
-#line 2404 "objects/parser.tab.c"
+#line 2400 "objects/parser.tab.c"
     break;
 
   case 60: /* term: ID  */
-#line 710 "compiler/parser.y"
+#line 706 "compiler/parser.y"
          {
         Symbol* sym = findSymbol((yyvsp[0].id));
         if (!sym) {
@@ -2432,21 +2428,21 @@ yyreduce:
             }
         }
     }
-#line 2436 "objects/parser.tab.c"
+#line 2432 "objects/parser.tab.c"
     break;
 
   case 61: /* term: CARACTERE  */
-#line 737 "compiler/parser.y"
+#line 733 "compiler/parser.y"
                 {
         (yyval.number).value = (double) (yyvsp[0].caractere);
         (yyval.number).type = TYPE_CHAR;
         (yyval.number).llvm_value = LLVMConstInt(LLVMInt8TypeInContext(context), (yyvsp[0].caractere), 0);
     }
-#line 2446 "objects/parser.tab.c"
+#line 2442 "objects/parser.tab.c"
     break;
 
 
-#line 2450 "objects/parser.tab.c"
+#line 2446 "objects/parser.tab.c"
 
       default: break;
     }
@@ -2670,7 +2666,7 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 745 "compiler/parser.y"
+#line 741 "compiler/parser.y"
 
 
 int yywrap( ) {
@@ -2739,49 +2735,33 @@ int main( ) {
     module = LLVMModuleCreateWithNameInContext("parser", context);
     builder = LLVMCreateBuilderInContext(context);
 
-    // Cria função printf: void printf(param)
-    LLVMTypeRef printf_int_args[] = { LLVMInt32TypeInContext(context) };
-    LLVMTypeRef printf_int_type = LLVMFunctionType(LLVMVoidTypeInContext(context), printf_int_args, 1, 0);
-    LLVMAddFunction(module, "printf_int", printf_int_type);
+    // Declarações de funções padrão
+    printf_type = LLVMFunctionType(
+        LLVMInt32TypeInContext(context),
+        (LLVMTypeRef[]){ LLVMPointerType(LLVMInt8TypeInContext(context), 0) },
+        1, 1 // 1 argumento fixo, variádico
+    );
+    LLVMAddFunction(module, "printf", printf_type);
 
-    LLVMTypeRef printf_float_args[] = { LLVMDoubleTypeInContext(context) };
-    LLVMTypeRef printf_float_type = LLVMFunctionType(LLVMVoidTypeInContext(context), printf_float_args, 1, 0);
-    LLVMAddFunction(module, "printf_float", printf_float_type);
-
-    LLVMTypeRef printf_char_args[] = { LLVMInt8TypeInContext(context) };
-    LLVMTypeRef printf_char_type = LLVMFunctionType(LLVMVoidTypeInContext(context), printf_char_args, 1, 0);
-    LLVMAddFunction(module, "printf_char", printf_char_type);
-
-    LLVMTypeRef printf_bool_args[] = { LLVMInt1TypeInContext(context) };
-    LLVMTypeRef printf_bool_type = LLVMFunctionType(LLVMVoidTypeInContext(context), printf_bool_args, 1, 0);
-    LLVMAddFunction(module, "printf_bool", printf_bool_type);
-
-    LLVMTypeRef printf_string_args[] = { LLVMPointerType(LLVMInt8TypeInContext(context), 0) };
-    LLVMTypeRef printf_string_type = LLVMFunctionType(LLVMVoidTypeInContext(context), printf_string_args, 1, 0);
-    LLVMAddFunction(module, "printf_string", printf_string_type);
-
-    // Cria função scanf: void scanf(param)
-    LLVMTypeRef scanf_int_args[] = { LLVMInt32TypeInContext(context) };
-    LLVMTypeRef scanf_int_type = LLVMFunctionType(LLVMVoidTypeInContext(context), scanf_int_args, 1, 0);
-    LLVMAddFunction(module, "scanf_int", scanf_int_type);
-
-    LLVMTypeRef scanf_float_args[] = { LLVMDoubleTypeInContext(context) };
-    LLVMTypeRef scanf_float_type = LLVMFunctionType(LLVMVoidTypeInContext(context), scanf_float_args, 1, 0);
-    LLVMAddFunction(module, "scanf_float", scanf_float_type);
-
-    LLVMTypeRef scanf_char_args[] = { LLVMInt8TypeInContext(context) };
-    LLVMTypeRef scanf_char_type = LLVMFunctionType(LLVMVoidTypeInContext(context), scanf_char_args, 1, 0);
-    LLVMAddFunction(module, "scanf_char", scanf_char_type);
-
-    LLVMTypeRef scanf_bool_args[] = { LLVMInt1TypeInContext(context) };
-    LLVMTypeRef scanf_bool_type = LLVMFunctionType(LLVMVoidTypeInContext(context), scanf_bool_args, 1, 0);
-    LLVMAddFunction(module, "scanf_bool", scanf_bool_type);
+    scanf_type = LLVMFunctionType(
+        LLVMInt32TypeInContext(context),
+        (LLVMTypeRef[]){ LLVMPointerType(LLVMInt8TypeInContext(context), 0) },
+        1, 1 // 1 argumento fixo, variádico
+    );
+    LLVMAddFunction(module, "scanf", scanf_type);
 
     // Cria função main: int main()
     LLVMTypeRef mainType = LLVMFunctionType(LLVMInt32TypeInContext(context), NULL, 0, 0);
     mainFunc = LLVMAddFunction(module, "main", mainType);
     entry = LLVMAppendBasicBlockInContext(context, mainFunc, "entry");
     LLVMPositionBuilderAtEnd(builder, entry);
+
+    // Variáveis globais para formatação de strings
+    fmt_int   = LLVMBuildGlobalStringPtr(builder, "%d\n", "fmt_int");
+    fmt_float = LLVMBuildGlobalStringPtr(builder, "%f\n", "fmt_float");
+    fmt_char  = LLVMBuildGlobalStringPtr(builder, "%c\n", "fmt_char");
+    fmt_bool  = LLVMBuildGlobalStringPtr(builder, "%d\n", "fmt_bool");
+    fmt_str   = LLVMBuildGlobalStringPtr(builder, "%s\n", "fmt_str");
 
     yyparse( );
 

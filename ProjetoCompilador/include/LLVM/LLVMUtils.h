@@ -15,6 +15,8 @@ extern LLVMBuilderRef builder;
 extern LLVMContextRef context;
 extern LLVMValueRef mainFunc;
 extern LLVMBasicBlockRef entry;
+extern LLVMValueRef fmt_int, fmt_float, fmt_char, fmt_bool, fmt_str;
+extern LLVMTypeRef printf_type, scanf_type;
 
 void allocaVars(const char* name, VarType type);
 LLVMValueRef getVarLLVM(const char* name);

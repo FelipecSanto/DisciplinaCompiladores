@@ -1,4 +1,4 @@
-#include "LLVMUtils.h"
+#include "../include/LLVM/LLVMUtils.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,6 +14,8 @@ LLVMBuilderRef builder;
 LLVMContextRef context;
 LLVMValueRef mainFunc;
 LLVMBasicBlockRef entry;
+LLVMValueRef fmt_int, fmt_float, fmt_char, fmt_bool, fmt_str;
+LLVMTypeRef printf_type, scanf_type;
 
 LLVMValueRef aux;
 

@@ -254,115 +254,111 @@ while_aux: {
 };
 
 printf: PRINTF LEFTPAR ID RIGHTPAR DONE {
-        Symbol* sym = findSymbol($3);
-        if (sym == NULL) {
-            fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", $3, yylineno);
-        }
-        else if(sym->value == -DBL_MAX) {
-            fprintf(stderr, "Error: variable '%s' is uninitialized at line %d.\n", $3, yylineno);
-        }
-        else {
-            LLVMValueRef var = getVarLLVM($3);
-            LLVMValueRef loaded[1];
-            LLVMValueRef printf_func;
-            switch (sym->type) {
-                case TYPE_INT:
-                    printf_func = LLVMGetNamedFunction(module, "printf_int");
-                    loaded[0] = LLVMBuildLoad2(builder, LLVMInt32TypeInContext(context), var, "loadtmp");
-                    LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(printf_func)), printf_func, loaded, 1, "");
-                    break;
-                case TYPE_FLOAT:
-                    printf_func = LLVMGetNamedFunction(module, "printf_float");
-                    loaded[0] = LLVMBuildLoad2(builder, LLVMDoubleTypeInContext(context), var, "loadtmp");
-                    LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(printf_func)), printf_func, loaded, 1, "");
-                    break;
-                case TYPE_BOOL:
-                    printf_func = LLVMGetNamedFunction(module, "printf_bool");
-                    loaded[0] = LLVMBuildLoad2(builder, LLVMInt1TypeInContext(context), var, "loadtmp");
-                    LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(printf_func)), printf_func, loaded, 1, "");
-                    break;
-                case TYPE_CHAR:
-                    printf_func = LLVMGetNamedFunction(module, "printf_char");
-                    loaded[0] = LLVMBuildLoad2(builder, LLVMInt8TypeInContext(context), var, "loadtmp");
-                    LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(printf_func)), printf_func, loaded, 1, "");
-                    break;
-                default:
-                    fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", $3, yylineno);
+            Symbol* sym = findSymbol($3);
+            if (sym == NULL) {
+                fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", $3, yylineno);
+            } else if(sym->value == -DBL_MAX) {
+                fprintf(stderr, "Error: variable '%s' is uninitialized at line %d.\n", $3, yylineno);
+            } else {
+                LLVMValueRef fmt = NULL;
+                switch (sym->type) {
+                    case TYPE_INT:
+                        fmt = fmt_int;
+                        break;
+                    case TYPE_FLOAT:
+                        fmt = fmt_float;
+                        break;
+                    case TYPE_CHAR:
+                        fmt = fmt_char;
+                        break;
+                    case TYPE_BOOL:
+                        fmt = fmt_bool;
+                        break;
+                    default:
+                        fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", $3, yylineno);
+                }
+                if (fmt) {
+                    LLVMValueRef var = getVarLLVM($3);
+                    LLVMTypeRef llvm_type;
+                    switch (sym->type) {
+                        case TYPE_INT:   llvm_type = LLVMInt32TypeInContext(context); break;
+                        case TYPE_FLOAT: llvm_type = LLVMDoubleTypeInContext(context); break;
+                        case TYPE_CHAR:  llvm_type = LLVMInt8TypeInContext(context); break;
+                        case TYPE_BOOL:  llvm_type = LLVMInt1TypeInContext(context); break;
+                        default:         llvm_type = LLVMDoubleTypeInContext(context); break;
+                    }
+                    LLVMValueRef loaded = LLVMBuildLoad2(builder, llvm_type, var, "loadtmp");
+                    LLVMValueRef args[2] = { fmt, loaded };
+                    LLVMValueRef printf_func = LLVMGetNamedFunction(module, "printf");
+                    LLVMBuildCall2(builder, printf_type, printf_func, args, 2, "");
+                }
             }
         }
-     }
-    | PRINTF LEFTPAR NUMBER RIGHTPAR DONE {
-        LLVMValueRef printf_func;
-        LLVMValueRef arg[1];
-        switch ($3.type) {
-            case TYPE_INT:
-                printf_func = LLVMGetNamedFunction(module, "printf_int");
-                arg[0] = LLVMConstInt(LLVMInt32TypeInContext(context), (int)$3.value, 0);
-                LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(printf_func)), printf_func, arg, 1, "");
-                break;
-            case TYPE_FLOAT:
-                printf_func = LLVMGetNamedFunction(module, "printf_float");
-                arg[0] = LLVMConstReal(LLVMDoubleTypeInContext(context), $3.value);
-                LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(printf_func)), printf_func, arg, 1, "");
-                break;
-            case TYPE_CHAR:
-                printf_func = LLVMGetNamedFunction(module, "printf_char");
-                arg[0] = LLVMConstInt(LLVMInt8TypeInContext(context), (char)$3.value, 0);
-                LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(printf_func)), printf_func, arg, 1, "");
-                break;
-            case TYPE_BOOL:
-                printf_func = LLVMGetNamedFunction(module, "printf_bool");
-                arg[0] = LLVMConstInt(LLVMInt1TypeInContext(context), (int)$3.value, 0);
-                LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(printf_func)), printf_func, arg, 1, "");
-                break;
-            default:
-                fprintf(stderr, "Error: unsupported type for number at line %d.\n", yylineno);
-        }
-    }
-    | PRINTF LEFTPAR STRING RIGHTPAR DONE {
-        LLVMValueRef printf_func = LLVMGetNamedFunction(module, "printf_string");
-        LLVMValueRef str = LLVMBuildPointerCast(builder, createGlobalString($3, "str_literal"), LLVMPointerType(LLVMInt8TypeInContext(context), 0), "");
-        LLVMValueRef arg[1];
-        arg[0] = str;
-        LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(printf_func)), printf_func, arg, 1, "");
-        free($3);
-    }
-    ;
-
-
-scanf: SCANF LEFTPAR ID RIGHTPAR DONE {
-        Symbol* sym = findSymbol($3);
-        if (sym == NULL) {
-            fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", $3, yylineno);
-        }
-        else {
-            LLVMValueRef var = getVarLLVM($3);
-            LLVMValueRef arg[1];
-            arg[0] = var;
-            LLVMValueRef scanf_func;
-            switch (sym->type) {
+        | PRINTF LEFTPAR NUMBER RIGHTPAR DONE {
+            LLVMValueRef fmt = NULL;
+            switch ($3.type) {
                 case TYPE_INT:
-                    scanf_func = LLVMGetNamedFunction(module, "scanf_int");
-                    LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(scanf_func)), scanf_func, arg, 1, "");
+                    fmt = fmt_int;
                     break;
                 case TYPE_FLOAT:
-                    scanf_func = LLVMGetNamedFunction(module, "scanf_float");
-                    LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(scanf_func)), scanf_func, arg, 1, "");
-                    break;
-                case TYPE_BOOL:
-                    scanf_func = LLVMGetNamedFunction(module, "scanf_bool");
-                    LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(scanf_func)), scanf_func, arg, 1, "");
+                    fmt = fmt_float;
                     break;
                 case TYPE_CHAR:
-                    scanf_func = LLVMGetNamedFunction(module, "scanf_char");
-                    LLVMBuildCall2(builder, LLVMGetElementType(LLVMTypeOf(scanf_func)), scanf_func, arg, 1, "");
+                    fmt = fmt_char;
+                    break;
+                case TYPE_BOOL:
+                    fmt = fmt_bool;
                     break;
                 default:
-                    fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", $3, yylineno);
+                    fprintf(stderr, "Error: unsupported type for number at line %d.\n", yylineno);
+            }
+            if (fmt) {
+                LLVMValueRef args[2] = { fmt, $3.llvm_value };
+                LLVMValueRef printf_func = LLVMGetNamedFunction(module, "printf");
+                LLVMBuildCall2(builder, printf_type, printf_func, args, 2, "");
             }
         }
-    }
-    ;
+        | PRINTF LEFTPAR STRING RIGHTPAR DONE {
+            LLVMValueRef fmt = fmt_str;
+            LLVMValueRef args[1] = { fmt };
+            LLVMValueRef printf_func = LLVMGetNamedFunction(module, "printf");
+            LLVMBuildCall2(builder, printf_type, printf_func, args, 1, "");
+            free($3);
+        }
+        ;
+
+
+scanf:  SCANF LEFTPAR ID RIGHTPAR DONE {
+            Symbol* sym = findSymbol($3);
+            if (sym == NULL) {
+                fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", $3, yylineno);
+            } else {
+                LLVMValueRef fmt = NULL;
+                switch (sym->type) {
+                    case TYPE_INT:
+                        fmt = fmt_int;
+                        break;
+                    case TYPE_FLOAT:
+                        fmt = fmt_float;
+                        break;
+                    case TYPE_CHAR:
+                        fmt = fmt_char;
+                        break;
+                    case TYPE_BOOL:
+                        fmt = fmt_bool;
+                        break;
+                    default:
+                        fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", $3, yylineno);
+                }
+                if (fmt) {
+                    LLVMValueRef var = getVarLLVM($3);
+                    LLVMValueRef args[2] = { fmt, var };
+                    LLVMValueRef scanf_func = LLVMGetNamedFunction(module, "scanf");
+                    LLVMBuildCall2(builder, scanf_type, scanf_func, args, 2, "");
+                }
+            }
+        }
+        ;
 
 
 
@@ -810,49 +806,33 @@ int main( ) {
     module = LLVMModuleCreateWithNameInContext("parser", context);
     builder = LLVMCreateBuilderInContext(context);
 
-    // Cria função printf: void printf(param)
-    LLVMTypeRef printf_int_args[] = { LLVMInt32TypeInContext(context) };
-    LLVMTypeRef printf_int_type = LLVMFunctionType(LLVMVoidTypeInContext(context), printf_int_args, 1, 0);
-    LLVMAddFunction(module, "printf_int", printf_int_type);
+    // Declarações de funções padrão
+    printf_type = LLVMFunctionType(
+        LLVMInt32TypeInContext(context),
+        (LLVMTypeRef[]){ LLVMPointerType(LLVMInt8TypeInContext(context), 0) },
+        1, 1 // 1 argumento fixo, variádico
+    );
+    LLVMAddFunction(module, "printf", printf_type);
 
-    LLVMTypeRef printf_float_args[] = { LLVMDoubleTypeInContext(context) };
-    LLVMTypeRef printf_float_type = LLVMFunctionType(LLVMVoidTypeInContext(context), printf_float_args, 1, 0);
-    LLVMAddFunction(module, "printf_float", printf_float_type);
-
-    LLVMTypeRef printf_char_args[] = { LLVMInt8TypeInContext(context) };
-    LLVMTypeRef printf_char_type = LLVMFunctionType(LLVMVoidTypeInContext(context), printf_char_args, 1, 0);
-    LLVMAddFunction(module, "printf_char", printf_char_type);
-
-    LLVMTypeRef printf_bool_args[] = { LLVMInt1TypeInContext(context) };
-    LLVMTypeRef printf_bool_type = LLVMFunctionType(LLVMVoidTypeInContext(context), printf_bool_args, 1, 0);
-    LLVMAddFunction(module, "printf_bool", printf_bool_type);
-
-    LLVMTypeRef printf_string_args[] = { LLVMPointerType(LLVMInt8TypeInContext(context), 0) };
-    LLVMTypeRef printf_string_type = LLVMFunctionType(LLVMVoidTypeInContext(context), printf_string_args, 1, 0);
-    LLVMAddFunction(module, "printf_string", printf_string_type);
-
-    // Cria função scanf: void scanf(param)
-    LLVMTypeRef scanf_int_args[] = { LLVMInt32TypeInContext(context) };
-    LLVMTypeRef scanf_int_type = LLVMFunctionType(LLVMVoidTypeInContext(context), scanf_int_args, 1, 0);
-    LLVMAddFunction(module, "scanf_int", scanf_int_type);
-
-    LLVMTypeRef scanf_float_args[] = { LLVMDoubleTypeInContext(context) };
-    LLVMTypeRef scanf_float_type = LLVMFunctionType(LLVMVoidTypeInContext(context), scanf_float_args, 1, 0);
-    LLVMAddFunction(module, "scanf_float", scanf_float_type);
-
-    LLVMTypeRef scanf_char_args[] = { LLVMInt8TypeInContext(context) };
-    LLVMTypeRef scanf_char_type = LLVMFunctionType(LLVMVoidTypeInContext(context), scanf_char_args, 1, 0);
-    LLVMAddFunction(module, "scanf_char", scanf_char_type);
-
-    LLVMTypeRef scanf_bool_args[] = { LLVMInt1TypeInContext(context) };
-    LLVMTypeRef scanf_bool_type = LLVMFunctionType(LLVMVoidTypeInContext(context), scanf_bool_args, 1, 0);
-    LLVMAddFunction(module, "scanf_bool", scanf_bool_type);
+    scanf_type = LLVMFunctionType(
+        LLVMInt32TypeInContext(context),
+        (LLVMTypeRef[]){ LLVMPointerType(LLVMInt8TypeInContext(context), 0) },
+        1, 1 // 1 argumento fixo, variádico
+    );
+    LLVMAddFunction(module, "scanf", scanf_type);
 
     // Cria função main: int main()
     LLVMTypeRef mainType = LLVMFunctionType(LLVMInt32TypeInContext(context), NULL, 0, 0);
     mainFunc = LLVMAddFunction(module, "main", mainType);
     entry = LLVMAppendBasicBlockInContext(context, mainFunc, "entry");
     LLVMPositionBuilderAtEnd(builder, entry);
+
+    // Variáveis globais para formatação de strings
+    fmt_int   = LLVMBuildGlobalStringPtr(builder, "%d\n", "fmt_int");
+    fmt_float = LLVMBuildGlobalStringPtr(builder, "%f\n", "fmt_float");
+    fmt_char  = LLVMBuildGlobalStringPtr(builder, "%c\n", "fmt_char");
+    fmt_bool  = LLVMBuildGlobalStringPtr(builder, "%d\n", "fmt_bool");
+    fmt_str   = LLVMBuildGlobalStringPtr(builder, "%s\n", "fmt_str");
 
     yyparse( );
 
