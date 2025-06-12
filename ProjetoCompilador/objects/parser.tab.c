@@ -563,10 +563,10 @@ static const yytype_int16 yyrline[] =
        0,    67,    67,    68,    69,    70,    75,    81,    87,    93,
      103,   104,   105,   106,   107,   112,   164,   174,   164,   194,
      206,   210,   211,   211,   229,   229,   243,   256,   297,   321,
-     331,   365,   366,   367,   368,   369,   370,   371,   374,   396,
-     420,   442,   472,   494,   516,   538,   560,   586,   613,   624,
-     635,   648,   654,   660,   665,   670,   675,   680,   687,   696,
-     706,   733
+     331,   366,   367,   368,   369,   370,   371,   372,   375,   397,
+     421,   443,   473,   495,   517,   539,   561,   587,   614,   625,
+     636,   649,   655,   661,   666,   671,   676,   681,   688,   697,
+     707,   734
 };
 #endif
 
@@ -1894,6 +1894,7 @@ yyreduce:
 #line 331 "compiler/parser.y"
                                        {
             Symbol* sym = findSymbol((yyvsp[-2].id));
+            sym->value = 0.0;
             if (sym == NULL) {
                 fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", (yyvsp[-2].id), yylineno);
             } else {
@@ -1922,53 +1923,53 @@ yyreduce:
                 }
             }
         }
-#line 1926 "objects/parser.tab.c"
+#line 1927 "objects/parser.tab.c"
     break;
 
   case 31: /* expression: soma_sub  */
-#line 365 "compiler/parser.y"
+#line 366 "compiler/parser.y"
                      { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; }
-#line 1932 "objects/parser.tab.c"
+#line 1933 "objects/parser.tab.c"
     break;
 
   case 32: /* expression: mult_div  */
-#line 366 "compiler/parser.y"
+#line 367 "compiler/parser.y"
                              { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; }
-#line 1938 "objects/parser.tab.c"
+#line 1939 "objects/parser.tab.c"
     break;
 
   case 33: /* expression: LEFTPAR expression RIGHTPAR  */
-#line 367 "compiler/parser.y"
+#line 368 "compiler/parser.y"
                                         { (yyval.number).value = (yyvsp[-1].number).value; (yyval.number).type = (yyvsp[-1].number).type; (yyval.number).llvm_value = (yyvsp[-1].number).llvm_value; }
-#line 1944 "objects/parser.tab.c"
+#line 1945 "objects/parser.tab.c"
     break;
 
   case 34: /* expression: comparison  */
-#line 368 "compiler/parser.y"
+#line 369 "compiler/parser.y"
                        { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; }
-#line 1950 "objects/parser.tab.c"
+#line 1951 "objects/parser.tab.c"
     break;
 
   case 35: /* expression: log_exp  */
-#line 369 "compiler/parser.y"
+#line 370 "compiler/parser.y"
                     { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; }
-#line 1956 "objects/parser.tab.c"
+#line 1957 "objects/parser.tab.c"
     break;
 
   case 36: /* expression: cast  */
-#line 370 "compiler/parser.y"
+#line 371 "compiler/parser.y"
                  { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; }
-#line 1962 "objects/parser.tab.c"
+#line 1963 "objects/parser.tab.c"
     break;
 
   case 37: /* expression: term  */
-#line 371 "compiler/parser.y"
+#line 372 "compiler/parser.y"
                          { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; }
-#line 1968 "objects/parser.tab.c"
+#line 1969 "objects/parser.tab.c"
     break;
 
   case 38: /* soma_sub: expression PLUS expression  */
-#line 374 "compiler/parser.y"
+#line 375 "compiler/parser.y"
                                      { 
                 if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value + (yyvsp[0].number).value;
@@ -1991,11 +1992,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
         }
-#line 1995 "objects/parser.tab.c"
+#line 1996 "objects/parser.tab.c"
     break;
 
   case 39: /* soma_sub: expression MIN expression  */
-#line 396 "compiler/parser.y"
+#line 397 "compiler/parser.y"
                                      {
                 if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value - (yyvsp[0].number).value;
@@ -2018,11 +2019,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
         }
-#line 2022 "objects/parser.tab.c"
+#line 2023 "objects/parser.tab.c"
     break;
 
   case 40: /* mult_div: expression MULT expression  */
-#line 420 "compiler/parser.y"
+#line 421 "compiler/parser.y"
                                      {
                 if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value * (yyvsp[0].number).value;
@@ -2045,11 +2046,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
         }
-#line 2049 "objects/parser.tab.c"
+#line 2050 "objects/parser.tab.c"
     break;
 
   case 41: /* mult_div: expression DIV expression  */
-#line 442 "compiler/parser.y"
+#line 443 "compiler/parser.y"
                                              { 
                 if ((yyvsp[0].number).value == 0.0) {
                         fprintf(stderr, "Error: division by zero at line %d.\n", yylineno);
@@ -2078,11 +2079,11 @@ yyreduce:
                     }
                 }
 		}
-#line 2082 "objects/parser.tab.c"
+#line 2083 "objects/parser.tab.c"
     break;
 
   case 42: /* comparison: expression LESS expression  */
-#line 472 "compiler/parser.y"
+#line 473 "compiler/parser.y"
                                        {
                 if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value < (yyvsp[0].number).value;
@@ -2105,11 +2106,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
             }
-#line 2109 "objects/parser.tab.c"
+#line 2110 "objects/parser.tab.c"
     break;
 
   case 43: /* comparison: expression GREAT expression  */
-#line 494 "compiler/parser.y"
+#line 495 "compiler/parser.y"
                                           {
                 if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value > (yyvsp[0].number).value;
@@ -2132,11 +2133,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
             }
-#line 2136 "objects/parser.tab.c"
+#line 2137 "objects/parser.tab.c"
     break;
 
   case 44: /* comparison: expression LEQUAL expression  */
-#line 516 "compiler/parser.y"
+#line 517 "compiler/parser.y"
                                            {
                 if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value <= (yyvsp[0].number).value;
@@ -2159,11 +2160,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
             }
-#line 2163 "objects/parser.tab.c"
+#line 2164 "objects/parser.tab.c"
     break;
 
   case 45: /* comparison: expression GEQUAL expression  */
-#line 538 "compiler/parser.y"
+#line 539 "compiler/parser.y"
                                            {
                 if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value >= (yyvsp[0].number).value;
@@ -2186,11 +2187,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
             }
-#line 2190 "objects/parser.tab.c"
+#line 2191 "objects/parser.tab.c"
     break;
 
   case 46: /* comparison: expression EQUAL expression  */
-#line 560 "compiler/parser.y"
+#line 561 "compiler/parser.y"
                                            { 
                 if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value == (yyvsp[0].number).value;
@@ -2217,11 +2218,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
             }
-#line 2221 "objects/parser.tab.c"
+#line 2222 "objects/parser.tab.c"
     break;
 
   case 47: /* comparison: expression NEQUAL expression  */
-#line 586 "compiler/parser.y"
+#line 587 "compiler/parser.y"
                                            {
                 if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value != (yyvsp[0].number).value;
@@ -2247,11 +2248,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
             }
-#line 2251 "objects/parser.tab.c"
+#line 2252 "objects/parser.tab.c"
     break;
 
   case 48: /* log_exp: expression AND expression  */
-#line 613 "compiler/parser.y"
+#line 614 "compiler/parser.y"
                                    {
             if ((yyvsp[-2].number).type == TYPE_BOOL && (yyvsp[0].number).type == TYPE_BOOL) {
                 (yyval.number).value = (yyvsp[-2].number).value && (yyvsp[0].number).value;
@@ -2263,11 +2264,11 @@ yyreduce:
                 (yyval.number).type = TYPE_UNKNOWN;
             }
        }
-#line 2267 "objects/parser.tab.c"
+#line 2268 "objects/parser.tab.c"
     break;
 
   case 49: /* log_exp: expression OR expression  */
-#line 624 "compiler/parser.y"
+#line 625 "compiler/parser.y"
                                    {
             if ((yyvsp[-2].number).type == TYPE_BOOL && (yyvsp[0].number).type == TYPE_BOOL) {
                 (yyval.number).value = (yyvsp[-2].number).value || (yyvsp[0].number).value;
@@ -2279,11 +2280,11 @@ yyreduce:
                 (yyval.number).type = TYPE_UNKNOWN;
             }
        }
-#line 2283 "objects/parser.tab.c"
+#line 2284 "objects/parser.tab.c"
     break;
 
   case 50: /* log_exp: NOT expression  */
-#line 635 "compiler/parser.y"
+#line 636 "compiler/parser.y"
                         {
             if ((yyvsp[0].number).type == TYPE_BOOL) {
                 (yyval.number).value = !(yyvsp[0].number).value;
@@ -2295,73 +2296,73 @@ yyreduce:
                 (yyval.number).type = TYPE_UNKNOWN;
             }
         }
-#line 2299 "objects/parser.tab.c"
+#line 2300 "objects/parser.tab.c"
     break;
 
   case 51: /* cast: LEFTPAR INT RIGHTPAR LEFTPAR expression RIGHTPAR  */
-#line 648 "compiler/parser.y"
+#line 649 "compiler/parser.y"
                                                        {
         int temp = (int) (yyvsp[-1].number).value;
         (yyval.number).value = (double) temp;
         (yyval.number).type = TYPE_INT;
         (yyval.number).llvm_value = LLVMBuildFPToSI(builder, (yyvsp[-1].number).llvm_value, LLVMInt32TypeInContext(context), "castint");
     }
-#line 2310 "objects/parser.tab.c"
+#line 2311 "objects/parser.tab.c"
     break;
 
   case 52: /* cast: LEFTPAR INT RIGHTPAR term  */
-#line 654 "compiler/parser.y"
+#line 655 "compiler/parser.y"
                                 {
         int temp = (int) (yyvsp[0].number).value;
         (yyval.number).value = (double) temp;
         (yyval.number).type = TYPE_INT;
         (yyval.number).llvm_value = LLVMBuildFPToSI(builder, (yyvsp[0].number).llvm_value, LLVMInt32TypeInContext(context), "castint");
     }
-#line 2321 "objects/parser.tab.c"
+#line 2322 "objects/parser.tab.c"
     break;
 
   case 53: /* cast: LEFTPAR FLOAT RIGHTPAR LEFTPAR expression RIGHTPAR  */
-#line 660 "compiler/parser.y"
+#line 661 "compiler/parser.y"
                                                          {
         (yyval.number).value = (yyvsp[-1].number).value;
         (yyval.number).type = TYPE_FLOAT;
         (yyval.number).llvm_value = LLVMBuildSIToFP(builder, (yyvsp[-1].number).llvm_value, LLVMDoubleTypeInContext(context), "castfloat");
     }
-#line 2331 "objects/parser.tab.c"
+#line 2332 "objects/parser.tab.c"
     break;
 
   case 54: /* cast: LEFTPAR FLOAT RIGHTPAR term  */
-#line 665 "compiler/parser.y"
+#line 666 "compiler/parser.y"
                                   {
         (yyval.number).value = (yyvsp[0].number).value;
         (yyval.number).type = TYPE_FLOAT;
         (yyval.number).llvm_value = LLVMBuildSIToFP(builder, (yyvsp[0].number).llvm_value, LLVMDoubleTypeInContext(context), "castfloat");
     }
-#line 2341 "objects/parser.tab.c"
+#line 2342 "objects/parser.tab.c"
     break;
 
   case 55: /* cast: LEFTPAR CHAR RIGHTPAR LEFTPAR expression RIGHTPAR  */
-#line 670 "compiler/parser.y"
+#line 671 "compiler/parser.y"
                                                         {
         (yyval.number).value = (double) ((char) (yyvsp[-1].number).value);
         (yyval.number).type = TYPE_CHAR;
         (yyval.number).llvm_value = LLVMBuildTrunc(builder, (yyvsp[-1].number).llvm_value, LLVMInt8TypeInContext(context), "castchar");
     }
-#line 2351 "objects/parser.tab.c"
+#line 2352 "objects/parser.tab.c"
     break;
 
   case 56: /* cast: LEFTPAR CHAR RIGHTPAR term  */
-#line 675 "compiler/parser.y"
+#line 676 "compiler/parser.y"
                                  {
         (yyval.number).value = (double) ((char) (yyvsp[0].number).value);
         (yyval.number).type = TYPE_CHAR;
         (yyval.number).llvm_value = LLVMBuildTrunc(builder, (yyvsp[0].number).llvm_value, LLVMInt8TypeInContext(context), "castchar");
     }
-#line 2361 "objects/parser.tab.c"
+#line 2362 "objects/parser.tab.c"
     break;
 
   case 57: /* cast: LEFTPAR BOOL RIGHTPAR LEFTPAR expression RIGHTPAR  */
-#line 680 "compiler/parser.y"
+#line 681 "compiler/parser.y"
                                                         {
         (yyval.number).value = ((yyvsp[-1].number).value != 0.0) ? 1.0 : 0.0;
         (yyval.number).type = TYPE_BOOL;
@@ -2369,11 +2370,11 @@ yyreduce:
         LLVMValueRef zero = LLVMConstInt(LLVMTypeOf((yyvsp[-1].number).llvm_value), 0, 0);
         (yyval.number).llvm_value = LLVMBuildICmp(builder, LLVMIntNE, (yyvsp[-1].number).llvm_value, zero, "castbool");
     }
-#line 2373 "objects/parser.tab.c"
+#line 2374 "objects/parser.tab.c"
     break;
 
   case 58: /* cast: LEFTPAR BOOL RIGHTPAR term  */
-#line 687 "compiler/parser.y"
+#line 688 "compiler/parser.y"
                                  {
         (yyval.number).value = ((yyvsp[0].number).value != 0.0) ? 1.0 : 0.0;
         (yyval.number).type = TYPE_BOOL;
@@ -2381,11 +2382,11 @@ yyreduce:
         LLVMValueRef zero = LLVMConstInt(LLVMTypeOf((yyvsp[0].number).llvm_value), 0, 0);
         (yyval.number).llvm_value = LLVMBuildICmp(builder, LLVMIntNE, (yyvsp[0].number).llvm_value, zero, "castbool");
     }
-#line 2385 "objects/parser.tab.c"
+#line 2386 "objects/parser.tab.c"
     break;
 
   case 59: /* term: NUMBER  */
-#line 696 "compiler/parser.y"
+#line 697 "compiler/parser.y"
              { 
         (yyval.number).value = (yyvsp[0].number).value; 
         (yyval.number).type = (yyvsp[0].number).type; 
@@ -2396,11 +2397,11 @@ yyreduce:
             default:         (yyval.number).llvm_value = LLVMConstReal(LLVMDoubleTypeInContext(context), (yyvsp[0].number).value); break;
         }
     }
-#line 2400 "objects/parser.tab.c"
+#line 2401 "objects/parser.tab.c"
     break;
 
   case 60: /* term: ID  */
-#line 706 "compiler/parser.y"
+#line 707 "compiler/parser.y"
          {
         Symbol* sym = findSymbol((yyvsp[0].id));
         if (!sym) {
@@ -2428,21 +2429,21 @@ yyreduce:
             }
         }
     }
-#line 2432 "objects/parser.tab.c"
+#line 2433 "objects/parser.tab.c"
     break;
 
   case 61: /* term: CARACTERE  */
-#line 733 "compiler/parser.y"
+#line 734 "compiler/parser.y"
                 {
         (yyval.number).value = (double) (yyvsp[0].caractere);
         (yyval.number).type = TYPE_CHAR;
         (yyval.number).llvm_value = LLVMConstInt(LLVMInt8TypeInContext(context), (yyvsp[0].caractere), 0);
     }
-#line 2442 "objects/parser.tab.c"
+#line 2443 "objects/parser.tab.c"
     break;
 
 
-#line 2446 "objects/parser.tab.c"
+#line 2447 "objects/parser.tab.c"
 
       default: break;
     }
@@ -2666,7 +2667,7 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 741 "compiler/parser.y"
+#line 742 "compiler/parser.y"
 
 
 int yywrap( ) {

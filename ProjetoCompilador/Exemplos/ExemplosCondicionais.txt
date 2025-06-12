@@ -1,0 +1,49 @@
+// Teste de condicionais
+
+int a;
+float b;
+char c;
+bool d;
+
+a = 5;
+b = 2.5;
+c = 'z';
+d = true;
+
+if (a > 3) {
+    a = a + 10;
+    d = false;
+
+    // If aninhado sem else
+    if (a > 10) {
+        printf("a agora eh maior que 10!");
+    }
+
+    // If aninhado com else
+    if (b < 5.0) {
+        printf("b eh menor que 5.0!");
+    } else {
+        printf("b nao eh menor que 5.0!");
+    }
+} else {
+    a = a - 10;
+    d = true;
+
+    // If aninhado dentro do else, sem else
+    if (c == 'z') {
+        printf("c eh igual a z!");
+    }
+
+    // If aninhado dentro do else, com else
+    if (d) {
+        printf("d eh verdadeiro dentro do else!");
+    } else {
+        printf("d eh falso dentro do else!");
+    }
+}
+
+if (d) {
+    printf("d eh verdadeiro!");
+} else {
+    printf("d eh falso!");
+}

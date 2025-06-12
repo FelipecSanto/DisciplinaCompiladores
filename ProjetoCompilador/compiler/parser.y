@@ -330,6 +330,7 @@ printf: PRINTF LEFTPAR ID RIGHTPAR DONE {
 
 scanf:  SCANF LEFTPAR ID RIGHTPAR DONE {
             Symbol* sym = findSymbol($3);
+            sym->value = 0.0;
             if (sym == NULL) {
                 fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", $3, yylineno);
             } else {

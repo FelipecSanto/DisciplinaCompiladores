@@ -1,59 +1,26 @@
-// Teste completo para o compilador miniC
+// Teste de printf e scanf para todos os tipos
 
 int a;
 float b;
 char c;
 bool d;
 
-a = 10;
-b = 2.5;
-c = 'x';
-d = true;
-
-printf(a);
-printf(b);
-printf(c);
-printf(d);
-
-a = b + 1; // Erro semântico: atribuição float para int sem cast explícito
-
-b = a / 0; // Erro semântico: divisão por zero
-
-e = 5; // Erro semântico: variável não declarada
-
-if (a > 0) {
-    b = a + b;
-    if (b > 0) {
-        a = 25;
-        if (d) {
-            a = 5 * (7 + b);
-        }
-    }
-    else {
-        b = 5.5;
-    }
-}
-else {
-    a = a + b;
-}
-
-while (a > 0) {
-    b = b + 1;
-    a = a - 1;
-}
-
+printf("Digite um inteiro:");
 scanf(a);
-scanf(b);
-scanf(c);
-scanf(d);
-
-printf("Fim do teste!");
-
+printf("Voce digitou o inteiro:");
 printf(a);
 
-@ // Erro léxico: caractere inválido
+printf("Digite um float:");
+scanf(b);
+printf("Voce digitou o float:");
+printf(b);
 
-int g   // Erro sintático: falta de ponto e vírgula na declaração
-g = 2; 
+printf("Digite um caractere:");
+scanf(c);
+printf("Voce digitou o caractere:");
+printf(c);
 
-// printf(g); // Erro semântico: variável não inicializada (dependendo da sua implementação)
+printf("Digite um booleano (0 ou 1):");
+scanf(d);
+printf("Voce digitou o booleano:");
+printf(d);

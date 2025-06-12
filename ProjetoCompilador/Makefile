@@ -55,4 +55,10 @@ clean:
 	@echo "Limpeza concluída!"
 	@echo "=================================="
 
-.PHONY: all clean
+condicional: EXEMPLO = Exemplos/ExemplosCondicionais.txt
+condicional: all
+
+printscan: EXEMPLO = Exemplos/ExemplosPrintfScanf.txt
+printscan: all
+
+.PHONY: all clean condicional printscan
