@@ -3,14 +3,26 @@
         | <declaration> <program>
 
 <declaration> ::=
-          int id ;
-        | int id = <expression>;
-        | float id ;
-        | float id = <expression> ;
-        | char id ;
-        | char id = <expression> ;
-        | bool id ;
-        | bool id = <expression> ;
+          int id <int_declaration> ;
+        | float id = <float_declaration> ;
+        | char id = <char_declaration> ;
+        | bool id = <bool_declaration> ;
+
+<int_declaration> :: =
+        | , id <int_declaration>
+        | , id = <expression> <int_declaration>
+
+<float_declaration> :: =
+        | , id <float_declaration>
+        | , id = <expression> <float_declaration>
+
+<char_declaration> :: =
+        | , id <char_declaration>
+        | , id = <expression> <char_declaration>
+
+<bool_declaration> :: =
+        | , id <bool_declaration>
+        | , id = <expression> <bool_declaration>
 
 <command> ::=
           <assignment>
