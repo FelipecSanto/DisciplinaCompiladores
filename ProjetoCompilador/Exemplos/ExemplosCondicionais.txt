@@ -19,6 +19,10 @@ if (a > 3) {
         printf("a agora eh maior que 10!");
     }
 
+    /*
+    Comentário em multiplas linhas
+    */
+
     // If aninhado com else
     if (b < 5.0) {
         printf("b eh menor que 5.0!");

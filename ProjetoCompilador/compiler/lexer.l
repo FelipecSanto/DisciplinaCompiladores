@@ -57,6 +57,7 @@
 "!"						    { return NOT; }
 
 "//".*                      {}
+"/*"(.|\n)*"*/"             {}
 
 "+"							{ return PLUS; }
 "-"							{ return MIN; }

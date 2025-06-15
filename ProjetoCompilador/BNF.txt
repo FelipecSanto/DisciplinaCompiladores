@@ -1,0 +1,85 @@
+<program> ::= 
+        | <comand> <program>
+        | <declaration> <program>
+
+<declaration> ::=
+          int id ;
+        | int id = <expression>;
+        | float id ;
+        | float id = <expression> ;
+        | char id ;
+        | char id = <expression> ;
+        | bool id ;
+        | bool id = <expression> ;
+
+<command> ::=
+          <assignment>
+        | <if_then>
+        | <while>
+        | <printf>
+        | <scanf>
+
+<assignment> ::=
+        id = <expression> ;
+
+<if_then> ::=
+        if ( <expression> ) <if_then_aux> { <program> } <if_then_aux2> <else>
+
+<else> ::=
+        | else { <program> }
+
+<while> ::=
+        while ( <expression> ) { <program> }
+
+<printf> ::=
+          printf ( id ) ;
+        | printf ( number ) ;
+        | printf ( string ) ;
+
+<scanf> ::=
+        scanf ( id ) ;
+
+<expression> ::=
+          <soma_sub>
+        | <mult_div>
+        | ( <expression> )
+        | <comparison>
+        | <log_exp>
+        | <cast>
+        | <term>
+
+<soma_sub> ::=
+          <expression> + <expression>
+        | <expression> - <expression>
+
+<mult_div> ::=
+          <expression>  <expression>
+        | <expression> / <expression>
+
+<comparison> ::=
+          <expression> < <expression>
+        | <expression> > <expression>
+        | <expression> <= <expression>
+        | <expression> >= <expression>
+        | <expression> == <expression>
+        | <expression> != <expression>
+
+<log_exp> ::=
+          <expression> and <expression>
+        | <expression> or <expression>
+        | not <expression>
+
+<cast> ::=
+          ( int ) ( <expression> )
+        | ( int ) <term>
+        | ( float ) ( <expression> )
+        | ( float ) <term>
+        | ( char ) ( <expression> )
+        | ( char ) <term>
+        | ( bool ) ( <expression> )
+        | ( bool ) <term>
+
+<term> ::=
+          number
+        | id
+        | caractere
