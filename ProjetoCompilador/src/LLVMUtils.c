@@ -38,10 +38,42 @@ void allocaVars(const char* name, VarType type) {
     var_values[var_count++] = alloc;
 }
 
+void allocaArrayVars(const char* name, VarType type, int size) {
+    if (var_count >= MAX_VARS) {
+        fprintf(stderr, "Error: too many variables.\n");
+        exit(1);
+    }
+
+    LLVMTypeRef llvm_type;
+    switch (type) {
+        case TYPE_INT:   llvm_type = LLVMInt32TypeInContext(context); break;
+        case TYPE_FLOAT: llvm_type = LLVMDoubleTypeInContext(context); break;
+        case TYPE_CHAR:  llvm_type = LLVMInt8TypeInContext(context); break;
+        case TYPE_BOOL:  llvm_type = LLVMInt1TypeInContext(context); break;
+        default:         llvm_type = LLVMDoubleTypeInContext(context); break;
+    }
+    LLVMTypeRef array_type = LLVMArrayType(llvm_type, size);
+    LLVMValueRef alloc = LLVMBuildAlloca(builder, array_type, name);
+    var_names[var_count] = strdup(name);
+    var_values[var_count++] = alloc;
+}
+
 LLVMValueRef getVarLLVM(const char* name) {
     for (int i = 0; i < var_count; ++i)
         if (strcmp(var_names[i], name) == 0)
             return var_values[i];
+    return NULL;
+}
+
+LLVMValueRef getArrayVarLLVM(const char* name, int index) {
+    for (int i = 0; i < var_count; ++i) {
+        if (strcmp(var_names[i], name) == 0) {
+            LLVMValueRef idx = LLVMConstInt(LLVMInt32TypeInContext(context), index, 0);
+            LLVMValueRef indices[2] = { LLVMConstInt(LLVMInt32TypeInContext(context), 0, 0), idx };
+            LLVMValueRef array_ptr = LLVMBuildGEP2(builder, LLVMInt32TypeInContext(context), var_values[i], indices, 2, "");
+            return array_ptr;
+        }
+    }
     return NULL;
 }
 

@@ -7,6 +7,9 @@ int yywrap( );
 void yyerror(const char* str);
 extern int yylineno;
 
+double* vals = NULL; // Array para armazenar valores de inicialização de vetor
+int array_value_count = 0; // Contador de valores de vetor
+
 %}
 
 %union {
@@ -52,7 +55,9 @@ extern int yylineno;
 
 /* declare non-terminals */
 %type <number> expression soma_sub mult_div term comparison log_exp cast
-%type program declaration comand assignment printf scanf int_declaration float_declaration char_declaration bool_declaration
+%type program declaration comand assignment
+%type printf scanf
+%type int_declaration float_declaration char_declaration bool_declaration intArray_declaration array_values
 %type <if_else_blocks> if_then else if_then_aux if_then_aux2
 %type <while_blocks> while while_aux
 
@@ -92,6 +97,42 @@ declaration: INT ID int_declaration DONE {
                         fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
                     }
                 }
+            }
+            | INT ID LEFTBRACKET expression RIGHTBRACKET intArray_declaration DONE {
+                // Declaração de vetor
+                int size = (int)$4.value;
+                if (size <= 0) {
+                    fprintf(stderr, "Error: array size must be positive at line %d.\n", yylineno);
+                } else {
+                    double valores[size];
+                    for (int i = 0; i < size; i++) {
+                        valores[i] = -DBL_MAX; // Inicializa com valor padrão
+                    }
+                    createArraySymbol($2, valores, size);
+                    allocaArrayVars($2, TYPE_INT, size);
+                }
+            }
+            | INT ID LEFTBRACKET expression RIGHTBRACKET RECEIVE LEFTKEYS array_values RIGHTKEYS intArray_declaration DONE {
+                int size = (int)$4.value;
+                if (size <= 0) {
+                    fprintf(stderr, "Error: array size must be positive at line %d.\n", yylineno);
+                } else if (array_value_count != size) {
+                    fprintf(stderr, "Error: number of initializers (%d) does not match array size (%d) at line %d.\n", array_value_count, size, yylineno);
+                } else {
+                    createArraySymbol($2, vals, size);
+                    allocaArrayVars($2, TYPE_INT, size);
+                    LLVMValueRef var = getVarLLVM($2);
+                    for (int i = 0; i < size; i++) {
+                        LLVMValueRef idx = LLVMConstInt(LLVMInt32TypeInContext(context), i, 0);
+                        LLVMValueRef indices[2] = { LLVMConstInt(LLVMInt32TypeInContext(context), 0, 0), idx };
+                        LLVMValueRef array_ptr = LLVMBuildGEP2(builder, LLVMInt32TypeInContext(context), var, indices, 2, "");
+                        LLVMValueRef val = LLVMConstInt(LLVMInt32TypeInContext(context), (int)vals[i], 0);
+                        LLVMBuildStore(builder, val, array_ptr);
+                    }
+                }
+                free(vals);
+                vals = NULL; // Libera o array de valores
+                array_value_count = 0;
             }
             | FLOAT ID float_declaration DONE {
                 insertSymbol($2, -DBL_MAX, TYPE_FLOAT);
@@ -181,6 +222,24 @@ int_declaration: /* empty */ {}
                     }
                 }
 
+
+intArray_declaration: /* empty */ {}
+                    | COMMA ID LEFTBRACKET expression RIGHTBRACKET intArray_declaration {
+                        // Declaração de vetor
+                        int size = (int)$4.value;
+                        if (size <= 0) {
+                            fprintf(stderr, "Error: array size must be positive at line %d.\n", yylineno);
+                        } else {
+                            double valores[size];
+                            for (int i = 0; i < size; i++) {
+                                valores[i] = -DBL_MAX; // Inicializa com valor padrão
+                            }
+                            createArraySymbol($2, valores, size);
+                            allocaArrayVars($2, TYPE_INT, size);
+                        }
+                    }
+                    ;
+
 float_declaration: /* empty */ {}
                  | COMMA ID float_declaration {
                     insertSymbol($2, -DBL_MAX, TYPE_FLOAT);
@@ -248,6 +307,21 @@ bool_declaration: /* empty */ {}
                 ;
 
 
+array_values: expression {
+                if(vals) {
+                    free(vals);
+                }
+                vals = malloc(sizeof(double));
+                vals[0] = $1.value;
+                array_value_count = 1;
+            }
+            | array_values COMMA expression {
+                vals = realloc(vals, sizeof(double) * (array_value_count + 1));
+                vals[array_value_count] = $3.value;
+                array_value_count++;
+            }
+
+
 
 comand: assignment {}
       | if_then {}
@@ -302,8 +376,35 @@ assignment: ID RECEIVE expression DONE {
                 } else {
                     fprintf(stderr, "Error: undefined variable '%s' at line %d.\n", $1, yylineno);
                 }
-		  }
-	      ;
+		    }
+            | ID LEFTBRACKET expression RIGHTBRACKET RECEIVE expression DONE {
+                ArraySymbol* symbol = findArraySymbol($1);
+                if (!symbol) {
+                    fprintf(stderr, "Error: variable '%s' is not an array or not exist at line %d.\n", $1, yylineno);
+                }
+                LLVMValueRef var = getVarLLVM($1);
+                LLVMTypeRef llvm_type = LLVMInt32TypeInContext(context);
+                LLVMValueRef index = $3.llvm_value;
+                LLVMValueRef value = $6.llvm_value;
+
+                // Gera o índice do array
+                LLVMValueRef indices[2] = { LLVMConstInt(LLVMInt32TypeInContext(context), 0, false), index };
+                LLVMValueRef array_ptr = LLVMBuildGEP2(builder, LLVMInt32TypeInContext(context), var, indices, 2, "arrayptr");
+
+                // Armazena o valor no array
+                if ($6.type == TYPE_INT) {
+                    LLVMBuildStore(builder, value, array_ptr);
+                    insertValueArraySymbol($1, $6.value, (int)$3.value);
+                } else if ($6.type == TYPE_FLOAT) {
+                    printf("Warning: casting float to int for array '%s' at line %d.\n", $1, yylineno);
+                    value = LLVMBuildFPToSI(builder, value, llvm_type, "floattoint");
+                    LLVMBuildStore(builder, value, array_ptr);
+                    insertValueArraySymbol($1, (int)$6.value, (int)$3.value);
+                } else {
+                    fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
+                }
+            }
+	        ;
 
 
 
@@ -866,6 +967,38 @@ term: NUMBER {
                     default:         llvm_type = LLVMDoubleTypeInContext(context); break;
                 }
                 $$.llvm_value = LLVMBuildLoad2(builder, llvm_type, var, "loadtmp");
+            }
+        }
+    }
+    | ID LEFTBRACKET expression RIGHTBRACKET {
+        ArraySymbol* array_sym = findArraySymbol($1);
+        if (!array_sym) {
+            fprintf(stderr, "Undeclared array '%s' at line %d\n", $1, yylineno);
+            $$.value = -1;
+            $$.type = TYPE_UNKNOWN;
+        } else {
+            if((int)$3.value < 0 || (int)$3.value >= array_sym->size) {
+                fprintf(stderr, "Array index out of bounds for '%s' at line %d\n", $1, yylineno);
+                $$.value = -1;
+                $$.type = TYPE_UNKNOWN;
+            } else {
+                if (array_sym->values[(int)$3.value] == -DBL_MAX) {
+                    fprintf(stderr, "Array in position %d is uninitialized at line %d\n", (int)$3.value, yylineno);
+                    $$.value = -1;
+                    $$.type = TYPE_UNKNOWN;
+                } else {
+                    if ($3.type != TYPE_INT) {
+                        fprintf(stderr, "Array index must be an integer at line %d\n", yylineno);
+                        $$.value = -1;
+                        $$.type = TYPE_UNKNOWN;
+                    } else {
+                        $$.value = array_sym->values[(int)$3.value];
+                        $$.type = TYPE_INT;
+                        LLVMValueRef var = getArrayVarLLVM($1, (int)$3.value);
+                        LLVMTypeRef llvm_type = LLVMInt32TypeInContext(context);
+                        $$.llvm_value = LLVMBuildLoad2(builder, llvm_type, var, "loadtmp");
+                    }
+                }
             }
         }
     }

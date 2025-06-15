@@ -1,6 +1,6 @@
-#ifndef MINIC_H
-#define MINIC_H
+#ifndef VAR_TYPE_H
+#define VAR_TYPE_H
 
 typedef enum { TYPE_INT, TYPE_FLOAT, TYPE_CHAR, TYPE_BOOL, TYPE_UNKNOWN } VarType;
 
-#endif // MINIC_H
+#endif // VAR_TYPE_H

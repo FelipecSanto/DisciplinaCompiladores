@@ -64,4 +64,7 @@ printscan: all
 declaracao: EXEMPLO = Exemplos/ExemplosDeclaracaoInicializavel.txt
 declaracao: all
 
-.PHONY: all clean condicional printscan declaracao
+vetor: EXEMPLO = Exemplos/ExemplosVetor.txt
+vetor: all
+
+.PHONY: all clean condicional printscan declaracao vetor
