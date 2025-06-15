@@ -7,9 +7,6 @@ int yywrap( );
 void yyerror(const char* str);
 extern int yylineno;
 
-int if_condition = 1;
-int if_else_condition = 0;
-
 %}
 
 %union {
@@ -55,7 +52,7 @@ int if_else_condition = 0;
 
 /* declare non-terminals */
 %type <number> expression soma_sub mult_div term comparison log_exp cast
-%type program declaration comand assignment printf 
+%type program declaration comand assignment printf scanf int_declaration float_declaration char_declaration bool_declaration
 %type <if_else_blocks> if_then else if_then_aux if_then_aux2
 %type <while_blocks> while while_aux
 
@@ -72,31 +69,183 @@ program: /* empty */ {}
 
 
 
-declaration: INT ID DONE {
-                if(if_condition == 1) {
+declaration: INT ID int_declaration DONE {
+                insertSymbol($2, -DBL_MAX, TYPE_INT);
+                allocaVars($2, TYPE_INT);
+            }
+            | INT ID RECEIVE expression int_declaration DONE {
+                insertSymbol($2, $4.value, TYPE_INT);
+                allocaVars($2, TYPE_INT);
+                Symbol* symbol = findSymbol($2);
+                LLVMValueRef var = getVarLLVM($2);
+                LLVMTypeRef llvm_type = LLVMInt32TypeInContext(context);
+                LLVMValueRef value = $4.llvm_value;
+                if(symbol) {
+                    if ($4.type == TYPE_INT) {
+                        LLVMBuildStore(builder, value, var);
+                    }
+                    else if ($4.type == TYPE_FLOAT) {
+                        printf("Warning: casting float to int for variable '%s' at line %d.\n", $2, yylineno);
+                        value = LLVMBuildFPToSI(builder, value, llvm_type, "floattoint");
+                        LLVMBuildStore(builder, value, var);
+                    } else {
+                        fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
+                    }
+                }
+            }
+            | FLOAT ID float_declaration DONE {
+                insertSymbol($2, -DBL_MAX, TYPE_FLOAT);
+                allocaVars($2, TYPE_FLOAT);
+            }
+            | FLOAT ID RECEIVE expression float_declaration DONE {
+                insertSymbol($2, $4.value, TYPE_FLOAT);
+                allocaVars($2, TYPE_FLOAT);
+                Symbol* symbol = findSymbol($2);
+                LLVMValueRef var = getVarLLVM($2);
+                LLVMTypeRef llvm_type = LLVMDoubleTypeInContext(context);
+                LLVMValueRef value = $4.llvm_value;
+                if(symbol) {
+                    if ($4.type == TYPE_FLOAT) {
+                        LLVMBuildStore(builder, value, var);
+                    }
+                    else if ($4.type == TYPE_INT) {
+                        value = LLVMBuildSIToFP(builder, value, llvm_type, "inttofloat");
+                        LLVMBuildStore(builder, value, var);
+                    } else {
+                        fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
+                    }
+                }
+            }
+            | CHAR ID char_declaration DONE {
+                insertSymbol($2, -DBL_MAX, TYPE_CHAR);
+                allocaVars($2, TYPE_CHAR);
+            }
+            | CHAR ID RECEIVE expression char_declaration DONE {
+                insertSymbol($2, $4.value, TYPE_CHAR);
+                allocaVars($2, TYPE_CHAR);
+                Symbol* symbol = findSymbol($2);
+                LLVMValueRef var = getVarLLVM($2);
+                LLVMValueRef value = $4.llvm_value;
+                if(symbol) {
+                    if ($4.type == TYPE_CHAR) {
+                        LLVMBuildStore(builder, value, var);
+                    } else {
+                        fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
+                    }
+                }
+            }
+            | BOOL ID bool_declaration DONE {
+                insertSymbol($2, -DBL_MAX, TYPE_BOOL);
+                allocaVars($2, TYPE_BOOL);
+            }
+            | BOOL ID RECEIVE expression bool_declaration DONE {
+                insertSymbol($2, $4.value, TYPE_BOOL);
+                allocaVars($2, TYPE_BOOL);
+                Symbol* symbol = findSymbol($2);
+                LLVMValueRef var = getVarLLVM($2);
+                LLVMValueRef value = $4.llvm_value;
+                if(symbol) {
+                    if ($4.type == TYPE_BOOL) {
+                        LLVMBuildStore(builder, value, var);
+                    } else {
+                        fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
+                    }
+                }
+            }
+            ;
+
+
+int_declaration: /* empty */ {}
+                | COMMA ID int_declaration {
                     insertSymbol($2, -DBL_MAX, TYPE_INT);
                     allocaVars($2, TYPE_INT);
                 }
-           }
-           | FLOAT ID DONE {
-                if(if_condition == 1) {
+                | COMMA ID RECEIVE expression int_declaration {
+                    insertSymbol($2, $4.value, TYPE_INT);
+                    allocaVars($2, TYPE_INT);
+                    Symbol* symbol = findSymbol($2);
+                    LLVMValueRef var = getVarLLVM($2);
+                    LLVMTypeRef llvm_type = LLVMInt32TypeInContext(context);
+                    LLVMValueRef value = $4.llvm_value;
+                    if(symbol) {
+                        if ($4.type == TYPE_INT) {
+                            LLVMBuildStore(builder, value, var);
+                        }
+                        else if ($4.type == TYPE_FLOAT) {
+                            printf("Warning: casting float to int for variable '%s' at line %d.\n", $2, yylineno);
+                            value = LLVMBuildFPToSI(builder, value, llvm_type, "floattoint");
+                            LLVMBuildStore(builder, value, var);
+                        } else {
+                            fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
+                        }
+                    }
+                }
+
+float_declaration: /* empty */ {}
+                 | COMMA ID float_declaration {
                     insertSymbol($2, -DBL_MAX, TYPE_FLOAT);
                     allocaVars($2, TYPE_FLOAT);
-                }
-           }
-           | CHAR ID DONE {
-                if(if_condition == 1) {
+                 }
+                 | COMMA ID RECEIVE expression float_declaration {
+                    insertSymbol($2, $4.value, TYPE_FLOAT);
+                    allocaVars($2, TYPE_FLOAT);
+                    Symbol* symbol = findSymbol($2);
+                    LLVMValueRef var = getVarLLVM($2);
+                    LLVMTypeRef llvm_type = LLVMDoubleTypeInContext(context);
+                    LLVMValueRef value = $4.llvm_value;
+                    if(symbol) {
+                        if ($4.type == TYPE_FLOAT) {
+                            LLVMBuildStore(builder, value, var);
+                        }
+                        else if ($4.type == TYPE_INT) {
+                            value = LLVMBuildSIToFP(builder, value, llvm_type, "inttofloat");
+                            LLVMBuildStore(builder, value, var);
+                        } else {
+                            fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
+                        }
+                    }
+                 }
+
+char_declaration: /* empty */ {}
+                | COMMA ID char_declaration {
                     insertSymbol($2, -DBL_MAX, TYPE_CHAR);
                     allocaVars($2, TYPE_CHAR);
                 }
-           }
-           | BOOL ID DONE {
-                if(if_condition == 1) {
+                | COMMA ID RECEIVE expression char_declaration {
+                    insertSymbol($2, $4.value, TYPE_CHAR);
+                    allocaVars($2, TYPE_CHAR);
+                    Symbol* symbol = findSymbol($2);
+                    LLVMValueRef var = getVarLLVM($2);
+                    LLVMValueRef value = $4.llvm_value;
+                    if(symbol) {
+                        if ($4.type == TYPE_CHAR) {
+                            LLVMBuildStore(builder, value, var);
+                        } else {
+                            fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
+                        }
+                    }
+                }
+
+bool_declaration: /* empty */ {}
+                | COMMA ID bool_declaration {
                     insertSymbol($2, -DBL_MAX, TYPE_BOOL);
                     allocaVars($2, TYPE_BOOL);
                 }
-           }
-           ;
+                | COMMA ID RECEIVE expression bool_declaration {
+                    insertSymbol($2, $4.value, TYPE_BOOL);
+                    allocaVars($2, TYPE_BOOL);
+                    Symbol* symbol = findSymbol($2);
+                    LLVMValueRef var = getVarLLVM($2);
+                    LLVMValueRef value = $4.llvm_value;
+                    if(symbol) {
+                        if ($4.type == TYPE_BOOL) {
+                            LLVMBuildStore(builder, value, var);
+                        } else {
+                            fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
+                        }
+                    }
+                }
+                ;
 
 
 
@@ -140,20 +289,18 @@ assignment: ID RECEIVE expression DONE {
                 }
 
                 // Atualiza a tabela de símbolos
-                if(if_condition == 1) {
-                    if (symbol) {
-                        if (symbol->type == $3.type) {
-                            insertSymbol($1, $3.value, symbol->type);
-                        } else if (symbol->type == TYPE_FLOAT && $3.type == TYPE_INT) {
-                            insertSymbol($1, $3.value, symbol->type);
-                        } else if (symbol->type == TYPE_INT && $3.type == TYPE_FLOAT) {
-                            insertSymbol($1, (int)$3.value, symbol->type);
-                        } else {
-                            fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
-                        }
+                if (symbol) {
+                    if (symbol->type == $3.type) {
+                        insertSymbol($1, $3.value, symbol->type);
+                    } else if (symbol->type == TYPE_FLOAT && $3.type == TYPE_INT) {
+                        insertSymbol($1, $3.value, symbol->type);
+                    } else if (symbol->type == TYPE_INT && $3.type == TYPE_FLOAT) {
+                        insertSymbol($1, (int)$3.value, symbol->type);
                     } else {
-                        fprintf(stderr, "Error: undefined variable '%s' at line %d.\n", $1, yylineno);
+                        fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
                     }
+                } else {
+                    fprintf(stderr, "Error: undefined variable '%s' at line %d.\n", $1, yylineno);
                 }
 		  }
 	      ;
@@ -163,19 +310,12 @@ assignment: ID RECEIVE expression DONE {
 
 if_then: IF LEFTPAR expression RIGHTPAR {
             pushScope();
-            if ($3.type == TYPE_BOOL) {
-                if_condition = $3.value;
-                if_else_condition = $3.value;
-            } else {
+            if ($3.type != TYPE_BOOL) {
                 fprintf(stderr, "Error: condition is not boolean at line %d.\n", yylineno);
-                if_condition = 0;
             }
             aux = $3.llvm_value;
         } if_then_aux LEFTKEYS program RIGHTKEYS if_then_aux2 {
-            if (if_condition == 0) {
-                popScope();
-                if_condition = 1;
-            }
+            popScope();
 
             // Ao final do bloco if, faz branch para o fim do if
             LLVMBuildBr(builder, $10.endIFBB);
@@ -210,23 +350,19 @@ if_then_aux2: {
 else: /* empty */ {}
     | ELSE {
         pushScope();
-        if (if_else_condition == 1) {
-            if_condition = 0;
-        }
     } LEFTKEYS program RIGHTKEYS {
-        if (if_condition == 0) {
-            if_condition = 1;
-        }
-
-        if(if_else_condition == 1) {
-            popScope();
-        }
+        popScope();
     }
     ;
 
 
 
 while: WHILE while_aux LEFTPAR expression RIGHTPAR {
+        pushScope();
+        if ($4.type != TYPE_BOOL) {
+            fprintf(stderr, "Error: condition is not boolean at line %d.\n", yylineno);
+        }
+
         LLVMBuildCondBr(builder, $4.llvm_value, $2.bodyBB, $2.endWHILEBB);
 
         // Corpo do while
@@ -237,6 +373,8 @@ while: WHILE while_aux LEFTPAR expression RIGHTPAR {
 
         // Posiciona o builder no bloco de saída do while
         LLVMPositionBuilderAtEnd(builder, $2.endWHILEBB);
+
+        popScope();
     }
     ;
 

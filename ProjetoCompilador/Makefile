@@ -61,4 +61,7 @@ condicional: all
 printscan: EXEMPLO = Exemplos/ExemplosPrintfScanf.txt
 printscan: all
 
-.PHONY: all clean condicional printscan
+declaracao: EXEMPLO = Exemplos/ExemplosDeclaracaoInicializavel.txt
+declaracao: all
+
+.PHONY: all clean condicional printscan declaracao

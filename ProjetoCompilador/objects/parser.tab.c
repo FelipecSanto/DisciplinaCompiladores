@@ -150,27 +150,31 @@ enum yysymbol_kind_t
   YYSYMBOL_YYACCEPT = 38,                  /* $accept  */
   YYSYMBOL_program = 39,                   /* program  */
   YYSYMBOL_declaration = 40,               /* declaration  */
-  YYSYMBOL_comand = 41,                    /* comand  */
-  YYSYMBOL_assignment = 42,                /* assignment  */
-  YYSYMBOL_if_then = 43,                   /* if_then  */
-  YYSYMBOL_44_1 = 44,                      /* $@1  */
-  YYSYMBOL_45_2 = 45,                      /* $@2  */
-  YYSYMBOL_if_then_aux = 46,               /* if_then_aux  */
-  YYSYMBOL_if_then_aux2 = 47,              /* if_then_aux2  */
-  YYSYMBOL_else = 48,                      /* else  */
-  YYSYMBOL_49_3 = 49,                      /* $@3  */
-  YYSYMBOL_while = 50,                     /* while  */
-  YYSYMBOL_51_4 = 51,                      /* $@4  */
-  YYSYMBOL_while_aux = 52,                 /* while_aux  */
-  YYSYMBOL_printf = 53,                    /* printf  */
-  YYSYMBOL_scanf = 54,                     /* scanf  */
-  YYSYMBOL_expression = 55,                /* expression  */
-  YYSYMBOL_soma_sub = 56,                  /* soma_sub  */
-  YYSYMBOL_mult_div = 57,                  /* mult_div  */
-  YYSYMBOL_comparison = 58,                /* comparison  */
-  YYSYMBOL_log_exp = 59,                   /* log_exp  */
-  YYSYMBOL_cast = 60,                      /* cast  */
-  YYSYMBOL_term = 61                       /* term  */
+  YYSYMBOL_int_declaration = 41,           /* int_declaration  */
+  YYSYMBOL_float_declaration = 42,         /* float_declaration  */
+  YYSYMBOL_char_declaration = 43,          /* char_declaration  */
+  YYSYMBOL_bool_declaration = 44,          /* bool_declaration  */
+  YYSYMBOL_comand = 45,                    /* comand  */
+  YYSYMBOL_assignment = 46,                /* assignment  */
+  YYSYMBOL_if_then = 47,                   /* if_then  */
+  YYSYMBOL_48_1 = 48,                      /* $@1  */
+  YYSYMBOL_49_2 = 49,                      /* $@2  */
+  YYSYMBOL_if_then_aux = 50,               /* if_then_aux  */
+  YYSYMBOL_if_then_aux2 = 51,              /* if_then_aux2  */
+  YYSYMBOL_else = 52,                      /* else  */
+  YYSYMBOL_53_3 = 53,                      /* $@3  */
+  YYSYMBOL_while = 54,                     /* while  */
+  YYSYMBOL_55_4 = 55,                      /* $@4  */
+  YYSYMBOL_while_aux = 56,                 /* while_aux  */
+  YYSYMBOL_printf = 57,                    /* printf  */
+  YYSYMBOL_scanf = 58,                     /* scanf  */
+  YYSYMBOL_expression = 59,                /* expression  */
+  YYSYMBOL_soma_sub = 60,                  /* soma_sub  */
+  YYSYMBOL_mult_div = 61,                  /* mult_div  */
+  YYSYMBOL_comparison = 62,                /* comparison  */
+  YYSYMBOL_log_exp = 63,                   /* log_exp  */
+  YYSYMBOL_cast = 64,                      /* cast  */
+  YYSYMBOL_term = 65                       /* term  */
 };
 typedef enum yysymbol_kind_t yysymbol_kind_t;
 
@@ -498,16 +502,16 @@ union yyalloc
 /* YYFINAL -- State number of the termination state.  */
 #define YYFINAL  29
 /* YYLAST -- Last index in YYTABLE.  */
-#define YYLAST   293
+#define YYLAST   419
 
 /* YYNTOKENS -- Number of terminals.  */
 #define YYNTOKENS  38
 /* YYNNTS -- Number of nonterminals.  */
-#define YYNNTS  24
+#define YYNNTS  28
 /* YYNRULES -- Number of rules.  */
-#define YYNRULES  61
+#define YYNRULES  77
 /* YYNSTATES -- Number of states.  */
-#define YYNSTATES  134
+#define YYNSTATES  178
 
 /* YYMAXUTOK -- Last valid token kind.  */
 #define YYMAXUTOK   292
@@ -560,13 +564,14 @@ static const yytype_int8 yytranslate[] =
 /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int16 yyrline[] =
 {
-       0,    67,    67,    68,    69,    70,    75,    81,    87,    93,
-     103,   104,   105,   106,   107,   112,   164,   174,   164,   194,
-     206,   210,   211,   211,   229,   229,   243,   256,   297,   321,
-     331,   366,   367,   368,   369,   370,   371,   372,   375,   397,
-     421,   443,   473,   495,   517,   539,   561,   587,   614,   625,
-     636,   649,   655,   661,   666,   671,   676,   681,   688,   697,
-     707,   734
+       0,    67,    67,    68,    69,    70,    75,    81,   103,   109,
+     130,   136,   152,   158,   177,   178,   184,   207,   208,   214,
+     236,   237,   243,   260,   261,   267,   287,   288,   289,   290,
+     291,   296,   348,   358,   348,   378,   390,   394,   395,   395,
+     413,   413,   427,   440,   481,   505,   515,   550,   551,   552,
+     553,   554,   555,   556,   559,   581,   605,   627,   657,   679,
+     701,   723,   745,   771,   798,   809,   820,   833,   839,   845,
+     850,   855,   860,   865,   872,   881,   891,   918
 };
 #endif
 
@@ -588,10 +593,11 @@ static const char *const yytname[] =
   "LEQUAL", "GEQUAL", "AND", "OR", "NOT", "PLUS", "MIN", "MULT", "DIV",
   "LEFTPAR", "RIGHTPAR", "LEFTKEYS", "RIGHTKEYS", "LEFTBRACKET",
   "RIGHTBRACKET", "COMMA", "DONE", "$accept", "program", "declaration",
-  "comand", "assignment", "if_then", "$@1", "$@2", "if_then_aux",
-  "if_then_aux2", "else", "$@3", "while", "$@4", "while_aux", "printf",
-  "scanf", "expression", "soma_sub", "mult_div", "comparison", "log_exp",
-  "cast", "term", YY_NULLPTR
+  "int_declaration", "float_declaration", "char_declaration",
+  "bool_declaration", "comand", "assignment", "if_then", "$@1", "$@2",
+  "if_then_aux", "if_then_aux2", "else", "$@3", "while", "$@4",
+  "while_aux", "printf", "scanf", "expression", "soma_sub", "mult_div",
+  "comparison", "log_exp", "cast", "term", YY_NULLPTR
 };
 
 static const char *
@@ -601,7 +607,7 @@ yysymbol_name (yysymbol_kind_t yysymbol)
 }
 #endif
 
-#define YYPACT_NINF (-78)
+#define YYPACT_NINF (-82)
 
 #define yypact_value_is_default(Yyn) \
   ((Yyn) == YYPACT_NINF)
@@ -615,20 +621,24 @@ yysymbol_name (yysymbol_kind_t yysymbol)
    STATE-NUM.  */
 static const yytype_int16 yypact[] =
 {
-     241,    13,   -20,     2,     4,    16,    18,    17,    19,   -78,
-      35,    32,    13,    13,   -78,   -78,   -78,   -78,   -78,   -78,
-      89,    22,    24,    34,    36,    54,    61,    46,    89,   -78,
-     -78,   -78,   -78,   -78,   -78,    89,    57,   119,   -78,   -78,
-     -78,   -78,   -78,   -78,   -78,   -78,   -78,   -78,    52,    53,
-      55,    65,    89,    71,   -78,    72,    74,    81,    90,   134,
-      89,    89,    89,    89,    89,    89,    89,    89,    89,    89,
-      89,    89,   -78,    41,    48,    85,    86,   149,   -78,    15,
-      94,    98,   105,   -78,   251,   251,   251,   251,   251,   251,
-     264,   238,   -22,   -22,   -78,   -78,   -78,   -78,   -78,   -78,
-     -78,   -78,    89,   -78,    89,   -78,    89,   -78,    89,   -78,
-      93,    95,   164,   179,   194,   209,    47,    47,   -78,   -78,
-     -78,   -78,    96,    99,   -78,   -78,   -78,   122,   -78,   -78,
-     101,    47,   111,   -78
+     367,    69,   -15,    11,    12,    40,    43,     1,    28,   -82,
+      16,    59,    69,    69,   -82,   -82,   -82,   -82,   -82,   -82,
+      71,    -6,     0,     2,     3,    15,    55,    41,    71,   -82,
+     -82,   -82,   -82,   -82,   -82,    71,   118,   245,   -82,   -82,
+     -82,   -82,   -82,   -82,    71,    68,    48,    71,    76,    56,
+      71,    79,    58,    71,    85,    62,    77,    96,    97,    98,
+      71,   144,   -82,   101,   105,   113,   114,   260,    71,    71,
+      71,    71,    71,    71,    71,    71,    71,    71,    71,    71,
+     -82,   165,    18,   -82,   185,    19,   -82,   205,    21,   -82,
+     225,    24,   -82,   103,   110,   112,   116,   275,   -82,    75,
+      91,   122,   126,   -82,   377,   377,   377,   377,   377,   377,
+     390,   364,    -7,    -7,   -82,   -82,   -82,   117,    71,   -82,
+     120,    71,   -82,   121,    71,   -82,   132,    71,   -82,   -82,
+     -82,   -82,   -82,   -82,    71,   -82,    71,   -82,    71,   -82,
+      71,   -82,   119,   -82,   165,   -82,   185,   -82,   205,   -82,
+     225,   127,   290,   305,   320,   335,   109,   -82,   -82,   -82,
+     -82,   109,   -82,   -82,   -82,   -82,   142,   143,   -82,   -82,
+     -82,   146,   -82,   -82,   145,   109,   147,   -82
 };
 
 /* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
@@ -636,36 +646,40 @@ static const yytype_int16 yypact[] =
    means the default is an error.  */
 static const yytype_int8 yydefact[] =
 {
-       0,     0,     0,     0,     0,     0,     0,     0,     0,    26,
-       0,     0,     0,     0,    10,    11,    12,    13,    14,     5,
-       0,     0,     0,     0,     0,     0,     0,     0,     0,     1,
-       4,     3,    59,    60,    61,     0,     0,     0,    31,    32,
-      34,    35,    36,    37,     6,     8,     7,     9,     0,     0,
-       0,     0,     0,     0,    50,     0,     0,     0,     0,     0,
+       0,     0,     0,     0,     0,     0,     0,     0,     0,    42,
+       0,     0,     0,     0,    26,    27,    28,    29,    30,     5,
+       0,    14,    20,    17,    23,     0,     0,     0,     0,     1,
+       4,     3,    75,    76,    77,     0,     0,     0,    47,    48,
+      50,    51,    52,    53,     0,     0,     0,     0,     0,     0,
        0,     0,     0,     0,     0,     0,     0,     0,     0,     0,
-       0,     0,    16,     0,     0,     0,     0,     0,    15,     0,
-       0,     0,     0,    33,    46,    47,    42,    43,    44,    45,
-      48,    49,    38,    39,    40,    41,    19,    28,    27,    29,
-      30,    24,     0,    52,     0,    56,     0,    54,     0,    58,
-       0,     0,     0,     0,     0,     0,     0,     0,    51,    55,
-      53,    57,     0,     0,    20,    25,    17,    21,    22,    18,
-       0,     0,     0,    23
+       0,     0,    66,     0,     0,     0,     0,     0,     0,     0,
+       0,     0,     0,     0,     0,     0,     0,     0,     0,     0,
+      32,    14,    14,     6,    20,    20,    10,    17,    17,     8,
+      23,    23,    12,     0,     0,     0,     0,     0,    31,     0,
+       0,     0,     0,    49,    62,    63,    58,    59,    60,    61,
+      64,    65,    54,    55,    56,    57,    35,     0,     0,    15,
+       0,     0,    21,     0,     0,    18,     0,     0,    24,    44,
+      43,    45,    46,    40,     0,    68,     0,    72,     0,    70,
+       0,    74,     0,     7,    14,    11,    20,     9,    17,    13,
+      23,     0,     0,     0,     0,     0,     0,    16,    22,    19,
+      25,     0,    67,    71,    69,    73,     0,     0,    36,    41,
+      33,    37,    38,    34,     0,     0,     0,    39
 };
 
 /* YYPGOTO[NTERM-NUM].  */
 static const yytype_int8 yypgoto[] =
 {
-     -78,    -1,   -78,   -78,   -78,   -78,   -78,   -78,   -78,   -78,
-     -78,   -78,   -78,   -78,   -78,   -78,   -78,   -27,   -78,   -78,
-     -78,   -78,   -78,   -77
+     -82,    -1,   -82,   -79,   -81,   -80,   -77,   -82,   -82,   -82,
+     -82,   -82,   -82,   -82,   -82,   -82,   -82,   -82,   -82,   -82,
+     -82,   -27,   -82,   -82,   -82,   -82,   -82,   -38
 };
 
 /* YYDEFGOTO[NTERM-NUM].  */
 static const yytype_uint8 yydefgoto[] =
 {
-       0,    11,    12,    13,    14,    15,    96,   127,   110,   126,
-     129,   130,    16,   111,    27,    17,    18,    37,    38,    39,
-      40,    41,    42,    43
+       0,    11,    12,    46,    52,    49,    55,    13,    14,    15,
+     116,   171,   142,   170,   173,   174,    16,   151,    27,    17,
+      18,    37,    38,    39,    40,    41,    42,    43
 };
 
 /* YYTABLE[YYPACT[STATE-NUM]] -- What to do in state STATE-NUM.  If
@@ -673,70 +687,94 @@ static const yytype_uint8 yydefgoto[] =
    number is the opposite.  If YYTABLE_NINF, syntax error.  */
 static const yytype_int16 yytable[] =
 {
-      19,    53,   103,   105,   107,   109,    70,    71,    54,    59,
-      20,    30,    31,    -2,     1,    21,     2,    22,     3,     4,
-       5,     6,     7,     8,     9,    77,    10,    32,    33,    23,
-      34,    24,    29,    84,    85,    86,    87,    88,    89,    90,
-      91,    92,    93,    94,    95,   102,    -2,    25,     1,    26,
-       2,    28,     3,     4,     5,     6,     7,     8,     9,    44,
-      10,    45,    55,    56,    57,    58,    48,    49,    50,    32,
-      33,    46,    34,    47,    51,   112,    52,   113,    97,   114,
-      -2,   115,    35,    73,    74,    98,    75,    36,    60,    61,
-      62,    63,    64,    65,    66,    67,    76,    68,    69,    70,
-      71,    32,    33,    79,    34,    80,    32,    33,    78,    34,
-      32,    33,    81,    34,    35,   122,   123,    32,    33,    36,
-      34,    82,    99,   100,   104,   116,   128,   117,   106,   124,
-     132,     0,   125,   131,     0,   108,    60,    61,    62,    63,
-      64,    65,    66,    67,   133,    68,    69,    70,    71,     0,
-      72,    60,    61,    62,    63,    64,    65,    66,    67,     0,
-      68,    69,    70,    71,     0,    83,    60,    61,    62,    63,
-      64,    65,    66,    67,     0,    68,    69,    70,    71,     0,
-     101,    60,    61,    62,    63,    64,    65,    66,    67,     0,
-      68,    69,    70,    71,     0,   118,    60,    61,    62,    63,
-      64,    65,    66,    67,     0,    68,    69,    70,    71,     0,
-     119,    60,    61,    62,    63,    64,    65,    66,    67,     0,
-      68,    69,    70,    71,     0,   120,    60,    61,    62,    63,
-      64,    65,    66,    67,     0,    68,    69,    70,    71,     0,
-     121,    -2,     1,     0,     2,     0,     3,     4,     5,     6,
-       7,     8,     9,     0,    10,    60,    61,    62,    63,    64,
-      65,    66,     0,     0,    68,    69,    70,    71,    -3,    -3,
-      -3,    -3,    -3,    -3,     0,     0,     0,    68,    69,    70,
-      71,    60,    61,    62,    63,    64,    65,     0,     0,     0,
-      68,    69,    70,    71
+      19,    61,   117,   119,   120,   122,   123,   125,    62,    67,
+      44,    30,    31,   126,   128,    20,    47,    81,    50,    53,
+      84,    78,    79,    87,    21,    22,    90,    56,    57,    58,
+      45,    25,    28,    97,   118,   121,    48,   124,    51,    54,
+     127,   104,   105,   106,   107,   108,   109,   110,   111,   112,
+     113,   114,   115,    23,    45,    48,    24,    51,    26,    29,
+      54,   135,   137,   139,   141,   157,   158,   159,    59,    -2,
+       1,    60,     2,   160,     3,     4,     5,     6,     7,     8,
+       9,    82,    10,    32,    33,    83,    34,    32,    33,    85,
+      34,   144,    88,    86,   146,    89,    35,   148,    91,    92,
+     150,    36,    -2,    32,    33,   134,    34,   152,    93,   153,
+       1,   154,     2,   155,     3,     4,     5,     6,     7,     8,
+       9,   136,    10,    63,    64,    65,    66,    94,    95,    96,
+      32,    33,    99,    34,    32,    33,   100,    34,    32,    33,
+     129,    34,    -2,    35,   101,   102,     0,   130,    36,   131,
+     172,   156,   138,   132,   143,   166,   140,   145,   147,   161,
+     167,    68,    69,    70,    71,    72,    73,    74,    75,   149,
+      76,    77,    78,    79,   176,   168,   169,   175,     0,     0,
+     177,    98,    68,    69,    70,    71,    72,    73,    74,    75,
+       0,    76,    77,    78,    79,     0,     0,     0,     0,     0,
+       0,    45,    68,    69,    70,    71,    72,    73,    74,    75,
+       0,    76,    77,    78,    79,     0,     0,     0,     0,     0,
+       0,    48,    68,    69,    70,    71,    72,    73,    74,    75,
+       0,    76,    77,    78,    79,     0,     0,     0,     0,     0,
+       0,    51,    68,    69,    70,    71,    72,    73,    74,    75,
+       0,    76,    77,    78,    79,     0,     0,     0,     0,     0,
+       0,    54,    68,    69,    70,    71,    72,    73,    74,    75,
+       0,    76,    77,    78,    79,     0,    80,    68,    69,    70,
+      71,    72,    73,    74,    75,     0,    76,    77,    78,    79,
+       0,   103,    68,    69,    70,    71,    72,    73,    74,    75,
+       0,    76,    77,    78,    79,     0,   133,    68,    69,    70,
+      71,    72,    73,    74,    75,     0,    76,    77,    78,    79,
+       0,   162,    68,    69,    70,    71,    72,    73,    74,    75,
+       0,    76,    77,    78,    79,     0,   163,    68,    69,    70,
+      71,    72,    73,    74,    75,     0,    76,    77,    78,    79,
+       0,   164,    68,    69,    70,    71,    72,    73,    74,    75,
+       0,    76,    77,    78,    79,     0,   165,    -2,     1,     0,
+       2,     0,     3,     4,     5,     6,     7,     8,     9,     0,
+      10,    68,    69,    70,    71,    72,    73,    74,     0,     0,
+      76,    77,    78,    79,    -3,    -3,    -3,    -3,    -3,    -3,
+       0,     0,     0,    76,    77,    78,    79,    68,    69,    70,
+      71,    72,    73,     0,     0,     0,    76,    77,    78,    79
 };
 
 static const yytype_int16 yycheck[] =
 {
-       1,    28,    79,    80,    81,    82,    28,    29,    35,    36,
-      30,    12,    13,     0,     1,    13,     3,    13,     5,     6,
-       7,     8,     9,    10,    11,    52,    13,    12,    13,    13,
-      15,    13,     0,    60,    61,    62,    63,    64,    65,    66,
-      67,    68,    69,    70,    71,    30,    33,    30,     1,    30,
-       3,    16,     5,     6,     7,     8,     9,    10,    11,    37,
-      13,    37,     5,     6,     7,     8,    12,    13,    14,    12,
-      13,    37,    15,    37,    13,   102,    30,   104,    37,   106,
-      33,   108,    25,    31,    31,    37,    31,    30,    17,    18,
-      19,    20,    21,    22,    23,    24,    31,    26,    27,    28,
-      29,    12,    13,    31,    15,    31,    12,    13,    37,    15,
-      12,    13,    31,    15,    25,   116,   117,    12,    13,    30,
-      15,    31,    37,    37,    30,    32,     4,    32,    30,    33,
-     131,    -1,    33,    32,    -1,    30,    17,    18,    19,    20,
-      21,    22,    23,    24,    33,    26,    27,    28,    29,    -1,
-      31,    17,    18,    19,    20,    21,    22,    23,    24,    -1,
-      26,    27,    28,    29,    -1,    31,    17,    18,    19,    20,
-      21,    22,    23,    24,    -1,    26,    27,    28,    29,    -1,
-      31,    17,    18,    19,    20,    21,    22,    23,    24,    -1,
-      26,    27,    28,    29,    -1,    31,    17,    18,    19,    20,
-      21,    22,    23,    24,    -1,    26,    27,    28,    29,    -1,
-      31,    17,    18,    19,    20,    21,    22,    23,    24,    -1,
-      26,    27,    28,    29,    -1,    31,    17,    18,    19,    20,
-      21,    22,    23,    24,    -1,    26,    27,    28,    29,    -1,
-      31,     0,     1,    -1,     3,    -1,     5,     6,     7,     8,
-       9,    10,    11,    -1,    13,    17,    18,    19,    20,    21,
-      22,    23,    -1,    -1,    26,    27,    28,    29,    17,    18,
-      19,    20,    21,    22,    -1,    -1,    -1,    26,    27,    28,
-      29,    17,    18,    19,    20,    21,    22,    -1,    -1,    -1,
-      26,    27,    28,    29
+       1,    28,    81,    82,    84,    85,    87,    88,    35,    36,
+      16,    12,    13,    90,    91,    30,    16,    44,    16,    16,
+      47,    28,    29,    50,    13,    13,    53,    12,    13,    14,
+      36,    30,    16,    60,    16,    16,    36,    16,    36,    36,
+      16,    68,    69,    70,    71,    72,    73,    74,    75,    76,
+      77,    78,    79,    13,    36,    36,    13,    36,    30,     0,
+      36,    99,   100,   101,   102,   144,   146,   148,    13,     0,
+       1,    30,     3,   150,     5,     6,     7,     8,     9,    10,
+      11,    13,    13,    12,    13,    37,    15,    12,    13,    13,
+      15,   118,    13,    37,   121,    37,    25,   124,    13,    37,
+     127,    30,    33,    12,    13,    30,    15,   134,    31,   136,
+       1,   138,     3,   140,     5,     6,     7,     8,     9,    10,
+      11,    30,    13,     5,     6,     7,     8,    31,    31,    31,
+      12,    13,    31,    15,    12,    13,    31,    15,    12,    13,
+      37,    15,    33,    25,    31,    31,    -1,    37,    30,    37,
+       4,    32,    30,    37,    37,   156,    30,    37,    37,    32,
+     161,    17,    18,    19,    20,    21,    22,    23,    24,    37,
+      26,    27,    28,    29,   175,    33,    33,    32,    -1,    -1,
+      33,    37,    17,    18,    19,    20,    21,    22,    23,    24,
+      -1,    26,    27,    28,    29,    -1,    -1,    -1,    -1,    -1,
+      -1,    36,    17,    18,    19,    20,    21,    22,    23,    24,
+      -1,    26,    27,    28,    29,    -1,    -1,    -1,    -1,    -1,
+      -1,    36,    17,    18,    19,    20,    21,    22,    23,    24,
+      -1,    26,    27,    28,    29,    -1,    -1,    -1,    -1,    -1,
+      -1,    36,    17,    18,    19,    20,    21,    22,    23,    24,
+      -1,    26,    27,    28,    29,    -1,    -1,    -1,    -1,    -1,
+      -1,    36,    17,    18,    19,    20,    21,    22,    23,    24,
+      -1,    26,    27,    28,    29,    -1,    31,    17,    18,    19,
+      20,    21,    22,    23,    24,    -1,    26,    27,    28,    29,
+      -1,    31,    17,    18,    19,    20,    21,    22,    23,    24,
+      -1,    26,    27,    28,    29,    -1,    31,    17,    18,    19,
+      20,    21,    22,    23,    24,    -1,    26,    27,    28,    29,
+      -1,    31,    17,    18,    19,    20,    21,    22,    23,    24,
+      -1,    26,    27,    28,    29,    -1,    31,    17,    18,    19,
+      20,    21,    22,    23,    24,    -1,    26,    27,    28,    29,
+      -1,    31,    17,    18,    19,    20,    21,    22,    23,    24,
+      -1,    26,    27,    28,    29,    -1,    31,     0,     1,    -1,
+       3,    -1,     5,     6,     7,     8,     9,    10,    11,    -1,
+      13,    17,    18,    19,    20,    21,    22,    23,    -1,    -1,
+      26,    27,    28,    29,    17,    18,    19,    20,    21,    22,
+      -1,    -1,    -1,    26,    27,    28,    29,    17,    18,    19,
+      20,    21,    22,    -1,    -1,    -1,    26,    27,    28,    29
 };
 
 /* YYSTOS[STATE-NUM] -- The symbol kind of the accessing symbol of
@@ -744,43 +782,49 @@ static const yytype_int16 yycheck[] =
 static const yytype_int8 yystos[] =
 {
        0,     1,     3,     5,     6,     7,     8,     9,    10,    11,
-      13,    39,    40,    41,    42,    43,    50,    53,    54,    39,
-      30,    13,    13,    13,    13,    30,    30,    52,    16,     0,
-      39,    39,    12,    13,    15,    25,    30,    55,    56,    57,
-      58,    59,    60,    61,    37,    37,    37,    37,    12,    13,
-      14,    13,    30,    55,    55,     5,     6,     7,     8,    55,
-      17,    18,    19,    20,    21,    22,    23,    24,    26,    27,
-      28,    29,    31,    31,    31,    31,    31,    55,    37,    31,
-      31,    31,    31,    31,    55,    55,    55,    55,    55,    55,
-      55,    55,    55,    55,    55,    55,    44,    37,    37,    37,
-      37,    31,    30,    61,    30,    61,    30,    61,    30,    61,
-      46,    51,    55,    55,    55,    55,    32,    32,    31,    31,
-      31,    31,    39,    39,    33,    33,    47,    45,     4,    48,
-      49,    32,    39,    33
+      13,    39,    40,    45,    46,    47,    54,    57,    58,    39,
+      30,    13,    13,    13,    13,    30,    30,    56,    16,     0,
+      39,    39,    12,    13,    15,    25,    30,    59,    60,    61,
+      62,    63,    64,    65,    16,    36,    41,    16,    36,    43,
+      16,    36,    42,    16,    36,    44,    12,    13,    14,    13,
+      30,    59,    59,     5,     6,     7,     8,    59,    17,    18,
+      19,    20,    21,    22,    23,    24,    26,    27,    28,    29,
+      31,    59,    13,    37,    59,    13,    37,    59,    13,    37,
+      59,    13,    37,    31,    31,    31,    31,    59,    37,    31,
+      31,    31,    31,    31,    59,    59,    59,    59,    59,    59,
+      59,    59,    59,    59,    59,    59,    48,    41,    16,    41,
+      43,    16,    43,    42,    16,    42,    44,    16,    44,    37,
+      37,    37,    37,    31,    30,    65,    30,    65,    30,    65,
+      30,    65,    50,    37,    59,    37,    59,    37,    59,    37,
+      59,    55,    59,    59,    59,    59,    32,    41,    43,    42,
+      44,    32,    31,    31,    31,    31,    39,    39,    33,    33,
+      51,    49,     4,    52,    53,    32,    39,    33
 };
 
 /* YYR1[RULE-NUM] -- Symbol kind of the left-hand side of rule RULE-NUM.  */
 static const yytype_int8 yyr1[] =
 {
        0,    38,    39,    39,    39,    39,    40,    40,    40,    40,
-      41,    41,    41,    41,    41,    42,    44,    45,    43,    46,
-      47,    48,    49,    48,    51,    50,    52,    53,    53,    53,
-      54,    55,    55,    55,    55,    55,    55,    55,    56,    56,
-      57,    57,    58,    58,    58,    58,    58,    58,    59,    59,
-      59,    60,    60,    60,    60,    60,    60,    60,    60,    61,
-      61,    61
+      40,    40,    40,    40,    41,    41,    41,    42,    42,    42,
+      43,    43,    43,    44,    44,    44,    45,    45,    45,    45,
+      45,    46,    48,    49,    47,    50,    51,    52,    53,    52,
+      55,    54,    56,    57,    57,    57,    58,    59,    59,    59,
+      59,    59,    59,    59,    60,    60,    61,    61,    62,    62,
+      62,    62,    62,    62,    63,    63,    63,    64,    64,    64,
+      64,    64,    64,    64,    64,    65,    65,    65
 };
 
 /* YYR2[RULE-NUM] -- Number of symbols on the right-hand side of rule RULE-NUM.  */
 static const yytype_int8 yyr2[] =
 {
-       0,     2,     0,     2,     2,     2,     3,     3,     3,     3,
-       1,     1,     1,     1,     1,     4,     0,     0,    12,     0,
-       0,     0,     0,     5,     0,     9,     0,     5,     5,     5,
-       5,     1,     1,     3,     1,     1,     1,     1,     3,     3,
-       3,     3,     3,     3,     3,     3,     3,     3,     3,     3,
-       2,     6,     4,     6,     4,     6,     4,     6,     4,     1,
-       1,     1
+       0,     2,     0,     2,     2,     2,     4,     6,     4,     6,
+       4,     6,     4,     6,     0,     3,     5,     0,     3,     5,
+       0,     3,     5,     0,     3,     5,     1,     1,     1,     1,
+       1,     4,     0,     0,    12,     0,     0,     0,     0,     5,
+       0,     9,     0,     5,     5,     5,     5,     1,     1,     3,
+       1,     1,     1,     1,     3,     3,     3,     3,     3,     3,
+       3,     3,     3,     3,     3,     3,     2,     6,     4,     6,
+       4,     6,     4,     6,     4,     1,     1,     1
 };
 
 
@@ -1516,103 +1560,361 @@ yyreduce:
   case 2: /* program: %empty  */
 #line 67 "compiler/parser.y"
                      {}
-#line 1520 "objects/parser.tab.c"
+#line 1564 "objects/parser.tab.c"
     break;
 
   case 3: /* program: comand program  */
 #line 68 "compiler/parser.y"
                         {}
-#line 1526 "objects/parser.tab.c"
+#line 1570 "objects/parser.tab.c"
     break;
 
   case 4: /* program: declaration program  */
 #line 69 "compiler/parser.y"
                              {}
-#line 1532 "objects/parser.tab.c"
+#line 1576 "objects/parser.tab.c"
     break;
 
   case 5: /* program: error program  */
 #line 70 "compiler/parser.y"
                        { yyerrok; yyclearin; }
-#line 1538 "objects/parser.tab.c"
-    break;
-
-  case 6: /* declaration: INT ID DONE  */
-#line 75 "compiler/parser.y"
-                         {
-                if(if_condition == 1) {
-                    insertSymbol((yyvsp[-1].id), -DBL_MAX, TYPE_INT);
-                    allocaVars((yyvsp[-1].id), TYPE_INT);
-                }
-           }
-#line 1549 "objects/parser.tab.c"
-    break;
-
-  case 7: /* declaration: FLOAT ID DONE  */
-#line 81 "compiler/parser.y"
-                           {
-                if(if_condition == 1) {
-                    insertSymbol((yyvsp[-1].id), -DBL_MAX, TYPE_FLOAT);
-                    allocaVars((yyvsp[-1].id), TYPE_FLOAT);
-                }
-           }
-#line 1560 "objects/parser.tab.c"
-    break;
-
-  case 8: /* declaration: CHAR ID DONE  */
-#line 87 "compiler/parser.y"
-                          {
-                if(if_condition == 1) {
-                    insertSymbol((yyvsp[-1].id), -DBL_MAX, TYPE_CHAR);
-                    allocaVars((yyvsp[-1].id), TYPE_CHAR);
-                }
-           }
-#line 1571 "objects/parser.tab.c"
-    break;
-
-  case 9: /* declaration: BOOL ID DONE  */
-#line 93 "compiler/parser.y"
-                          {
-                if(if_condition == 1) {
-                    insertSymbol((yyvsp[-1].id), -DBL_MAX, TYPE_BOOL);
-                    allocaVars((yyvsp[-1].id), TYPE_BOOL);
-                }
-           }
 #line 1582 "objects/parser.tab.c"
     break;
 
-  case 10: /* comand: assignment  */
+  case 6: /* declaration: INT ID int_declaration DONE  */
+#line 75 "compiler/parser.y"
+                                         {
+                if(if_condition == 1) {
+                    insertSymbol((yyvsp[-2].id), -DBL_MAX, TYPE_INT);
+                    allocaVars((yyvsp[-2].id), TYPE_INT);
+                }
+            }
+#line 1593 "objects/parser.tab.c"
+    break;
+
+  case 7: /* declaration: INT ID RECEIVE expression int_declaration DONE  */
+#line 81 "compiler/parser.y"
+                                                             {
+                if(if_condition == 1) {
+                    insertSymbol((yyvsp[-4].id), (yyvsp[-2].number).value, TYPE_INT);
+                    allocaVars((yyvsp[-4].id), TYPE_INT);
+                    Symbol* symbol = findSymbol((yyvsp[-4].id));
+                    LLVMValueRef var = getVarLLVM((yyvsp[-4].id));
+                    LLVMTypeRef llvm_type = LLVMInt32TypeInContext(context);
+                    LLVMValueRef value = (yyvsp[-2].number).llvm_value;
+                    if(symbol) {
+                        if ((yyvsp[-2].number).type == TYPE_INT) {
+                            LLVMBuildStore(builder, value, var);
+                        }
+                        else if ((yyvsp[-2].number).type == TYPE_FLOAT) {
+                            printf("Warning: casting float to int for variable '%s' at line %d.\n", (yyvsp[-4].id), yylineno);
+                            value = LLVMBuildFPToSI(builder, value, llvm_type, "floattoint");
+                            LLVMBuildStore(builder, value, var);
+                        } else {
+                            fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
+                        }
+                    }
+                }
+            }
+#line 1620 "objects/parser.tab.c"
+    break;
+
+  case 8: /* declaration: FLOAT ID float_declaration DONE  */
 #line 103 "compiler/parser.y"
+                                              {
+                if(if_condition == 1) {
+                    insertSymbol((yyvsp[-2].id), -DBL_MAX, TYPE_FLOAT);
+                    allocaVars((yyvsp[-2].id), TYPE_FLOAT);
+                }
+            }
+#line 1631 "objects/parser.tab.c"
+    break;
+
+  case 9: /* declaration: FLOAT ID RECEIVE expression float_declaration DONE  */
+#line 109 "compiler/parser.y"
+                                                                 {
+                if(if_condition == 1) {
+                    insertSymbol((yyvsp[-4].id), (yyvsp[-2].number).value, TYPE_FLOAT);
+                    allocaVars((yyvsp[-4].id), TYPE_FLOAT);
+                    Symbol* symbol = findSymbol((yyvsp[-4].id));
+                    LLVMValueRef var = getVarLLVM((yyvsp[-4].id));
+                    LLVMTypeRef llvm_type = LLVMDoubleTypeInContext(context);
+                    LLVMValueRef value = (yyvsp[-2].number).llvm_value;
+                    if(symbol) {
+                        if ((yyvsp[-2].number).type == TYPE_FLOAT) {
+                            LLVMBuildStore(builder, value, var);
+                        }
+                        else if ((yyvsp[-2].number).type == TYPE_INT) {
+                            value = LLVMBuildSIToFP(builder, value, llvm_type, "inttofloat");
+                            LLVMBuildStore(builder, value, var);
+                        } else {
+                            fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
+                        }
+                    }
+                }
+            }
+#line 1657 "objects/parser.tab.c"
+    break;
+
+  case 10: /* declaration: CHAR ID char_declaration DONE  */
+#line 130 "compiler/parser.y"
+                                            {
+                if(if_condition == 1) {
+                    insertSymbol((yyvsp[-2].id), -DBL_MAX, TYPE_CHAR);
+                    allocaVars((yyvsp[-2].id), TYPE_CHAR);
+                }
+            }
+#line 1668 "objects/parser.tab.c"
+    break;
+
+  case 11: /* declaration: CHAR ID RECEIVE expression char_declaration DONE  */
+#line 136 "compiler/parser.y"
+                                                               {
+                if(if_condition == 1) {
+                    insertSymbol((yyvsp[-4].id), (yyvsp[-2].number).value, TYPE_CHAR);
+                    allocaVars((yyvsp[-4].id), TYPE_CHAR);
+                    Symbol* symbol = findSymbol((yyvsp[-4].id));
+                    LLVMValueRef var = getVarLLVM((yyvsp[-4].id));
+                    LLVMValueRef value = (yyvsp[-2].number).llvm_value;
+                    if(symbol) {
+                        if ((yyvsp[-2].number).type == TYPE_CHAR) {
+                            LLVMBuildStore(builder, value, var);
+                        } else {
+                            fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
+                        }
+                    }
+                }
+            }
+#line 1689 "objects/parser.tab.c"
+    break;
+
+  case 12: /* declaration: BOOL ID bool_declaration DONE  */
+#line 152 "compiler/parser.y"
+                                            {
+                if(if_condition == 1) {
+                    insertSymbol((yyvsp[-2].id), -DBL_MAX, TYPE_BOOL);
+                    allocaVars((yyvsp[-2].id), TYPE_BOOL);
+                }
+            }
+#line 1700 "objects/parser.tab.c"
+    break;
+
+  case 13: /* declaration: BOOL ID RECEIVE expression bool_declaration DONE  */
+#line 158 "compiler/parser.y"
+                                                               {
+                if(if_condition == 1) {
+                    insertSymbol((yyvsp[-4].id), (yyvsp[-2].number).value, TYPE_BOOL);
+                    allocaVars((yyvsp[-4].id), TYPE_BOOL);
+                    Symbol* symbol = findSymbol((yyvsp[-4].id));
+                    LLVMValueRef var = getVarLLVM((yyvsp[-4].id));
+                    LLVMValueRef value = (yyvsp[-2].number).llvm_value;
+                    if(symbol) {
+                        if ((yyvsp[-2].number).type == TYPE_BOOL) {
+                            LLVMBuildStore(builder, value, var);
+                        } else {
+                            fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
+                        }
+                    }
+                }
+            }
+#line 1721 "objects/parser.tab.c"
+    break;
+
+  case 14: /* int_declaration: %empty  */
+#line 177 "compiler/parser.y"
+                             {}
+#line 1727 "objects/parser.tab.c"
+    break;
+
+  case 15: /* int_declaration: COMMA ID int_declaration  */
+#line 178 "compiler/parser.y"
+                                           {
+                    if(if_condition == 1) {
+                        insertSymbol((yyvsp[-1].id), -DBL_MAX, TYPE_INT);
+                        allocaVars((yyvsp[-1].id), TYPE_INT);
+                    }
+                }
+#line 1738 "objects/parser.tab.c"
+    break;
+
+  case 16: /* int_declaration: COMMA ID RECEIVE expression int_declaration  */
+#line 184 "compiler/parser.y"
+                                                              {
+                    if(if_condition == 1) {
+                        insertSymbol((yyvsp[-3].id), (yyvsp[-1].number).value, TYPE_INT);
+                        allocaVars((yyvsp[-3].id), TYPE_INT);
+                        Symbol* symbol = findSymbol((yyvsp[-3].id));
+                        LLVMValueRef var = getVarLLVM((yyvsp[-3].id));
+                        LLVMTypeRef llvm_type = LLVMInt32TypeInContext(context);
+                        LLVMValueRef value = (yyvsp[-1].number).llvm_value;
+                        if(symbol) {
+                            if ((yyvsp[-1].number).type == TYPE_INT) {
+                                LLVMBuildStore(builder, value, var);
+                            }
+                            else if ((yyvsp[-1].number).type == TYPE_FLOAT) {
+                                printf("Warning: casting float to int for variable '%s' at line %d.\n", (yyvsp[-3].id), yylineno);
+                                value = LLVMBuildFPToSI(builder, value, llvm_type, "floattoint");
+                                LLVMBuildStore(builder, value, var);
+                            } else {
+                                fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
+                            }
+                        }
+                    }
+                }
+#line 1765 "objects/parser.tab.c"
+    break;
+
+  case 17: /* float_declaration: %empty  */
+#line 207 "compiler/parser.y"
+                               {}
+#line 1771 "objects/parser.tab.c"
+    break;
+
+  case 18: /* float_declaration: COMMA ID float_declaration  */
+#line 208 "compiler/parser.y"
+                                              {
+                    if(if_condition == 1) {
+                        insertSymbol((yyvsp[-1].id), -DBL_MAX, TYPE_FLOAT);
+                        allocaVars((yyvsp[-1].id), TYPE_FLOAT);
+                    }
+                 }
+#line 1782 "objects/parser.tab.c"
+    break;
+
+  case 19: /* float_declaration: COMMA ID RECEIVE expression float_declaration  */
+#line 214 "compiler/parser.y"
+                                                                 {
+                    if(if_condition == 1) {
+                        insertSymbol((yyvsp[-3].id), (yyvsp[-1].number).value, TYPE_FLOAT);
+                        allocaVars((yyvsp[-3].id), TYPE_FLOAT);
+                        Symbol* symbol = findSymbol((yyvsp[-3].id));
+                        LLVMValueRef var = getVarLLVM((yyvsp[-3].id));
+                        LLVMTypeRef llvm_type = LLVMDoubleTypeInContext(context);
+                        LLVMValueRef value = (yyvsp[-1].number).llvm_value;
+                        if(symbol) {
+                            if ((yyvsp[-1].number).type == TYPE_FLOAT) {
+                                LLVMBuildStore(builder, value, var);
+                            }
+                            else if ((yyvsp[-1].number).type == TYPE_INT) {
+                                value = LLVMBuildSIToFP(builder, value, llvm_type, "inttofloat");
+                                LLVMBuildStore(builder, value, var);
+                            } else {
+                                fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
+                            }
+                        }
+                    }
+                 }
+#line 1808 "objects/parser.tab.c"
+    break;
+
+  case 20: /* char_declaration: %empty  */
+#line 236 "compiler/parser.y"
+                              {}
+#line 1814 "objects/parser.tab.c"
+    break;
+
+  case 21: /* char_declaration: COMMA ID char_declaration  */
+#line 237 "compiler/parser.y"
+                                            {
+                    if(if_condition == 1) {
+                        insertSymbol((yyvsp[-1].id), -DBL_MAX, TYPE_CHAR);
+                        allocaVars((yyvsp[-1].id), TYPE_CHAR);
+                    }
+                }
+#line 1825 "objects/parser.tab.c"
+    break;
+
+  case 22: /* char_declaration: COMMA ID RECEIVE expression char_declaration  */
+#line 243 "compiler/parser.y"
+                                                               {
+                    if(if_condition == 1) {
+                        insertSymbol((yyvsp[-3].id), (yyvsp[-1].number).value, TYPE_CHAR);
+                        allocaVars((yyvsp[-3].id), TYPE_CHAR);
+                        Symbol* symbol = findSymbol((yyvsp[-3].id));
+                        LLVMValueRef var = getVarLLVM((yyvsp[-3].id));
+                        LLVMValueRef value = (yyvsp[-1].number).llvm_value;
+                        if(symbol) {
+                            if ((yyvsp[-1].number).type == TYPE_CHAR) {
+                                LLVMBuildStore(builder, value, var);
+                            } else {
+                                fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
+                            }
+                        }
+                    }
+                }
+#line 1846 "objects/parser.tab.c"
+    break;
+
+  case 23: /* bool_declaration: %empty  */
+#line 260 "compiler/parser.y"
+                              {}
+#line 1852 "objects/parser.tab.c"
+    break;
+
+  case 24: /* bool_declaration: COMMA ID bool_declaration  */
+#line 261 "compiler/parser.y"
+                                            {
+                    if(if_condition == 1) {
+                        insertSymbol((yyvsp[-1].id), -DBL_MAX, TYPE_BOOL);
+                        allocaVars((yyvsp[-1].id), TYPE_BOOL);
+                    }
+                }
+#line 1863 "objects/parser.tab.c"
+    break;
+
+  case 25: /* bool_declaration: COMMA ID RECEIVE expression bool_declaration  */
+#line 267 "compiler/parser.y"
+                                                               {
+                    if(if_condition == 1) {
+                        insertSymbol((yyvsp[-3].id), (yyvsp[-1].number).value, TYPE_BOOL);
+                        allocaVars((yyvsp[-3].id), TYPE_BOOL);
+                        Symbol* symbol = findSymbol((yyvsp[-3].id));
+                        LLVMValueRef var = getVarLLVM((yyvsp[-3].id));
+                        LLVMValueRef value = (yyvsp[-1].number).llvm_value;
+                        if(symbol) {
+                            if ((yyvsp[-1].number).type == TYPE_BOOL) {
+                                LLVMBuildStore(builder, value, var);
+                            } else {
+                                fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
+                            }
+                        }
+                    }
+                }
+#line 1884 "objects/parser.tab.c"
+    break;
+
+  case 26: /* comand: assignment  */
+#line 287 "compiler/parser.y"
                    {}
-#line 1588 "objects/parser.tab.c"
+#line 1890 "objects/parser.tab.c"
     break;
 
-  case 11: /* comand: if_then  */
-#line 104 "compiler/parser.y"
+  case 27: /* comand: if_then  */
+#line 288 "compiler/parser.y"
                 {}
-#line 1594 "objects/parser.tab.c"
+#line 1896 "objects/parser.tab.c"
     break;
 
-  case 12: /* comand: while  */
-#line 105 "compiler/parser.y"
+  case 28: /* comand: while  */
+#line 289 "compiler/parser.y"
               {}
-#line 1600 "objects/parser.tab.c"
+#line 1902 "objects/parser.tab.c"
     break;
 
-  case 13: /* comand: printf  */
-#line 106 "compiler/parser.y"
+  case 29: /* comand: printf  */
+#line 290 "compiler/parser.y"
                {}
-#line 1606 "objects/parser.tab.c"
+#line 1908 "objects/parser.tab.c"
     break;
 
-  case 14: /* comand: scanf  */
-#line 107 "compiler/parser.y"
+  case 30: /* comand: scanf  */
+#line 291 "compiler/parser.y"
               {}
-#line 1612 "objects/parser.tab.c"
+#line 1914 "objects/parser.tab.c"
     break;
 
-  case 15: /* assignment: ID RECEIVE expression DONE  */
-#line 112 "compiler/parser.y"
+  case 31: /* assignment: ID RECEIVE expression DONE  */
+#line 296 "compiler/parser.y"
                                        {
                 Symbol* symbol = findSymbol((yyvsp[-3].id));
                 LLVMValueRef var = getVarLLVM((yyvsp[-3].id));
@@ -1660,11 +1962,11 @@ yyreduce:
                     }
                 }
 		  }
-#line 1664 "objects/parser.tab.c"
+#line 1966 "objects/parser.tab.c"
     break;
 
-  case 16: /* $@1: %empty  */
-#line 164 "compiler/parser.y"
+  case 32: /* $@1: %empty  */
+#line 348 "compiler/parser.y"
                                         {
             pushScope();
             if ((yyvsp[-1].number).type == TYPE_BOOL) {
@@ -1676,11 +1978,11 @@ yyreduce:
             }
             aux = (yyvsp[-1].number).llvm_value;
         }
-#line 1680 "objects/parser.tab.c"
+#line 1982 "objects/parser.tab.c"
     break;
 
-  case 17: /* $@2: %empty  */
-#line 174 "compiler/parser.y"
+  case 33: /* $@2: %empty  */
+#line 358 "compiler/parser.y"
                                                               {
             if (if_condition == 0) {
                 popScope();
@@ -1693,11 +1995,11 @@ yyreduce:
             // Entra no bloco else para continuar parsing
             LLVMPositionBuilderAtEnd(builder, (yyvsp[-4].if_else_blocks).elseBB);
         }
-#line 1697 "objects/parser.tab.c"
+#line 1999 "objects/parser.tab.c"
     break;
 
-  case 18: /* if_then: IF LEFTPAR expression RIGHTPAR $@1 if_then_aux LEFTKEYS program RIGHTKEYS if_then_aux2 $@2 else  */
-#line 185 "compiler/parser.y"
+  case 34: /* if_then: IF LEFTPAR expression RIGHTPAR $@1 if_then_aux LEFTKEYS program RIGHTKEYS if_then_aux2 $@2 else  */
+#line 369 "compiler/parser.y"
                {
             // Ao final do else, faz branch para o fim do if
             LLVMBuildBr(builder, (yyvsp[-2].if_else_blocks).endIFBB);
@@ -1705,11 +2007,11 @@ yyreduce:
             // Posiciona o builder no bloco de saída do if
             LLVMPositionBuilderAtEnd(builder, (yyvsp[-2].if_else_blocks).endIFBB);
         }
-#line 1709 "objects/parser.tab.c"
+#line 2011 "objects/parser.tab.c"
     break;
 
-  case 19: /* if_then_aux: %empty  */
-#line 194 "compiler/parser.y"
+  case 35: /* if_then_aux: %empty  */
+#line 378 "compiler/parser.y"
              {
     // Cria blocos para if, else e fim
     (yyval.if_else_blocks).ifBB = LLVMAppendBasicBlockInContext(context, mainFunc, "if");
@@ -1721,36 +2023,36 @@ yyreduce:
     // Entra no bloco do if
     LLVMPositionBuilderAtEnd(builder, (yyval.if_else_blocks).ifBB);
 }
-#line 1725 "objects/parser.tab.c"
+#line 2027 "objects/parser.tab.c"
     break;
 
-  case 20: /* if_then_aux2: %empty  */
-#line 206 "compiler/parser.y"
+  case 36: /* if_then_aux2: %empty  */
+#line 390 "compiler/parser.y"
               {
     (yyval.if_else_blocks).endIFBB = LLVMAppendBasicBlockInContext(context, mainFunc, "endif");
 }
-#line 1733 "objects/parser.tab.c"
+#line 2035 "objects/parser.tab.c"
     break;
 
-  case 21: /* else: %empty  */
-#line 210 "compiler/parser.y"
+  case 37: /* else: %empty  */
+#line 394 "compiler/parser.y"
                   {}
-#line 1739 "objects/parser.tab.c"
+#line 2041 "objects/parser.tab.c"
     break;
 
-  case 22: /* $@3: %empty  */
-#line 211 "compiler/parser.y"
+  case 38: /* $@3: %empty  */
+#line 395 "compiler/parser.y"
            {
         pushScope();
         if (if_else_condition == 1) {
             if_condition = 0;
         }
     }
-#line 1750 "objects/parser.tab.c"
+#line 2052 "objects/parser.tab.c"
     break;
 
-  case 23: /* else: ELSE $@3 LEFTKEYS program RIGHTKEYS  */
-#line 216 "compiler/parser.y"
+  case 39: /* else: ELSE $@3 LEFTKEYS program RIGHTKEYS  */
+#line 400 "compiler/parser.y"
                                  {
         if (if_condition == 0) {
             if_condition = 1;
@@ -1760,22 +2062,22 @@ yyreduce:
             popScope();
         }
     }
-#line 1764 "objects/parser.tab.c"
+#line 2066 "objects/parser.tab.c"
     break;
 
-  case 24: /* $@4: %empty  */
-#line 229 "compiler/parser.y"
+  case 40: /* $@4: %empty  */
+#line 413 "compiler/parser.y"
                                                    {
         LLVMBuildCondBr(builder, (yyvsp[-1].number).llvm_value, (yyvsp[-3].while_blocks).bodyBB, (yyvsp[-3].while_blocks).endWHILEBB);
 
         // Corpo do while
         LLVMPositionBuilderAtEnd(builder, (yyvsp[-3].while_blocks).bodyBB);
     }
-#line 1775 "objects/parser.tab.c"
+#line 2077 "objects/parser.tab.c"
     break;
 
-  case 25: /* while: WHILE while_aux LEFTPAR expression RIGHTPAR $@4 LEFTKEYS program RIGHTKEYS  */
-#line 234 "compiler/parser.y"
+  case 41: /* while: WHILE while_aux LEFTPAR expression RIGHTPAR $@4 LEFTKEYS program RIGHTKEYS  */
+#line 418 "compiler/parser.y"
                                  {
         // Ao final do corpo, volta para o condicional
         LLVMBuildBr(builder, (yyvsp[-7].while_blocks).condBB);
@@ -1783,11 +2085,11 @@ yyreduce:
         // Posiciona o builder no bloco de saída do while
         LLVMPositionBuilderAtEnd(builder, (yyvsp[-7].while_blocks).endWHILEBB);
     }
-#line 1787 "objects/parser.tab.c"
+#line 2089 "objects/parser.tab.c"
     break;
 
-  case 26: /* while_aux: %empty  */
-#line 243 "compiler/parser.y"
+  case 42: /* while_aux: %empty  */
+#line 427 "compiler/parser.y"
            {
     // Cria blocos para condicional, corpo e fim do while
         (yyval.while_blocks).condBB = LLVMAppendBasicBlockInContext(context, mainFunc, "while.cond");
@@ -1800,11 +2102,11 @@ yyreduce:
         // Condicional
         LLVMPositionBuilderAtEnd(builder, (yyval.while_blocks).condBB);
 }
-#line 1804 "objects/parser.tab.c"
+#line 2106 "objects/parser.tab.c"
     break;
 
-  case 27: /* printf: PRINTF LEFTPAR ID RIGHTPAR DONE  */
-#line 256 "compiler/parser.y"
+  case 43: /* printf: PRINTF LEFTPAR ID RIGHTPAR DONE  */
+#line 440 "compiler/parser.y"
                                         {
             Symbol* sym = findSymbol((yyvsp[-2].id));
             if (sym == NULL) {
@@ -1846,11 +2148,11 @@ yyreduce:
                 }
             }
         }
-#line 1850 "objects/parser.tab.c"
+#line 2152 "objects/parser.tab.c"
     break;
 
-  case 28: /* printf: PRINTF LEFTPAR NUMBER RIGHTPAR DONE  */
-#line 297 "compiler/parser.y"
+  case 44: /* printf: PRINTF LEFTPAR NUMBER RIGHTPAR DONE  */
+#line 481 "compiler/parser.y"
                                               {
             LLVMValueRef fmt = NULL;
             switch ((yyvsp[-2].number).type) {
@@ -1875,11 +2177,11 @@ yyreduce:
                 LLVMBuildCall2(builder, printf_type, printf_func, args, 2, "");
             }
         }
-#line 1879 "objects/parser.tab.c"
+#line 2181 "objects/parser.tab.c"
     break;
 
-  case 29: /* printf: PRINTF LEFTPAR STRING RIGHTPAR DONE  */
-#line 321 "compiler/parser.y"
+  case 45: /* printf: PRINTF LEFTPAR STRING RIGHTPAR DONE  */
+#line 505 "compiler/parser.y"
                                               {
             LLVMValueRef fmt = fmt_str;
             LLVMValueRef args[1] = { fmt };
@@ -1887,11 +2189,11 @@ yyreduce:
             LLVMBuildCall2(builder, printf_type, printf_func, args, 1, "");
             free((yyvsp[-2].id));
         }
-#line 1891 "objects/parser.tab.c"
+#line 2193 "objects/parser.tab.c"
     break;
 
-  case 30: /* scanf: SCANF LEFTPAR ID RIGHTPAR DONE  */
-#line 331 "compiler/parser.y"
+  case 46: /* scanf: SCANF LEFTPAR ID RIGHTPAR DONE  */
+#line 515 "compiler/parser.y"
                                        {
             Symbol* sym = findSymbol((yyvsp[-2].id));
             sym->value = 0.0;
@@ -1923,53 +2225,53 @@ yyreduce:
                 }
             }
         }
-#line 1927 "objects/parser.tab.c"
+#line 2229 "objects/parser.tab.c"
     break;
 
-  case 31: /* expression: soma_sub  */
-#line 366 "compiler/parser.y"
+  case 47: /* expression: soma_sub  */
+#line 550 "compiler/parser.y"
                      { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; }
-#line 1933 "objects/parser.tab.c"
+#line 2235 "objects/parser.tab.c"
     break;
 
-  case 32: /* expression: mult_div  */
-#line 367 "compiler/parser.y"
+  case 48: /* expression: mult_div  */
+#line 551 "compiler/parser.y"
                              { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; }
-#line 1939 "objects/parser.tab.c"
+#line 2241 "objects/parser.tab.c"
     break;
 
-  case 33: /* expression: LEFTPAR expression RIGHTPAR  */
-#line 368 "compiler/parser.y"
+  case 49: /* expression: LEFTPAR expression RIGHTPAR  */
+#line 552 "compiler/parser.y"
                                         { (yyval.number).value = (yyvsp[-1].number).value; (yyval.number).type = (yyvsp[-1].number).type; (yyval.number).llvm_value = (yyvsp[-1].number).llvm_value; }
-#line 1945 "objects/parser.tab.c"
+#line 2247 "objects/parser.tab.c"
     break;
 
-  case 34: /* expression: comparison  */
-#line 369 "compiler/parser.y"
+  case 50: /* expression: comparison  */
+#line 553 "compiler/parser.y"
                        { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; }
-#line 1951 "objects/parser.tab.c"
+#line 2253 "objects/parser.tab.c"
     break;
 
-  case 35: /* expression: log_exp  */
-#line 370 "compiler/parser.y"
+  case 51: /* expression: log_exp  */
+#line 554 "compiler/parser.y"
                     { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; }
-#line 1957 "objects/parser.tab.c"
+#line 2259 "objects/parser.tab.c"
     break;
 
-  case 36: /* expression: cast  */
-#line 371 "compiler/parser.y"
+  case 52: /* expression: cast  */
+#line 555 "compiler/parser.y"
                  { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; }
-#line 1963 "objects/parser.tab.c"
+#line 2265 "objects/parser.tab.c"
     break;
 
-  case 37: /* expression: term  */
-#line 372 "compiler/parser.y"
+  case 53: /* expression: term  */
+#line 556 "compiler/parser.y"
                          { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; }
-#line 1969 "objects/parser.tab.c"
+#line 2271 "objects/parser.tab.c"
     break;
 
-  case 38: /* soma_sub: expression PLUS expression  */
-#line 375 "compiler/parser.y"
+  case 54: /* soma_sub: expression PLUS expression  */
+#line 559 "compiler/parser.y"
                                      { 
                 if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value + (yyvsp[0].number).value;
@@ -1992,11 +2294,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
         }
-#line 1996 "objects/parser.tab.c"
+#line 2298 "objects/parser.tab.c"
     break;
 
-  case 39: /* soma_sub: expression MIN expression  */
-#line 397 "compiler/parser.y"
+  case 55: /* soma_sub: expression MIN expression  */
+#line 581 "compiler/parser.y"
                                      {
                 if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value - (yyvsp[0].number).value;
@@ -2019,11 +2321,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
         }
-#line 2023 "objects/parser.tab.c"
+#line 2325 "objects/parser.tab.c"
     break;
 
-  case 40: /* mult_div: expression MULT expression  */
-#line 421 "compiler/parser.y"
+  case 56: /* mult_div: expression MULT expression  */
+#line 605 "compiler/parser.y"
                                      {
                 if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value * (yyvsp[0].number).value;
@@ -2046,11 +2348,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
         }
-#line 2050 "objects/parser.tab.c"
+#line 2352 "objects/parser.tab.c"
     break;
 
-  case 41: /* mult_div: expression DIV expression  */
-#line 443 "compiler/parser.y"
+  case 57: /* mult_div: expression DIV expression  */
+#line 627 "compiler/parser.y"
                                              { 
                 if ((yyvsp[0].number).value == 0.0) {
                         fprintf(stderr, "Error: division by zero at line %d.\n", yylineno);
@@ -2079,11 +2381,11 @@ yyreduce:
                     }
                 }
 		}
-#line 2083 "objects/parser.tab.c"
+#line 2385 "objects/parser.tab.c"
     break;
 
-  case 42: /* comparison: expression LESS expression  */
-#line 473 "compiler/parser.y"
+  case 58: /* comparison: expression LESS expression  */
+#line 657 "compiler/parser.y"
                                        {
                 if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value < (yyvsp[0].number).value;
@@ -2106,11 +2408,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
             }
-#line 2110 "objects/parser.tab.c"
+#line 2412 "objects/parser.tab.c"
     break;
 
-  case 43: /* comparison: expression GREAT expression  */
-#line 495 "compiler/parser.y"
+  case 59: /* comparison: expression GREAT expression  */
+#line 679 "compiler/parser.y"
                                           {
                 if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value > (yyvsp[0].number).value;
@@ -2133,11 +2435,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
             }
-#line 2137 "objects/parser.tab.c"
+#line 2439 "objects/parser.tab.c"
     break;
 
-  case 44: /* comparison: expression LEQUAL expression  */
-#line 517 "compiler/parser.y"
+  case 60: /* comparison: expression LEQUAL expression  */
+#line 701 "compiler/parser.y"
                                            {
                 if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value <= (yyvsp[0].number).value;
@@ -2160,11 +2462,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
             }
-#line 2164 "objects/parser.tab.c"
+#line 2466 "objects/parser.tab.c"
     break;
 
-  case 45: /* comparison: expression GEQUAL expression  */
-#line 539 "compiler/parser.y"
+  case 61: /* comparison: expression GEQUAL expression  */
+#line 723 "compiler/parser.y"
                                            {
                 if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value >= (yyvsp[0].number).value;
@@ -2187,11 +2489,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
             }
-#line 2191 "objects/parser.tab.c"
+#line 2493 "objects/parser.tab.c"
     break;
 
-  case 46: /* comparison: expression EQUAL expression  */
-#line 561 "compiler/parser.y"
+  case 62: /* comparison: expression EQUAL expression  */
+#line 745 "compiler/parser.y"
                                            { 
                 if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value == (yyvsp[0].number).value;
@@ -2218,11 +2520,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
             }
-#line 2222 "objects/parser.tab.c"
+#line 2524 "objects/parser.tab.c"
     break;
 
-  case 47: /* comparison: expression NEQUAL expression  */
-#line 587 "compiler/parser.y"
+  case 63: /* comparison: expression NEQUAL expression  */
+#line 771 "compiler/parser.y"
                                            {
                 if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
                     (yyval.number).value = (yyvsp[-2].number).value != (yyvsp[0].number).value;
@@ -2248,11 +2550,11 @@ yyreduce:
                     (yyval.number).type = TYPE_UNKNOWN;
                 }
             }
-#line 2252 "objects/parser.tab.c"
+#line 2554 "objects/parser.tab.c"
     break;
 
-  case 48: /* log_exp: expression AND expression  */
-#line 614 "compiler/parser.y"
+  case 64: /* log_exp: expression AND expression  */
+#line 798 "compiler/parser.y"
                                    {
             if ((yyvsp[-2].number).type == TYPE_BOOL && (yyvsp[0].number).type == TYPE_BOOL) {
                 (yyval.number).value = (yyvsp[-2].number).value && (yyvsp[0].number).value;
@@ -2264,11 +2566,11 @@ yyreduce:
                 (yyval.number).type = TYPE_UNKNOWN;
             }
        }
-#line 2268 "objects/parser.tab.c"
+#line 2570 "objects/parser.tab.c"
     break;
 
-  case 49: /* log_exp: expression OR expression  */
-#line 625 "compiler/parser.y"
+  case 65: /* log_exp: expression OR expression  */
+#line 809 "compiler/parser.y"
                                    {
             if ((yyvsp[-2].number).type == TYPE_BOOL && (yyvsp[0].number).type == TYPE_BOOL) {
                 (yyval.number).value = (yyvsp[-2].number).value || (yyvsp[0].number).value;
@@ -2280,11 +2582,11 @@ yyreduce:
                 (yyval.number).type = TYPE_UNKNOWN;
             }
        }
-#line 2284 "objects/parser.tab.c"
+#line 2586 "objects/parser.tab.c"
     break;
 
-  case 50: /* log_exp: NOT expression  */
-#line 636 "compiler/parser.y"
+  case 66: /* log_exp: NOT expression  */
+#line 820 "compiler/parser.y"
                         {
             if ((yyvsp[0].number).type == TYPE_BOOL) {
                 (yyval.number).value = !(yyvsp[0].number).value;
@@ -2296,73 +2598,73 @@ yyreduce:
                 (yyval.number).type = TYPE_UNKNOWN;
             }
         }
-#line 2300 "objects/parser.tab.c"
+#line 2602 "objects/parser.tab.c"
     break;
 
-  case 51: /* cast: LEFTPAR INT RIGHTPAR LEFTPAR expression RIGHTPAR  */
-#line 649 "compiler/parser.y"
+  case 67: /* cast: LEFTPAR INT RIGHTPAR LEFTPAR expression RIGHTPAR  */
+#line 833 "compiler/parser.y"
                                                        {
         int temp = (int) (yyvsp[-1].number).value;
         (yyval.number).value = (double) temp;
         (yyval.number).type = TYPE_INT;
         (yyval.number).llvm_value = LLVMBuildFPToSI(builder, (yyvsp[-1].number).llvm_value, LLVMInt32TypeInContext(context), "castint");
     }
-#line 2311 "objects/parser.tab.c"
+#line 2613 "objects/parser.tab.c"
     break;
 
-  case 52: /* cast: LEFTPAR INT RIGHTPAR term  */
-#line 655 "compiler/parser.y"
+  case 68: /* cast: LEFTPAR INT RIGHTPAR term  */
+#line 839 "compiler/parser.y"
                                 {
         int temp = (int) (yyvsp[0].number).value;
         (yyval.number).value = (double) temp;
         (yyval.number).type = TYPE_INT;
         (yyval.number).llvm_value = LLVMBuildFPToSI(builder, (yyvsp[0].number).llvm_value, LLVMInt32TypeInContext(context), "castint");
     }
-#line 2322 "objects/parser.tab.c"
+#line 2624 "objects/parser.tab.c"
     break;
 
-  case 53: /* cast: LEFTPAR FLOAT RIGHTPAR LEFTPAR expression RIGHTPAR  */
-#line 661 "compiler/parser.y"
+  case 69: /* cast: LEFTPAR FLOAT RIGHTPAR LEFTPAR expression RIGHTPAR  */
+#line 845 "compiler/parser.y"
                                                          {
         (yyval.number).value = (yyvsp[-1].number).value;
         (yyval.number).type = TYPE_FLOAT;
         (yyval.number).llvm_value = LLVMBuildSIToFP(builder, (yyvsp[-1].number).llvm_value, LLVMDoubleTypeInContext(context), "castfloat");
     }
-#line 2332 "objects/parser.tab.c"
+#line 2634 "objects/parser.tab.c"
     break;
 
-  case 54: /* cast: LEFTPAR FLOAT RIGHTPAR term  */
-#line 666 "compiler/parser.y"
+  case 70: /* cast: LEFTPAR FLOAT RIGHTPAR term  */
+#line 850 "compiler/parser.y"
                                   {
         (yyval.number).value = (yyvsp[0].number).value;
         (yyval.number).type = TYPE_FLOAT;
         (yyval.number).llvm_value = LLVMBuildSIToFP(builder, (yyvsp[0].number).llvm_value, LLVMDoubleTypeInContext(context), "castfloat");
     }
-#line 2342 "objects/parser.tab.c"
+#line 2644 "objects/parser.tab.c"
     break;
 
-  case 55: /* cast: LEFTPAR CHAR RIGHTPAR LEFTPAR expression RIGHTPAR  */
-#line 671 "compiler/parser.y"
+  case 71: /* cast: LEFTPAR CHAR RIGHTPAR LEFTPAR expression RIGHTPAR  */
+#line 855 "compiler/parser.y"
                                                         {
         (yyval.number).value = (double) ((char) (yyvsp[-1].number).value);
         (yyval.number).type = TYPE_CHAR;
         (yyval.number).llvm_value = LLVMBuildTrunc(builder, (yyvsp[-1].number).llvm_value, LLVMInt8TypeInContext(context), "castchar");
     }
-#line 2352 "objects/parser.tab.c"
+#line 2654 "objects/parser.tab.c"
     break;
 
-  case 56: /* cast: LEFTPAR CHAR RIGHTPAR term  */
-#line 676 "compiler/parser.y"
+  case 72: /* cast: LEFTPAR CHAR RIGHTPAR term  */
+#line 860 "compiler/parser.y"
                                  {
         (yyval.number).value = (double) ((char) (yyvsp[0].number).value);
         (yyval.number).type = TYPE_CHAR;
         (yyval.number).llvm_value = LLVMBuildTrunc(builder, (yyvsp[0].number).llvm_value, LLVMInt8TypeInContext(context), "castchar");
     }
-#line 2362 "objects/parser.tab.c"
+#line 2664 "objects/parser.tab.c"
     break;
 
-  case 57: /* cast: LEFTPAR BOOL RIGHTPAR LEFTPAR expression RIGHTPAR  */
-#line 681 "compiler/parser.y"
+  case 73: /* cast: LEFTPAR BOOL RIGHTPAR LEFTPAR expression RIGHTPAR  */
+#line 865 "compiler/parser.y"
                                                         {
         (yyval.number).value = ((yyvsp[-1].number).value != 0.0) ? 1.0 : 0.0;
         (yyval.number).type = TYPE_BOOL;
@@ -2370,11 +2672,11 @@ yyreduce:
         LLVMValueRef zero = LLVMConstInt(LLVMTypeOf((yyvsp[-1].number).llvm_value), 0, 0);
         (yyval.number).llvm_value = LLVMBuildICmp(builder, LLVMIntNE, (yyvsp[-1].number).llvm_value, zero, "castbool");
     }
-#line 2374 "objects/parser.tab.c"
+#line 2676 "objects/parser.tab.c"
     break;
 
-  case 58: /* cast: LEFTPAR BOOL RIGHTPAR term  */
-#line 688 "compiler/parser.y"
+  case 74: /* cast: LEFTPAR BOOL RIGHTPAR term  */
+#line 872 "compiler/parser.y"
                                  {
         (yyval.number).value = ((yyvsp[0].number).value != 0.0) ? 1.0 : 0.0;
         (yyval.number).type = TYPE_BOOL;
@@ -2382,11 +2684,11 @@ yyreduce:
         LLVMValueRef zero = LLVMConstInt(LLVMTypeOf((yyvsp[0].number).llvm_value), 0, 0);
         (yyval.number).llvm_value = LLVMBuildICmp(builder, LLVMIntNE, (yyvsp[0].number).llvm_value, zero, "castbool");
     }
-#line 2386 "objects/parser.tab.c"
+#line 2688 "objects/parser.tab.c"
     break;
 
-  case 59: /* term: NUMBER  */
-#line 697 "compiler/parser.y"
+  case 75: /* term: NUMBER  */
+#line 881 "compiler/parser.y"
              { 
         (yyval.number).value = (yyvsp[0].number).value; 
         (yyval.number).type = (yyvsp[0].number).type; 
@@ -2397,11 +2699,11 @@ yyreduce:
             default:         (yyval.number).llvm_value = LLVMConstReal(LLVMDoubleTypeInContext(context), (yyvsp[0].number).value); break;
         }
     }
-#line 2401 "objects/parser.tab.c"
+#line 2703 "objects/parser.tab.c"
     break;
 
-  case 60: /* term: ID  */
-#line 707 "compiler/parser.y"
+  case 76: /* term: ID  */
+#line 891 "compiler/parser.y"
          {
         Symbol* sym = findSymbol((yyvsp[0].id));
         if (!sym) {
@@ -2429,21 +2731,21 @@ yyreduce:
             }
         }
     }
-#line 2433 "objects/parser.tab.c"
+#line 2735 "objects/parser.tab.c"
     break;
 
-  case 61: /* term: CARACTERE  */
-#line 734 "compiler/parser.y"
+  case 77: /* term: CARACTERE  */
+#line 918 "compiler/parser.y"
                 {
         (yyval.number).value = (double) (yyvsp[0].caractere);
         (yyval.number).type = TYPE_CHAR;
         (yyval.number).llvm_value = LLVMConstInt(LLVMInt8TypeInContext(context), (yyvsp[0].caractere), 0);
     }
-#line 2443 "objects/parser.tab.c"
+#line 2745 "objects/parser.tab.c"
     break;
 
 
-#line 2447 "objects/parser.tab.c"
+#line 2749 "objects/parser.tab.c"
 
       default: break;
     }
@@ -2667,7 +2969,7 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 742 "compiler/parser.y"
+#line 926 "compiler/parser.y"
 
 
 int yywrap( ) {
