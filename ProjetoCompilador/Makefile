@@ -64,4 +64,7 @@ printscan: all
 declaracao: EXEMPLO = Exemplos/ExemplosDeclaracaoInicializavel.txt
 declaracao: all
 
-.PHONY: all clean condicional printscan declaracao
+ifs: EXEMPLO = Exemplos/ExemplosIfs.txt
+ifs: all
+
+.PHONY: all clean condicional printscan declaracao ifs

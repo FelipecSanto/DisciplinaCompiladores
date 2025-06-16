@@ -71,7 +71,7 @@ ConditionalContext* top_cond_context() {
 }
 
 
-%token IF ELSE ELSEIF
+%token IF ELSEIF ELSE
 %token INT CHAR FLOAT BOOL
 %token PRINTF SCANF
 %token WHILE
