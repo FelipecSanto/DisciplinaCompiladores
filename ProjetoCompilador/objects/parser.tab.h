@@ -56,39 +56,40 @@ extern int yydebug;
     YYUNDEF = 257,                 /* "invalid token"  */
     IF = 258,                      /* IF  */
     ELSE = 259,                    /* ELSE  */
-    INT = 260,                     /* INT  */
-    CHAR = 261,                    /* CHAR  */
-    FLOAT = 262,                   /* FLOAT  */
-    BOOL = 263,                    /* BOOL  */
-    PRINTF = 264,                  /* PRINTF  */
-    SCANF = 265,                   /* SCANF  */
-    WHILE = 266,                   /* WHILE  */
-    NUMBER = 267,                  /* NUMBER  */
-    ID = 268,                      /* ID  */
-    STRING = 269,                  /* STRING  */
-    CARACTERE = 270,               /* CARACTERE  */
-    RECEIVE = 271,                 /* RECEIVE  */
-    EQUAL = 272,                   /* EQUAL  */
-    NEQUAL = 273,                  /* NEQUAL  */
-    LESS = 274,                    /* LESS  */
-    GREAT = 275,                   /* GREAT  */
-    LEQUAL = 276,                  /* LEQUAL  */
-    GEQUAL = 277,                  /* GEQUAL  */
-    AND = 278,                     /* AND  */
-    OR = 279,                      /* OR  */
-    NOT = 280,                     /* NOT  */
-    PLUS = 281,                    /* PLUS  */
-    MIN = 282,                     /* MIN  */
-    MULT = 283,                    /* MULT  */
-    DIV = 284,                     /* DIV  */
-    LEFTPAR = 285,                 /* LEFTPAR  */
-    RIGHTPAR = 286,                /* RIGHTPAR  */
-    LEFTKEYS = 287,                /* LEFTKEYS  */
-    RIGHTKEYS = 288,               /* RIGHTKEYS  */
-    LEFTBRACKET = 289,             /* LEFTBRACKET  */
-    RIGHTBRACKET = 290,            /* RIGHTBRACKET  */
-    COMMA = 291,                   /* COMMA  */
-    DONE = 292                     /* DONE  */
+    ELSEIF = 260,                  /* ELSEIF  */
+    INT = 261,                     /* INT  */
+    CHAR = 262,                    /* CHAR  */
+    FLOAT = 263,                   /* FLOAT  */
+    BOOL = 264,                    /* BOOL  */
+    PRINTF = 265,                  /* PRINTF  */
+    SCANF = 266,                   /* SCANF  */
+    WHILE = 267,                   /* WHILE  */
+    NUMBER = 268,                  /* NUMBER  */
+    ID = 269,                      /* ID  */
+    STRING = 270,                  /* STRING  */
+    CARACTERE = 271,               /* CARACTERE  */
+    RECEIVE = 272,                 /* RECEIVE  */
+    EQUAL = 273,                   /* EQUAL  */
+    NEQUAL = 274,                  /* NEQUAL  */
+    LESS = 275,                    /* LESS  */
+    GREAT = 276,                   /* GREAT  */
+    LEQUAL = 277,                  /* LEQUAL  */
+    GEQUAL = 278,                  /* GEQUAL  */
+    AND = 279,                     /* AND  */
+    OR = 280,                      /* OR  */
+    NOT = 281,                     /* NOT  */
+    PLUS = 282,                    /* PLUS  */
+    MIN = 283,                     /* MIN  */
+    MULT = 284,                    /* MULT  */
+    DIV = 285,                     /* DIV  */
+    LEFTPAR = 286,                 /* LEFTPAR  */
+    RIGHTPAR = 287,                /* RIGHTPAR  */
+    LEFTKEYS = 288,                /* LEFTKEYS  */
+    RIGHTKEYS = 289,               /* RIGHTKEYS  */
+    LEFTBRACKET = 290,             /* LEFTBRACKET  */
+    RIGHTBRACKET = 291,            /* RIGHTBRACKET  */
+    COMMA = 292,                   /* COMMA  */
+    DONE = 293                     /* DONE  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -97,7 +98,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 15 "compiler/parser.y"
+#line 58 "compiler/parser.y"
 
     struct {
         double value;
@@ -115,7 +116,7 @@ union YYSTYPE
         LLVMBasicBlockRef condBB, bodyBB, endWHILEBB;
     } while_blocks;
 
-#line 119 "objects/parser.tab.h"
+#line 120 "objects/parser.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

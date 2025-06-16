@@ -67,4 +67,7 @@ declaracao: all
 vetor: EXEMPLO = Exemplos/ExemplosVetor.txt
 vetor: all
 
-.PHONY: all clean condicional printscan declaracao vetor
+escopo: EXEMPLO = Exemplos/ExemplosEscopo.txt
+escopo: all
+
+.PHONY: all clean condicional printscan declaracao vetor escopo
