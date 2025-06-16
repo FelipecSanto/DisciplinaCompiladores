@@ -16,7 +16,7 @@ PARSER_H = $(OBJDIR)/parser.tab.h
 LEXER_C = $(OBJDIR)/lexer.yy.c
 
 TARGET = $(OBJDIR)/ccompiler
-EXEMPLO = Exemplos/ExemplosPrintfScanf.txt
+EXEMPLO = Exemplos/PrintfScanf.c
 
 # Regras principais
 all: $(OBJDIR) $(TARGET)
@@ -55,19 +55,22 @@ clean:
 	@echo "Limpeza concluída!"
 	@echo "=================================="
 
-condicional: EXEMPLO = Exemplos/ExemplosCondicionais.txt
+condicional: EXEMPLO = Exemplos/Condicionais.c
 condicional: all
 
-printscan: EXEMPLO = Exemplos/ExemplosPrintfScanf.txt
+printscan: EXEMPLO = Exemplos/PrintfScanf.c
 printscan: all
 
-declaracao: EXEMPLO = Exemplos/ExemplosDeclaracaoInicializavel.txt
+declaracao: EXEMPLO = Exemplos/DeclaracaoInicializavel.c
 declaracao: all
 
-vetor: EXEMPLO = Exemplos/ExemplosVetor.txt
+vetor: EXEMPLO = Exemplos/Vetor.c
 vetor: all
 
-escopo: EXEMPLO = Exemplos/ExemplosEscopo.txt
+escopo: EXEMPLO = Exemplos/Escopo.c
 escopo: all
 
-.PHONY: all clean condicional printscan declaracao vetor escopo
+cast: EXEMPLO = Exemplos/Casts.c
+cast: all
+
+.PHONY: all clean condicional printscan declaracao vetor escopo cast
