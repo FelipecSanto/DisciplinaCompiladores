@@ -17,6 +17,7 @@
 %%
 
 [iI][fF]					{ return IF; }
+[eE][lL][sS][eE][iI][fF]    { return ELSEIF; }
 [eE][lL][sS][eE]			{ return ELSE; }
 
 [iI][nN][tT]				{ return INT; }

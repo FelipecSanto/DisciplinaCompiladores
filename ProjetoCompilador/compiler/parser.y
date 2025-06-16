@@ -10,6 +10,49 @@ extern int yylineno;
 double* vals = NULL; // Array para armazenar valores de inicialização de vetor
 int array_value_count = 0; // Contador de valores de vetor
 
+#define MAX_SCOPE_DEPTH 20  // Profundidade máxima de aninhamento
+
+typedef struct {
+    LLVMBasicBlockRef endBB;      // Bloco de fim do contexto atual
+    LLVMBasicBlockRef nextCondBB; // Próxima condição na cadeia
+} ConditionalContext;
+
+typedef struct {
+    ConditionalContext contexts[MAX_SCOPE_DEPTH];
+    int top;
+} CondContextStack;
+
+static CondContextStack condStack = { .top = -1 };
+
+// Função para empilhar contexto
+void push_cond_context(LLVMBasicBlockRef endBB, LLVMBasicBlockRef nextCondBB) {
+    if (condStack.top >= MAX_SCOPE_DEPTH - 1) {
+        fprintf(stderr, "Error: Maximum nesting depth exceeded at line %d\n", yylineno);
+        exit(1);
+    }
+    
+    condStack.top++;
+    condStack.contexts[condStack.top].endBB = endBB;
+    condStack.contexts[condStack.top].nextCondBB = nextCondBB;
+}
+
+// Função para desempilhar contexto
+ConditionalContext pop_cond_context() {
+    if (condStack.top < 0) {
+        fprintf(stderr, "Error: Condition stack underflow at line %d\n", yylineno);
+        exit(1);
+    }
+    
+    return condStack.contexts[condStack.top--];
+}
+
+// Função para acessar o topo sem desempilhar
+ConditionalContext* top_cond_context() {
+    if (condStack.top < 0) {
+        return NULL;
+    }
+    return &condStack.contexts[condStack.top];
+}
 %}
 
 %union {
@@ -31,7 +74,7 @@ int array_value_count = 0; // Contador de valores de vetor
 }
 
 
-%token IF ELSE
+%token IF ELSE ELSEIF
 %token INT CHAR FLOAT BOOL
 %token PRINTF SCANF
 %token WHILE
@@ -58,7 +101,7 @@ int array_value_count = 0; // Contador de valores de vetor
 %type program declaration comand assignment
 %type printf scanf
 %type int_declaration float_declaration char_declaration bool_declaration intArray_declaration array_values
-%type <if_else_blocks> if_then else if_then_aux if_then_aux2
+%type <if_else_blocks> if_statement
 %type <while_blocks> while while_aux
 
 /* give us more detailed errors */
@@ -324,7 +367,7 @@ array_values: expression {
 
 
 comand: assignment {}
-      | if_then {}
+      | if_statement {}
       | while {}
       | printf {}
       | scanf {}
@@ -408,53 +451,91 @@ assignment: ID RECEIVE expression DONE {
 
 
 
-
-if_then: IF LEFTPAR expression RIGHTPAR {
-            pushScope();
-            if ($3.type != TYPE_BOOL) {
-                fprintf(stderr, "Error: condition is not boolean at line %d.\n", yylineno);
-            }
-            aux = $3.llvm_value;
-        } if_then_aux LEFTKEYS program RIGHTKEYS if_then_aux2 {
-            popScope();
-
-            // Ao final do bloco if, faz branch para o fim do if
-            LLVMBuildBr(builder, $10.endIFBB);
-
-            // Entra no bloco else para continuar parsing
-            LLVMPositionBuilderAtEnd(builder, $6.elseBB);
-        } else {
-            // Ao final do else, faz branch para o fim do if
-            LLVMBuildBr(builder, $10.endIFBB);
-
-            // Posiciona o builder no bloco de saída do if
-            LLVMPositionBuilderAtEnd(builder, $10.endIFBB);
+if_statement: 
+    IF LEFTPAR expression RIGHTPAR {
+        if ($3.type != TYPE_BOOL) {
+            fprintf(stderr, "Error: condition is not boolean at line %d.\n", yylineno);
         }
-        ;
-
-if_then_aux: {
-    // Cria blocos para if, else e fim
-    $$.ifBB = LLVMAppendBasicBlockInContext(context, mainFunc, "if");
-    $$.elseBB = LLVMAppendBasicBlockInContext(context, mainFunc, "else");
-
-    // Gera branch condicional
-    LLVMBuildCondBr(builder, aux, $$.ifBB, $$.elseBB);
-
-    // Entra no bloco do if
-    LLVMPositionBuilderAtEnd(builder, $$.ifBB);
-};
-
-if_then_aux2: {
-    $$.endIFBB = LLVMAppendBasicBlockInContext(context, mainFunc, "endif");
-};
-
-else: /* empty */ {}
-    | ELSE {
+        
+        // Cria blocos básicos
+        LLVMBasicBlockRef ifBB = LLVMAppendBasicBlockInContext(context, mainFunc, "if");
+        LLVMBasicBlockRef nextCondBB = LLVMAppendBasicBlockInContext(context, mainFunc, "next_cond");
+        LLVMBasicBlockRef endBB = LLVMAppendBasicBlockInContext(context, mainFunc, "endif");
+        
+        // Empilha contexto
+        push_cond_context(endBB, nextCondBB);
+        
+        // Gera branch condicional
+        LLVMBuildCondBr(builder, $3.llvm_value, ifBB, nextCondBB);
+        
+        // Entra no bloco if
+        LLVMPositionBuilderAtEnd(builder, ifBB);
         pushScope();
-    } LEFTKEYS program RIGHTKEYS {
+    } 
+    LEFTKEYS program RIGHTKEYS {
         popScope();
+        ConditionalContext* current = top_cond_context();
+        LLVMBuildBr(builder, current->endBB);
+        LLVMPositionBuilderAtEnd(builder, current->nextCondBB);
+    }
+    else_if_chain
+    {
+        // Finaliza este contexto
+        ConditionalContext context = pop_cond_context();
+        LLVMPositionBuilderAtEnd(builder, context.endBB);
     }
     ;
+
+else_if_chain:
+    /* empty */ {
+        ConditionalContext* current = top_cond_context();
+        LLVMBuildBr(builder, current->endBB);
+    }
+    | ELSE LEFTPAR expression RIGHTPAR {
+        fprintf(stderr, "Error: else cannot have a condition at line %d.\n", yylineno);
+    }
+    | ELSE {
+        pushScope();
+        ConditionalContext* current = top_cond_context();
+        // Transforma o nextCondBB em bloco else
+        LLVMPositionBuilderAtEnd(builder, current->nextCondBB);
+    } 
+    LEFTKEYS program RIGHTKEYS {
+        popScope();
+        ConditionalContext* current = top_cond_context();
+        LLVMBuildBr(builder, current->endBB);
+    }
+    | ELSEIF LEFTPAR expression RIGHTPAR {
+        if ($3.type != TYPE_BOOL) {
+            fprintf(stderr, "Error: condition is not boolean at line %d.\n", yylineno);
+        }
+        
+        ConditionalContext* current = top_cond_context();
+        
+        // Cria blocos para este elseif
+        LLVMBasicBlockRef elseifBB = LLVMAppendBasicBlockInContext(context, mainFunc, "elseif");
+        LLVMBasicBlockRef newNextBB = LLVMAppendBasicBlockInContext(context, mainFunc, "next_cond");
+        
+        // Gera branch condicional
+        LLVMBuildCondBr(builder, $3.llvm_value, elseifBB, newNextBB);
+        
+        // Atualiza contexto
+        current->nextCondBB = newNextBB;
+        
+        // Entra no bloco elseif
+        LLVMPositionBuilderAtEnd(builder, elseifBB);
+        pushScope();
+    } 
+    LEFTKEYS program RIGHTKEYS {
+        popScope();
+        ConditionalContext* current = top_cond_context();
+        LLVMBuildBr(builder, current->endBB);
+        LLVMPositionBuilderAtEnd(builder, current->nextCondBB);
+    }
+    else_if_chain
+    ;
+
+
 
 
 
