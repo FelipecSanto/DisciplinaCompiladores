@@ -837,6 +837,7 @@ comand: assignment {}
       | if_statement {}
       | while {}
       | for {}
+      | for {}
       | printf {}
       | scanf {}
       | return {}
