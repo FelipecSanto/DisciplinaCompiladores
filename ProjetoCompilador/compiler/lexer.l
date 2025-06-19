@@ -32,6 +32,8 @@
 
 [wW][hH][iI][lL][eE]	    { return WHILE; }
 
+[fF][oO][rR]			    { return FOR; }
+
 [vV][oO][iI][dD]			{ return VOID; }
 
 [rR][eE][tT][uU][rR][nN]	{ return RETURN; }
