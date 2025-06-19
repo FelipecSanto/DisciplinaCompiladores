@@ -1671,27 +1671,11 @@ int main() {
 
     currentFunc = NULL; // Inicializa o ponteiro da função atual
 
-    // Variáveis globais para formatação de strings
-    fmt_int   = LLVMAddGlobal(module, LLVMArrayType(LLVMInt8TypeInContext(context), 4), "fmt_int");
-    LLVMSetInitializer(fmt_int, LLVMConstStringInContext(context, "%d\n", 4, 0));
-
-    fmt_float = LLVMAddGlobal(module, LLVMArrayType(LLVMInt8TypeInContext(context), 4), "fmt_float");
-    LLVMSetInitializer(fmt_float, LLVMConstStringInContext(context, "%f\n", 4, 0));
-
-    fmt_char  = LLVMAddGlobal(module, LLVMArrayType(LLVMInt8TypeInContext(context), 4), "fmt_char");
-    LLVMSetInitializer(fmt_char, LLVMConstStringInContext(context, "%c\n", 4, 0));
-
-    fmt_bool  = LLVMAddGlobal(module, LLVMArrayType(LLVMInt8TypeInContext(context), 4), "fmt_bool");
-    LLVMSetInitializer(fmt_bool, LLVMConstStringInContext(context, "%d\n", 4, 0));
-
-    fmt_str   = LLVMAddGlobal(module, LLVMArrayType(LLVMInt8TypeInContext(context), 4), "fmt_str");
-    LLVMSetInitializer(fmt_str, LLVMConstStringInContext(context, "%s\n", 4, 0));
-
     yyparse( );
 
     // Imprime IR
     char *irstr = LLVMPrintModuleToString(module);
-    printf("\nLLVM IR:\n%s\n", irstr);
+    printf("%s", irstr);
     LLVMDisposeMessage(irstr);
 
     LLVMDisposeBuilder(builder);

@@ -16,14 +16,21 @@ PARSER_H = $(OBJDIR)/parser.tab.h
 LEXER_C = $(OBJDIR)/lexer.yy.c
 
 TARGET = $(OBJDIR)/ccompiler
-EXEMPLO = Exemplos/PrintfScanf.c
+EXEMPLO = Exemplos/WhileFor.c
+OUTPUT_LLVM = output.ll
 
 # Regras principais
-all: $(OBJDIR) $(TARGET)
+all: $(OUTPUT_LLVM)
 	@echo "=================================="
-	@echo " Compilando e executando exemplo "
+	@echo " Criando arquivo assembly "
 	@echo "=================================="
-	@./$(TARGET) < $(EXEMPLO)
+	llc -march=riscv32 -mattr=+m,+a,+f,+d output.ll -o output.asm
+
+$(OUTPUT_LLVM): $(OBJDIR) $(TARGET)
+	@echo "=================================="
+	@echo " Criando arquivo LLVM "
+	@echo "=================================="
+	@./$(TARGET) < $(EXEMPLO) > $(OUTPUT_LLVM)
 
 $(TARGET): $(PARSER_C) $(LEXER_C) $(SRC)
 	@echo "=================================="

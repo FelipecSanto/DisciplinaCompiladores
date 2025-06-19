@@ -21,4 +21,6 @@ int main() {
     printf("Digite um booleano (0 ou 1):\n");
     scanf("%d", &d);
     printf("Voce digitou o booleano: %d\n", d);
+
+    return 0;
 }
