@@ -28,6 +28,8 @@
 [Pp][rR][iI][nN][tT][fF]	{ return PRINTF; }
 [Ss][cC][aA][nN][fF]	    { return SCANF; }
 
+"&"                         { return ADDRESS; }
+
 [wW][hH][iI][lL][eE]	    { return WHILE; }
 
 [vV][oO][iI][dD]			{ return VOID; }

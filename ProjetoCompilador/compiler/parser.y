@@ -47,12 +47,17 @@ int param_call_count = 0;
     struct {
         LLVMBasicBlockRef condBB, bodyBB, endWHILEBB;
     } while_blocks;
+
+    struct {
+        LLVMValueRef values[10];
+        int count;
+    } printf;
 }
 
 
 %token IF ELSE ELSEIF
 %token INT CHAR FLOAT BOOL
-%token PRINTF SCANF
+%token PRINTF SCANF ADDRESS
 %token WHILE
 %token VOID RETURN
 %token <number> NUMBER
@@ -83,14 +88,17 @@ int param_call_count = 0;
 %type int_function float_function char_function bool_function void_function
 
 %type printf scanf assignment return comand
+%type <printf> printf_args scanf_args
 
 %type int_declaration_global float_declaration_global char_declaration_global bool_declaration_global 
-%type array_values_global
+%type int_declaration_global_list float_declaration_global_list char_declaration_global_list bool_declaration_global_list
+%type int_declaration_globals float_declaration_globals char_declaration_globals bool_declaration_globals
 
-%type array
+%type array_global array_local array_values_global array_values_local
 
 %type int_declaration_local float_declaration_local char_declaration_local bool_declaration_local
-%type intArray_declaration_local array_values_local
+%type int_declaration_local_list float_declaration_local_list char_declaration_local_list bool_declaration_local_list
+%type int_declaration_locals float_declaration_locals char_declaration_locals bool_declaration_locals
 
 %type <if_else_blocks> if_statement
 %type <while_blocks> while while_aux
@@ -401,9 +409,9 @@ int_declaration_global
         LLVMSetInitializer(global, $3.llvm_value);
         setVarLLVM($1, global);
     }
-    | array {};
+    | array_global {};
 
-array
+array_global
     : ID LEFTBRACKET term_const RIGHTBRACKET {
         // Declaração de vetor
         int size = (int)$3.value;
@@ -526,7 +534,7 @@ array_values_global
         vals[0] = $1.value;
         array_value_count = 1;
     }
-    | array_values_local COMMA term_const {
+    | array_values_global COMMA term_const {
         vals = realloc(vals, sizeof(double) * (array_value_count + 1));
         vals[array_value_count] = $3.value;
         array_value_count++;
@@ -552,149 +560,38 @@ term_const
 };
 
 
-
 declaration_local
-    : INT ID int_declaration_local DONE {
-        insertSymbol($2, -DBL_MAX, TYPE_INT);
-        allocaVars($2, TYPE_INT);
-    }
-    | INT ID RECEIVE expression int_declaration_local DONE {
-        insertSymbol($2, $4.value, TYPE_INT);
-        allocaVars($2, TYPE_INT);
-        Symbol* symbol = findSymbol($2);
-        LLVMValueRef var = getVarLLVM($2);
-        LLVMTypeRef llvm_type = LLVMInt32TypeInContext(context);
-        LLVMValueRef value = $4.llvm_value;
-        if(symbol) {
-            if ($4.type == TYPE_INT) {
-                LLVMBuildStore(builder, value, var);
-            }
-            else if ($4.type == TYPE_FLOAT) {
-                printf("Warning: casting float to int for variable '%s' at line %d.\n", $2, yylineno);
-                value = LLVMBuildFPToSI(builder, value, llvm_type, "floattoint");
-                LLVMBuildStore(builder, value, var);
-            } else {
-                fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
-            }
-        }
-    }
-    | INT ID LEFTBRACKET expression RIGHTBRACKET intArray_declaration_local DONE {
-        // Declaração de vetor
-        int size = (int)$4.value;
-        if (size <= 0) {
-            fprintf(stderr, "Error: array size must be positive at line %d.\n", yylineno);
-        } else {
-            double valores[size];
-            for (int i = 0; i < size; i++) {
-                valores[i] = -DBL_MAX; // Inicializa com valor padrão
-            }
-            createArraySymbol($2, valores, size);
-            allocaArrayVars($2, TYPE_INT, size);
-        }
-    }
-    | INT ID LEFTBRACKET expression RIGHTBRACKET RECEIVE LEFTKEYS array_values_local RIGHTKEYS intArray_declaration_local DONE {
-        int size = (int)$4.value;
-        if (size <= 0) {
-            fprintf(stderr, "Error: array size must be positive at line %d.\n", yylineno);
-        } else if (array_value_count != size) {
-            fprintf(stderr, "Error: number of initializers (%d) does not match array size (%d) at line %d.\n", array_value_count, size, yylineno);
-        } else {
-            createArraySymbol($2, vals, size);
-            allocaArrayVars($2, TYPE_INT, size);
-            LLVMValueRef var = getVarLLVM($2);
-            for (int i = 0; i < size; i++) {
-                LLVMValueRef idx = LLVMConstInt(LLVMInt32TypeInContext(context), i, 0);
-                LLVMValueRef indices[2] = { LLVMConstInt(LLVMInt32TypeInContext(context), 0, 0), idx };
-                LLVMValueRef array_ptr = LLVMBuildGEP2(builder, LLVMInt32TypeInContext(context), var, indices, 2, "");
-                LLVMValueRef val = LLVMConstInt(LLVMInt32TypeInContext(context), (int)vals[i], 0);
-                LLVMBuildStore(builder, val, array_ptr);
-            }
-        }
-        free(vals);
-        vals = NULL; // Libera o array de valores
-        array_value_count = 0;
-    }
-    | FLOAT ID float_declaration_local DONE {
-        insertSymbol($2, -DBL_MAX, TYPE_FLOAT);
-        allocaVars($2, TYPE_FLOAT);
-    }
-    | FLOAT ID RECEIVE expression float_declaration_local DONE {
-        insertSymbol($2, $4.value, TYPE_FLOAT);
-        allocaVars($2, TYPE_FLOAT);
-        Symbol* symbol = findSymbol($2);
-        LLVMValueRef var = getVarLLVM($2);
-        LLVMTypeRef llvm_type = LLVMDoubleTypeInContext(context);
-        LLVMValueRef value = $4.llvm_value;
-        if(symbol) {
-            if ($4.type == TYPE_FLOAT) {
-                LLVMBuildStore(builder, value, var);
-            }
-            else if ($4.type == TYPE_INT) {
-                value = LLVMBuildSIToFP(builder, value, llvm_type, "inttofloat");
-                LLVMBuildStore(builder, value, var);
-            } else {
-                fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
-            }
-        }
-    }
-    | CHAR ID char_declaration_local DONE {
-        insertSymbol($2, -DBL_MAX, TYPE_CHAR);
-        allocaVars($2, TYPE_CHAR);
-    }
-    | CHAR ID RECEIVE expression char_declaration_local DONE {
-        insertSymbol($2, $4.value, TYPE_CHAR);
-        allocaVars($2, TYPE_CHAR);
-        Symbol* symbol = findSymbol($2);
-        LLVMValueRef var = getVarLLVM($2);
-        LLVMValueRef value = $4.llvm_value;
-        if(symbol) {
-            if ($4.type == TYPE_CHAR) {
-                LLVMBuildStore(builder, value, var);
-            } else {
-                fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
-            }
-        }
-    }
-    | BOOL ID bool_declaration_local DONE {
-        insertSymbol($2, -DBL_MAX, TYPE_BOOL);
-        allocaVars($2, TYPE_BOOL);
-    }
-    | BOOL ID RECEIVE expression bool_declaration_local DONE {
-        insertSymbol($2, $4.value, TYPE_BOOL);
-        allocaVars($2, TYPE_BOOL);
-        Symbol* symbol = findSymbol($2);
-        LLVMValueRef var = getVarLLVM($2);
-        LLVMValueRef value = $4.llvm_value;
-        if(symbol) {
-            if ($4.type == TYPE_BOOL) {
-                LLVMBuildStore(builder, value, var);
-            } else {
-                fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
-            }
-        }
-    }
-    ;
+    : int_declaration_locals {}
+    | float_declaration_locals {}
+    | char_declaration_locals {}
+    | bool_declaration_locals {};
 
+
+int_declaration_locals
+    : INT int_declaration_local int_declaration_local_list DONE {};
+
+int_declaration_local_list
+    : /* empty */ {}
+    | COMMA int_declaration_local int_declaration_local_list {};
 
 int_declaration_local
-    : /* empty */ {}
-    | COMMA ID int_declaration_local {
-        insertSymbol($2, -DBL_MAX, TYPE_INT);
-        allocaVars($2, TYPE_INT);
+    : ID {
+        insertSymbol($1, -DBL_MAX, TYPE_INT);
+        allocaVars($1, TYPE_INT);
     }
-    | COMMA ID RECEIVE expression int_declaration_local {
-        insertSymbol($2, $4.value, TYPE_INT);
-        allocaVars($2, TYPE_INT);
-        Symbol* symbol = findSymbol($2);
-        LLVMValueRef var = getVarLLVM($2);
+    | ID RECEIVE expression {
+        insertSymbol($1, $3.value, TYPE_INT);
+        allocaVars($1, TYPE_INT);
+        Symbol* symbol = findSymbol($1);
+        LLVMValueRef var = getVarLLVM($1);
         LLVMTypeRef llvm_type = LLVMInt32TypeInContext(context);
-        LLVMValueRef value = $4.llvm_value;
+        LLVMValueRef value = $3.llvm_value;
         if(symbol) {
-            if ($4.type == TYPE_INT) {
+            if ($3.type == TYPE_INT) {
                 LLVMBuildStore(builder, value, var);
             }
-            else if ($4.type == TYPE_FLOAT) {
-                printf("Warning: casting float to int for variable '%s' at line %d.\n", $2, yylineno);
+            else if ($3.type == TYPE_FLOAT) {
+                printf("Warning: casting float to int for variable '%s' at line %d.\n", $1, yylineno);
                 value = LLVMBuildFPToSI(builder, value, llvm_type, "floattoint");
                 LLVMBuildStore(builder, value, var);
             } else {
@@ -702,14 +599,13 @@ int_declaration_local
             }
         }
     }
+    | array_local
     ;
 
-
-intArray_declaration_local
-    : /* empty */ {}
-    | COMMA ID LEFTBRACKET expression RIGHTBRACKET intArray_declaration_local {
+array_local
+    : ID LEFTBRACKET expression RIGHTBRACKET {
         // Declaração de vetor
-        int size = (int)$4.value;
+        int size = (int)$3.value;
         if (size <= 0) {
             fprintf(stderr, "Error: array size must be positive at line %d.\n", yylineno);
         } else {
@@ -717,20 +613,20 @@ intArray_declaration_local
             for (int i = 0; i < size; i++) {
                 valores[i] = -DBL_MAX; // Inicializa com valor padrão
             }
-            createArraySymbol($2, valores, size);
-            allocaArrayVars($2, TYPE_INT, size);
+            createArraySymbol($1, valores, size);
+            allocaArrayVars($1, TYPE_INT, size);
         }
     }
-    | COMMA ID LEFTBRACKET expression RIGHTBRACKET RECEIVE LEFTKEYS array_values_local RIGHTKEYS intArray_declaration_local {
-        int size = (int)$4.value;
+    | ID LEFTBRACKET expression RIGHTBRACKET RECEIVE LEFTKEYS array_values_local RIGHTKEYS {
+        int size = (int)$3.value;
         if (size <= 0) {
             fprintf(stderr, "Error: array size must be positive at line %d.\n", yylineno);
         } else if (array_value_count != size) {
             fprintf(stderr, "Error: number of initializers (%d) does not match array size (%d) at line %d.\n", array_value_count, size, yylineno);
         } else {
-            createArraySymbol($2, vals, size);
-            allocaArrayVars($2, TYPE_INT, size);
-            LLVMValueRef var = getVarLLVM($2);
+            createArraySymbol($1, vals, size);
+            allocaArrayVars($1, TYPE_INT, size);
+            LLVMValueRef var = getVarLLVM($1);
             for (int i = 0; i < size; i++) {
                 LLVMValueRef idx = LLVMConstInt(LLVMInt32TypeInContext(context), i, 0);
                 LLVMValueRef indices[2] = { LLVMConstInt(LLVMInt32TypeInContext(context), 0, 0), idx };
@@ -745,24 +641,30 @@ intArray_declaration_local
     }
     ;
 
-float_declaration_local
+float_declaration_locals
+    : FLOAT float_declaration_local float_declaration_local_list DONE {};
+
+float_declaration_local_list
     : /* empty */ {}
-    | COMMA ID float_declaration_local {
-        insertSymbol($2, -DBL_MAX, TYPE_FLOAT);
-        allocaVars($2, TYPE_FLOAT);
+    | COMMA float_declaration_local float_declaration_local_list {};
+
+float_declaration_local
+    : ID {
+        insertSymbol($1, -DBL_MAX, TYPE_FLOAT);
+        allocaVars($1, TYPE_FLOAT);
     }
-    | COMMA ID RECEIVE expression float_declaration_local {
-        insertSymbol($2, $4.value, TYPE_FLOAT);
-        allocaVars($2, TYPE_FLOAT);
-        Symbol* symbol = findSymbol($2);
-        LLVMValueRef var = getVarLLVM($2);
+    | ID RECEIVE expression {
+        insertSymbol($1, $3.value, TYPE_FLOAT);
+        allocaVars($1, TYPE_FLOAT);
+        Symbol* symbol = findSymbol($1);
+        LLVMValueRef var = getVarLLVM($1);
         LLVMTypeRef llvm_type = LLVMDoubleTypeInContext(context);
-        LLVMValueRef value = $4.llvm_value;
+        LLVMValueRef value = $3.llvm_value;
         if(symbol) {
-            if ($4.type == TYPE_FLOAT) {
+            if ($3.type == TYPE_FLOAT) {
                 LLVMBuildStore(builder, value, var);
             }
-            else if ($4.type == TYPE_INT) {
+            else if ($3.type == TYPE_INT) {
                 value = LLVMBuildSIToFP(builder, value, llvm_type, "inttofloat");
                 LLVMBuildStore(builder, value, var);
             } else {
@@ -772,20 +674,26 @@ float_declaration_local
     }
     ;
 
-char_declaration_local
+char_declaration_locals
+    : CHAR char_declaration_local char_declaration_local_list DONE {};
+
+char_declaration_local_list
     : /* empty */ {}
-    | COMMA ID char_declaration_local {
-        insertSymbol($2, -DBL_MAX, TYPE_CHAR);
-        allocaVars($2, TYPE_CHAR);
+    | COMMA char_declaration_local char_declaration_local_list {};
+
+char_declaration_local
+    : ID {
+        insertSymbol($1, -DBL_MAX, TYPE_CHAR);
+        allocaVars($1, TYPE_CHAR);
     }
-    | COMMA ID RECEIVE expression char_declaration_local {
-        insertSymbol($2, $4.value, TYPE_CHAR);
-        allocaVars($2, TYPE_CHAR);
-        Symbol* symbol = findSymbol($2);
-        LLVMValueRef var = getVarLLVM($2);
-        LLVMValueRef value = $4.llvm_value;
+    | ID RECEIVE expression {
+        insertSymbol($1, $3.value, TYPE_CHAR);
+        allocaVars($1, TYPE_CHAR);
+        Symbol* symbol = findSymbol($1);
+        LLVMValueRef var = getVarLLVM($1);
+        LLVMValueRef value = $3.llvm_value;
         if(symbol) {
-            if ($4.type == TYPE_CHAR) {
+            if ($3.type == TYPE_CHAR) {
                 LLVMBuildStore(builder, value, var);
             } else {
                 fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
@@ -793,21 +701,27 @@ char_declaration_local
         }
     }
     ;
+
+bool_declaration_locals
+    : BOOL bool_declaration_local bool_declaration_local_list DONE {};
+
+bool_declaration_local_list
+    : /* empty */ {}
+    | COMMA bool_declaration_local bool_declaration_local_list {};
 
 bool_declaration_local
-    : /* empty */ {}
-    | COMMA ID bool_declaration_local {
-        insertSymbol($2, -DBL_MAX, TYPE_BOOL);
-        allocaVars($2, TYPE_BOOL);
+    : ID {
+        insertSymbol($1, -DBL_MAX, TYPE_BOOL);
+        allocaVars($1, TYPE_BOOL);
     }
-    | COMMA ID RECEIVE expression bool_declaration_local {
-        insertSymbol($2, $4.value, TYPE_BOOL);
-        allocaVars($2, TYPE_BOOL);
-        Symbol* symbol = findSymbol($2);
-        LLVMValueRef var = getVarLLVM($2);
-        LLVMValueRef value = $4.llvm_value;
+    | ID RECEIVE expression {
+        insertSymbol($1, $3.value, TYPE_BOOL);
+        allocaVars($1, TYPE_BOOL);
+        Symbol* symbol = findSymbol($1);
+        LLVMValueRef var = getVarLLVM($1);
+        LLVMValueRef value = $3.llvm_value;
         if(symbol) {
-            if ($4.type == TYPE_BOOL) {
+            if ($3.type == TYPE_BOOL) {
                 LLVMBuildStore(builder, value, var);
             } else {
                 fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
@@ -815,7 +729,6 @@ bool_declaration_local
         }
     }
     ;
-
 
 array_values_local
     : expression {
@@ -1055,118 +968,70 @@ while_aux
     ;
 
 printf
-    : PRINTF LEFTPAR ID RIGHTPAR DONE {
-        Symbol* sym = findSymbol($3);
-        if (sym == NULL) {
-            fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", $3, yylineno);
-        } else if(sym->value == -DBL_MAX) {
-            fprintf(stderr, "Error: variable '%s' is uninitialized at line %d.\n", $3, yylineno);
-        } else {
-            LLVMValueRef fmt = NULL;
-            switch (sym->type) {
-                case TYPE_INT:
-                    fmt = fmt_int;
-                    break;
-                case TYPE_FLOAT:
-                    fmt = fmt_float;
-                    break;
-                case TYPE_CHAR:
-                    fmt = fmt_char;
-                    break;
-                case TYPE_BOOL:
-                    fmt = fmt_bool;
-                    break;
-                default:
-                    fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", $3, yylineno);
-            }
-            if (fmt) {
-                LLVMValueRef var = getVarLLVM($3);
-                LLVMTypeRef llvm_type;
-                switch (sym->type) {
-                    case TYPE_INT:   llvm_type = LLVMInt32TypeInContext(context); break;
-                    case TYPE_FLOAT: llvm_type = LLVMDoubleTypeInContext(context); break;
-                    case TYPE_CHAR:  llvm_type = LLVMInt8TypeInContext(context); break;
-                    case TYPE_BOOL:  llvm_type = LLVMInt1TypeInContext(context); break;
-                    default:         llvm_type = LLVMDoubleTypeInContext(context); break;
-                }
-                LLVMValueRef loaded = LLVMBuildLoad2(builder, llvm_type, var, "loadtmp");
-                LLVMValueRef args[2] = { fmt, loaded };
-                LLVMValueRef printf_func = LLVMGetNamedFunction(module, "printf");
-                LLVMBuildCall2(builder, printf_type, printf_func, args, 2, "");
-            }
-        }
-    }
-    | PRINTF LEFTPAR NUMBER RIGHTPAR DONE {
-        LLVMValueRef fmt = NULL;
-        switch ($3.type) {
-            case TYPE_INT:
-                fmt = fmt_int;
-                break;
-            case TYPE_FLOAT:
-                fmt = fmt_float;
-                break;
-            case TYPE_CHAR:
-                fmt = fmt_char;
-                break;
-            case TYPE_BOOL:
-                fmt = fmt_bool;
-                break;
-            default:
-                fprintf(stderr, "Error: unsupported type for number at line %d.\n", yylineno);
-        }
-        if (fmt) {
-            LLVMValueRef args[2] = { fmt, $3.llvm_value };
-            LLVMValueRef printf_func = LLVMGetNamedFunction(module, "printf");
-            LLVMBuildCall2(builder, printf_type, printf_func, args, 2, "");
-        }
-    }
-    | PRINTF LEFTPAR STRING RIGHTPAR DONE {
-        LLVMValueRef fmt = fmt_str;
-        // Cria um valor global para a string literal
+    : PRINTF LEFTPAR STRING printf_args RIGHTPAR DONE {
+        // Cria global para a string de formatação
         LLVMValueRef str_global = LLVMAddGlobal(module, LLVMArrayType(LLVMInt8TypeInContext(context), strlen($3) + 1), "str_literal");
         LLVMSetInitializer(str_global, LLVMConstStringInContext(context, $3, strlen($3), 0));
-        // Gera ponteiro para o início da string
         LLVMValueRef zero = LLVMConstInt(LLVMInt32TypeInContext(context), 0, 0);
         LLVMValueRef indices[2] = { zero, zero };
         LLVMValueRef str_ptr = LLVMBuildGEP2(builder, LLVMArrayType(LLVMInt8TypeInContext(context), strlen($3) + 1), str_global, indices, 2, "strptr");
-        LLVMValueRef args[2] = { fmt, str_ptr };
+
+        // Monta lista de argumentos: primeiro a string, depois os valores
+        LLVMValueRef args[MAX_PARAMS + 1];
+        args[0] = str_ptr;
+        for (int i = 0; i < $4.count; i++)
+            args[i+1] = $4.values[i];
+
         LLVMValueRef printf_func = LLVMGetNamedFunction(module, "printf");
-        LLVMBuildCall2(builder, printf_type, printf_func, args, 2, "");
+        LLVMBuildCall2(builder, printf_type, printf_func, args, $4.count + 1, "");
         free($3);
+    }
+    ;
+
+printf_args
+    : /* vazio */ { $$.count = 0; }
+    | COMMA expression printf_args {
+        $$.values[0] = $2.llvm_value;
+        for (int i = 0; i < $3.count; i++)
+            $$.values[i+1] = $3.values[i];
+        $$.count = $3.count + 1;
     }
     ;
 
 
 scanf
-    : SCANF LEFTPAR ID RIGHTPAR DONE {
+    : SCANF LEFTPAR STRING scanf_args RIGHTPAR DONE {
+        // Cria global para a string de formatação
+        LLVMValueRef str_global = LLVMAddGlobal(module, LLVMArrayType(LLVMInt8TypeInContext(context), strlen($3) + 1), "str_literal_scanf");
+        LLVMSetInitializer(str_global, LLVMConstStringInContext(context, $3, strlen($3), 0));
+        LLVMValueRef zero = LLVMConstInt(LLVMInt32TypeInContext(context), 0, 0);
+        LLVMValueRef indices[2] = { zero, zero };
+        LLVMValueRef str_ptr = LLVMBuildGEP2(builder, LLVMArrayType(LLVMInt8TypeInContext(context), strlen($3) + 1), str_global, indices, 2, "strptr_scanf");
+
+        // Monta lista de argumentos: primeiro a string, depois os ponteiros das variáveis
+        LLVMValueRef args[MAX_PARAMS + 1];
+        args[0] = str_ptr;
+        for (int i = 0; i < $4.count; i++)
+            args[i+1] = $4.values[i];
+
+        LLVMValueRef scanf_func = LLVMGetNamedFunction(module, "scanf");
+        LLVMBuildCall2(builder, scanf_type, scanf_func, args, $4.count + 1, "");
+        free($3);
+    }
+    ;
+
+scanf_args
+    : /* vazio */ { $$.count = 0; }
+    | COMMA ADDRESS ID scanf_args {
         Symbol* sym = findSymbol($3);
-        sym->value = 0.0;
-        if (sym == NULL) {
+        if (!sym) {
             fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", $3, yylineno);
+            $$.count = $4.count;
         } else {
-            LLVMValueRef fmt = NULL;
-            switch (sym->type) {
-                case TYPE_INT:
-                    fmt = fmt_int;
-                    break;
-                case TYPE_FLOAT:
-                    fmt = fmt_float;
-                    break;
-                case TYPE_CHAR:
-                    fmt = fmt_char;
-                    break;
-                case TYPE_BOOL:
-                    fmt = fmt_bool;
-                    break;
-                default:
-                    fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", $3, yylineno);
-            }
-            if (fmt) {
-                LLVMValueRef var = getVarLLVM($3);
-                LLVMValueRef args[2] = { fmt, var };
-                LLVMValueRef scanf_func = LLVMGetNamedFunction(module, "scanf");
-                LLVMBuildCall2(builder, scanf_type, scanf_func, args, 2, "");
-            }
+            $$.values[0] = getVarLLVM($3);
+            for (int i = 0; i < $4.count; i++)
+                $$.values[i+1] = $4.values[i];
+            $$.count = $4.count + 1;
         }
     }
     ;
@@ -1740,18 +1605,20 @@ int main() {
     module = LLVMModuleCreateWithNameInContext("parser", context);
     builder = LLVMCreateBuilderInContext(context);
 
-    // Declarações de funções padrão
+    // Declarações de funções padrão (assinaturas iguais às da linguagem C)
+    LLVMTypeRef printf_arg_types[] = { LLVMPointerType(LLVMInt8TypeInContext(context), 0) };
     printf_type = LLVMFunctionType(
         LLVMInt32TypeInContext(context),
-        (LLVMTypeRef[]){ LLVMPointerType(LLVMInt8TypeInContext(context), 0) },
-        1, 1 // 1 argumento fixo, variádico
+        printf_arg_types,
+        1, 1 // 1 argumento fixo, variádico (igual ao C)
     );
     LLVMAddFunction(module, "printf", printf_type);
 
+    LLVMTypeRef scanf_arg_types[] = { LLVMPointerType(LLVMInt8TypeInContext(context), 0) };
     scanf_type = LLVMFunctionType(
         LLVMInt32TypeInContext(context),
-        (LLVMTypeRef[]){ LLVMPointerType(LLVMInt8TypeInContext(context), 0) },
-        1, 1 // 1 argumento fixo, variádico
+        scanf_arg_types,
+        1, 1 // 1 argumento fixo, variádico (igual ao C)
     );
     LLVMAddFunction(module, "scanf", scanf_type);
 

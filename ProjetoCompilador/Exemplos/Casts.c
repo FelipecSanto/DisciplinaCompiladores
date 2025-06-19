@@ -36,4 +36,6 @@ int main() {
     // bool para float e soma
     float soma3 = (float)d + b;
     printf(soma3);
+
+    return 0;
 }
