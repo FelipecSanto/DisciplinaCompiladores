@@ -17,7 +17,7 @@
 %%
 
 [iI][fF]					{ return IF; }
-[eE][lL][sS][eE][iI][fF]    { return ELSEIF; }
+[eE][lL][sS][eE]" "[iI][fF] { return ELSEIF; }
 [eE][lL][sS][eE]			{ return ELSE; }
 
 [iI][nN][tT]				{ return INT; }
@@ -29,6 +29,10 @@
 [Ss][cC][aA][nN][fF]	    { return SCANF; }
 
 [wW][hH][iI][lL][eE]	    { return WHILE; }
+
+[vV][oO][iI][dD]			{ return VOID; }
+
+[rR][eE][tT][uU][rR][nN]	{ return RETURN; }
 
 [tT][rR][uU][eE]			{ yylval.number.value = 1; yylval.number.type = TYPE_BOOL; return NUMBER; }
 [fF][aA][lL][sS][eE]		{ yylval.number.value = 0; yylval.number.type = TYPE_BOOL; return NUMBER; }

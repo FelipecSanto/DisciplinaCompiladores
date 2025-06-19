@@ -7,7 +7,7 @@ CC = gcc
 CFLAGS = -g -Wall -Wno-unused-function -Iinclude -Iinclude/LLVM -Iinclude/SymbolTable
 LDFLAGS = `llvm-config --cflags --ldflags --libs core` -rdynamic
 
-SRC = src/LLVMUtils.c src/SymbolTable.c
+SRC = src/LLVMUtils.c src/SymbolTable.c src/UtilsConditionals.c src/VarType.c
 PARSER = compiler/parser.y
 LEXER = compiler/lexer.l
 OBJDIR = objects
@@ -73,4 +73,7 @@ escopo: all
 cast: EXEMPLO = Exemplos/Casts.c
 cast: all
 
-.PHONY: all clean condicional printscan declaracao vetor escopo cast
+funcoes: EXEMPLO = Exemplos/Funcoes.c
+funcoes: all
+
+.PHONY: all clean condicional printscan declaracao vetor escopo cast funcoes

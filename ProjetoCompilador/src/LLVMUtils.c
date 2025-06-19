@@ -12,14 +12,15 @@ int var_count = 0;
 LLVMModuleRef module;
 LLVMBuilderRef builder;
 LLVMContextRef context;
-LLVMValueRef mainFunc;
+LLVMValueRef currentFunc;
 LLVMBasicBlockRef entry;
 LLVMValueRef fmt_int, fmt_float, fmt_char, fmt_bool, fmt_str;
 LLVMTypeRef printf_type, scanf_type;
+LLVMTypeRef func_type;
 
 LLVMValueRef aux;
 
-void allocaVars(const char* name, VarType type) {
+LLVMValueRef allocaVars(const char* name, VarType type) {
     if (var_count >= MAX_VARS) {
         fprintf(stderr, "Error: too many variables.\n");
         exit(1);
@@ -36,6 +37,7 @@ void allocaVars(const char* name, VarType type) {
     LLVMValueRef alloc = LLVMBuildAlloca(builder, llvm_type, name);
     var_names[var_count] = strdup(name);
     var_values[var_count++] = alloc;
+    return alloc;
 }
 
 void allocaArrayVars(const char* name, VarType type, int size) {
@@ -56,6 +58,25 @@ void allocaArrayVars(const char* name, VarType type, int size) {
     LLVMValueRef alloc = LLVMBuildAlloca(builder, array_type, name);
     var_names[var_count] = strdup(name);
     var_values[var_count++] = alloc;
+}
+
+void setVarLLVM(const char* name, LLVMValueRef var) {
+    int exists = 0;
+    // Se já existe, atualiza
+    for (int i = 0; i < var_count; ++i) {
+        if (strcmp(var_names[i], name) == 0) {
+            var_values[i] = var;
+            exists = 1;
+        }
+    }
+    if(exists == 0) {
+        // Se não existe, adiciona
+        if (var_count >= MAX_VARS) {
+            fprintf(stderr, "Error: too many variables.\n");
+        }
+        var_names[var_count] = strdup(name);
+        var_values[var_count++] = var;
+    }
 }
 
 LLVMValueRef getVarLLVM(const char* name) {

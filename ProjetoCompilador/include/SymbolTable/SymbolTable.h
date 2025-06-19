@@ -31,6 +31,14 @@ typedef struct ArraySymbol {
     struct ArraySymbol* next;
 } ArraySymbol;
 
+typedef struct FunctionSymbol {
+    char* id;
+    VarType returnType;
+    int paramCount;
+    VarType* paramTypes;
+    struct FunctionSymbol* next;
+} FunctionSymbol;
+
 typedef struct SymbolTable {
     Symbol* table[HASH_SIZE];
     ArraySymbol* arrayTable[HASH_SIZE];
@@ -38,13 +46,16 @@ typedef struct SymbolTable {
 } SymbolTable;
 
 extern SymbolTable* currentScope;
+extern FunctionSymbol* functionList;
 
 unsigned int hash(const char* id);
 Symbol* findSymbol(const char* id);
 ArraySymbol* findArraySymbol(const char* id);
+FunctionSymbol* findFunctionSymbol(const char* id);
 void insertSymbol(const char* id, double value, VarType type);
 void createArraySymbol(const char* id, double* values, int size);
 void insertValueArraySymbol(const char* id, double value, int indice);
+void insertFunctionSymbol(const char* id, VarType returnType, int paramCount, VarType* paramTypes);
 void pushScope();
 void popScope();
 void freeSymbolTable(SymbolTable* table);

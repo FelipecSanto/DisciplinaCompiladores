@@ -64,32 +64,34 @@ extern int yydebug;
     PRINTF = 265,                  /* PRINTF  */
     SCANF = 266,                   /* SCANF  */
     WHILE = 267,                   /* WHILE  */
-    NUMBER = 268,                  /* NUMBER  */
-    ID = 269,                      /* ID  */
-    STRING = 270,                  /* STRING  */
-    CARACTERE = 271,               /* CARACTERE  */
-    RECEIVE = 272,                 /* RECEIVE  */
-    EQUAL = 273,                   /* EQUAL  */
-    NEQUAL = 274,                  /* NEQUAL  */
-    LESS = 275,                    /* LESS  */
-    GREAT = 276,                   /* GREAT  */
-    LEQUAL = 277,                  /* LEQUAL  */
-    GEQUAL = 278,                  /* GEQUAL  */
-    AND = 279,                     /* AND  */
-    OR = 280,                      /* OR  */
-    NOT = 281,                     /* NOT  */
-    PLUS = 282,                    /* PLUS  */
-    MIN = 283,                     /* MIN  */
-    MULT = 284,                    /* MULT  */
-    DIV = 285,                     /* DIV  */
-    LEFTPAR = 286,                 /* LEFTPAR  */
-    RIGHTPAR = 287,                /* RIGHTPAR  */
-    LEFTKEYS = 288,                /* LEFTKEYS  */
-    RIGHTKEYS = 289,               /* RIGHTKEYS  */
-    LEFTBRACKET = 290,             /* LEFTBRACKET  */
-    RIGHTBRACKET = 291,            /* RIGHTBRACKET  */
-    COMMA = 292,                   /* COMMA  */
-    DONE = 293                     /* DONE  */
+    VOID = 268,                    /* VOID  */
+    RETURN = 269,                  /* RETURN  */
+    NUMBER = 270,                  /* NUMBER  */
+    ID = 271,                      /* ID  */
+    STRING = 272,                  /* STRING  */
+    CARACTERE = 273,               /* CARACTERE  */
+    RECEIVE = 274,                 /* RECEIVE  */
+    EQUAL = 275,                   /* EQUAL  */
+    NEQUAL = 276,                  /* NEQUAL  */
+    LESS = 277,                    /* LESS  */
+    GREAT = 278,                   /* GREAT  */
+    LEQUAL = 279,                  /* LEQUAL  */
+    GEQUAL = 280,                  /* GEQUAL  */
+    AND = 281,                     /* AND  */
+    OR = 282,                      /* OR  */
+    NOT = 283,                     /* NOT  */
+    PLUS = 284,                    /* PLUS  */
+    MIN = 285,                     /* MIN  */
+    MULT = 286,                    /* MULT  */
+    DIV = 287,                     /* DIV  */
+    LEFTPAR = 288,                 /* LEFTPAR  */
+    RIGHTPAR = 289,                /* RIGHTPAR  */
+    LEFTKEYS = 290,                /* LEFTKEYS  */
+    RIGHTKEYS = 291,               /* RIGHTKEYS  */
+    LEFTBRACKET = 292,             /* LEFTBRACKET  */
+    RIGHTBRACKET = 293,            /* RIGHTBRACKET  */
+    COMMA = 294,                   /* COMMA  */
+    DONE = 295                     /* DONE  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -98,7 +100,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 58 "compiler/parser.y"
+#line 34 "compiler/parser.y"
 
     struct {
         double value;
@@ -116,7 +118,7 @@ union YYSTYPE
         LLVMBasicBlockRef condBB, bodyBB, endWHILEBB;
     } while_blocks;
 
-#line 120 "objects/parser.tab.h"
+#line 122 "objects/parser.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

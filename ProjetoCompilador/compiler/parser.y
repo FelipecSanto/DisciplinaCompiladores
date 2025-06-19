@@ -1,6 +1,16 @@
 %{
 #include "LLVMUtils.h"
 #include "SymbolTable.h"
+#include "UtilsConditionals.h"
+#include "VarType.h"
+
+#define MAX_PARAMS 10
+
+typedef struct Param_call {
+    double value;
+    VarType type;
+    LLVMValueRef llvm_value;
+} Param_call;
 
 int yylex();
 int yywrap( );
@@ -10,49 +20,15 @@ extern int yylineno;
 double* vals = NULL; // Array para armazenar valores de inicialização de vetor
 int array_value_count = 0; // Contador de valores de vetor
 
-#define MAX_SCOPE_DEPTH 20  // Profundidade máxima de aninhamento
+char* param_names[MAX_PARAMS];
+LLVMTypeRef param_typesLLVM[MAX_PARAMS];
+VarType param_types[MAX_PARAMS];
+int param_count = 0;
 
-typedef struct {
-    LLVMBasicBlockRef endBB;      // Bloco de fim do contexto atual
-    LLVMBasicBlockRef nextCondBB; // Próxima condição na cadeia
-} ConditionalContext;
+Param_call param_call[MAX_PARAMS];
+int param_call_count = 0;
 
-typedef struct {
-    ConditionalContext contexts[MAX_SCOPE_DEPTH];
-    int top;
-} CondContextStack;
 
-static CondContextStack condStack = { .top = -1 };
-
-// Função para empilhar contexto
-void push_cond_context(LLVMBasicBlockRef endBB, LLVMBasicBlockRef nextCondBB) {
-    if (condStack.top >= MAX_SCOPE_DEPTH - 1) {
-        fprintf(stderr, "Error: Maximum nesting depth exceeded at line %d\n", yylineno);
-        exit(1);
-    }
-    
-    condStack.top++;
-    condStack.contexts[condStack.top].endBB = endBB;
-    condStack.contexts[condStack.top].nextCondBB = nextCondBB;
-}
-
-// Função para desempilhar contexto
-ConditionalContext pop_cond_context() {
-    if (condStack.top < 0) {
-        fprintf(stderr, "Error: Condition stack underflow at line %d\n", yylineno);
-        exit(1);
-    }
-    
-    return condStack.contexts[condStack.top--];
-}
-
-// Função para acessar o topo sem desempilhar
-ConditionalContext* top_cond_context() {
-    if (condStack.top < 0) {
-        return NULL;
-    }
-    return &condStack.contexts[condStack.top];
-}
 %}
 
 %union {
@@ -78,6 +54,7 @@ ConditionalContext* top_cond_context() {
 %token INT CHAR FLOAT BOOL
 %token PRINTF SCANF
 %token WHILE
+%token VOID RETURN
 %token <number> NUMBER
 %token <id> ID STRING
 %token <caractere> CARACTERE
@@ -97,273 +74,763 @@ ConditionalContext* top_cond_context() {
 %right NOT
 
 /* declare non-terminals */
-%type <number> expression soma_sub mult_div term comparison log_exp cast
-%type program declaration comand assignment
-%type printf scanf
-%type int_declaration float_declaration char_declaration bool_declaration intArray_declaration array_values
+%type <number> expression soma_sub mult_div term comparison log_exp cast term_const call_function
+
+%type program_global program_global_list program_globals declaration_global
+%type program_local program_local_list program_locals declaration_local
+
+%type function parameters parameter parameter_list call_parameters call_parameter_list
+%type int_function float_function char_function bool_function void_function
+
+%type printf scanf assignment return comand
+
+%type int_declaration_global float_declaration_global char_declaration_global bool_declaration_global 
+%type array_values_global
+
+%type array
+
+%type int_declaration_local float_declaration_local char_declaration_local bool_declaration_local
+%type intArray_declaration_local array_values_local
+
 %type <if_else_blocks> if_statement
 %type <while_blocks> while while_aux
 
 /* give us more detailed errors */
 %define parse.error verbose
 
+%start program_globals
+
 %%
 
-program: /* empty */ {}
-       | comand program {}
-       | declaration program {}
-       | error program { yyerrok; yyclearin; }
-       ;
+program_globals
+    : /* empty */ {}
+    | program_global program_global_list {}
+    ;
+
+program_global_list
+    : /* empty */ {}
+    | program_global program_global_list {}
+    ;
+
+program_global
+    : function {}
+    | declaration_global {}
+    | error { yyerrok; yyclearin; }
+    ;
+
+
+program_locals
+    : /* empty */ {}
+    | program_local program_local_list {}
+    ;
+
+program_local_list
+    : /* empty */ {}
+    | program_local program_local_list {}
+    ;
+
+program_local
+    : comand {}
+    | declaration_local {}
+    ;
+
+
+function
+    : int_function {}
+    | float_function {}
+    | char_function {}
+    | bool_function {}
+    | void_function {}
+    ;
 
 
 
-declaration: INT ID int_declaration DONE {
-                insertSymbol($2, -DBL_MAX, TYPE_INT);
-                allocaVars($2, TYPE_INT);
+int_function
+    : INT ID LEFTPAR {
+        pushScope();
+    } parameters {
+        
+        LLVMTypeRef func_type = LLVMFunctionType(
+            LLVMInt32TypeInContext(context), // tipo de retorno int
+            param_typesLLVM, param_count, 0
+        );
+        LLVMValueRef func = LLVMAddFunction(module, $2, func_type);
+        LLVMBasicBlockRef entryBB = LLVMAppendBasicBlockInContext(context, func, "entry");
+        LLVMPositionBuilderAtEnd(builder, entryBB);
+        currentFunc = func; // Atualize currentFunc para a função atual
+
+        for (int i = 0; i < param_count; i++) {
+            LLVMValueRef param = LLVMGetParam(func, i);
+            LLVMValueRef var = allocaVars(param_names[i], param_types[i]);
+            LLVMBuildStore(builder, param, var);
+        }
+
+        insertFunctionSymbol($2, TYPE_INT, param_count, param_types);
+
+        // Limpa as variáveis de parâmetros para a próxima função
+        for (int i = 0; i < MAX_PARAMS; i++) {
+            param_names[i] = NULL;
+            param_typesLLVM[i] = NULL;
+            param_types[i] = 0;
+        }
+        param_count = 0;
+        
+    } RIGHTPAR LEFTKEYS program_locals RIGHTKEYS {
+        popScope();
+    }
+    ;
+
+float_function
+    : FLOAT ID LEFTPAR {
+            pushScope();
+        } parameters {
+
+        LLVMTypeRef func_type = LLVMFunctionType(
+            LLVMDoubleTypeInContext(context), // tipo de retorno float
+            param_typesLLVM, param_count, 0
+        );
+        LLVMValueRef func = LLVMAddFunction(module, $2, func_type);
+        LLVMBasicBlockRef entryBB = LLVMAppendBasicBlockInContext(context, func, "entry");
+        LLVMPositionBuilderAtEnd(builder, entryBB);
+        currentFunc = func; // Atualize currentFunc para a função atual
+
+        for (int i = 0; i < param_count; i++) {
+            LLVMValueRef param = LLVMGetParam(func, i);
+            LLVMValueRef var = allocaVars(param_names[i], param_types[i]);
+            LLVMBuildStore(builder, param, var);
+        }
+
+        insertFunctionSymbol($2, TYPE_FLOAT, param_count, param_types);
+
+        // Limpa as variáveis de parâmetros para a próxima função
+        for (int i = 0; i < MAX_PARAMS; i++) {
+            param_names[i] = NULL;
+            param_typesLLVM[i] = NULL;
+            param_types[i] = 0;
+        }
+        param_count = 0;
+        
+    } RIGHTPAR LEFTKEYS program_locals RIGHTKEYS {
+        popScope();
+    }
+    ;
+
+char_function
+    : CHAR ID LEFTPAR {
+        pushScope();
+    } parameters {
+
+        LLVMTypeRef func_type = LLVMFunctionType(
+            LLVMInt8TypeInContext(context), // tipo de retorno char
+            param_typesLLVM, param_count, 0
+        );
+        LLVMValueRef func = LLVMAddFunction(module, $2, func_type);
+        LLVMBasicBlockRef entryBB = LLVMAppendBasicBlockInContext(context, func, "entry");
+        LLVMPositionBuilderAtEnd(builder, entryBB);
+        currentFunc = func; // Atualize currentFunc para a função atual
+
+        for (int i = 0; i < param_count; i++) {
+            LLVMValueRef param = LLVMGetParam(func, i);
+            LLVMValueRef var = allocaVars(param_names[i], param_types[i]);
+            LLVMBuildStore(builder, param, var);
+        }
+
+        insertFunctionSymbol($2, TYPE_CHAR, param_count, param_types);
+
+        // Limpa as variáveis de parâmetros para a próxima função
+        for (int i = 0; i < MAX_PARAMS; i++) {
+            param_names[i] = NULL;
+            param_typesLLVM[i] = NULL;
+            param_types[i] = 0;
+        }
+        param_count = 0;
+        
+    } RIGHTPAR LEFTKEYS program_locals RIGHTKEYS {
+        popScope();
+    }
+    ;
+
+bool_function
+    : BOOL ID LEFTPAR {
+        pushScope();
+    } parameters {
+
+        LLVMTypeRef func_type = LLVMFunctionType(
+            LLVMInt1TypeInContext(context), // tipo de retorno bool
+            param_typesLLVM, param_count, 0
+        );
+        LLVMValueRef func = LLVMAddFunction(module, $2, func_type);
+        LLVMBasicBlockRef entryBB = LLVMAppendBasicBlockInContext(context, func, "entry");
+        LLVMPositionBuilderAtEnd(builder, entryBB);
+        currentFunc = func; // Atualize currentFunc para a função atual
+
+        for (int i = 0; i < param_count; i++) {
+            LLVMValueRef param = LLVMGetParam(func, i);
+            LLVMValueRef var = allocaVars(param_names[i], param_types[i]);
+            LLVMBuildStore(builder, param, var);
+        }
+
+        insertFunctionSymbol($2, TYPE_BOOL, param_count, param_types);
+
+        // Limpa as variáveis de parâmetros para a próxima função
+        for (int i = 0; i < MAX_PARAMS; i++) {
+            param_names[i] = NULL;
+            param_typesLLVM[i] = NULL;
+            param_types[i] = 0;
+        }
+        param_count = 0;
+        
+    } RIGHTPAR LEFTKEYS program_locals RIGHTKEYS {
+        popScope();
+    }
+    ;
+
+
+void_function
+    : VOID ID LEFTPAR {
+            pushScope();
+    } parameters {
+        LLVMTypeRef func_type = LLVMFunctionType(
+            LLVMVoidTypeInContext(context), // tipo de retorno void
+            param_typesLLVM, param_count, 0
+        );
+        LLVMValueRef func = LLVMAddFunction(module, $2, func_type);
+        LLVMBasicBlockRef entryBB = LLVMAppendBasicBlockInContext(context, func, "entry");
+        LLVMPositionBuilderAtEnd(builder, entryBB);
+        currentFunc = func; // Atualize currentFunc para a função atual
+
+        for (int i = 0; i < param_count; i++) {
+            LLVMValueRef param = LLVMGetParam(func, i);
+            LLVMValueRef var = allocaVars(param_names[i], param_types[i]);
+            LLVMBuildStore(builder, param, var);
+        }
+
+        insertFunctionSymbol($2, TYPE_VOID, param_count, param_types);
+
+        for (int i = 0; i < MAX_PARAMS; i++) {
+            param_names[i] = NULL;
+            param_typesLLVM[i] = NULL;
+            param_types[i] = 0;
+        }
+        param_count = 0;
+    } RIGHTPAR LEFTKEYS program_locals RIGHTKEYS {
+        popScope();
+    }
+    ;
+
+
+parameters
+    : /* empty */
+    | parameter parameter_list {};
+
+parameter_list
+    : /* empty */
+    | COMMA parameter parameter_list {};
+
+
+parameter
+    : INT ID {
+        if (param_count >= MAX_PARAMS) {
+            fprintf(stderr, "Error: too many parameters at line %d.\n", yylineno);
+        } else {
+            param_names[param_count] = $2;
+            param_types[param_count] = TYPE_INT;
+            param_typesLLVM[param_count++] = LLVMInt32TypeInContext(context);
+            insertSymbol($2, 0.0, TYPE_INT);
+        }
+    }
+    | FLOAT ID {
+        if (param_count >= MAX_PARAMS) {
+            fprintf(stderr, "Error: too many parameters at line %d.\n", yylineno);
+        } else {
+            param_names[param_count] = $2;
+            param_types[param_count] = TYPE_FLOAT;
+            param_typesLLVM[param_count++] = LLVMDoubleTypeInContext(context);
+            insertSymbol($2, 0.0, TYPE_FLOAT);
+        }
+    }
+    | CHAR ID {
+        if (param_count >= MAX_PARAMS) {
+            fprintf(stderr, "Error: too many parameters at line %d.\n", yylineno);
+        } else {
+            param_names[param_count] = $2;
+            param_types[param_count] = TYPE_CHAR;
+            param_typesLLVM[param_count++] = LLVMInt8TypeInContext(context);
+            insertSymbol($2, 0.0, TYPE_CHAR);
+        }
+    }
+    | BOOL ID {
+        if (param_count >= MAX_PARAMS) {
+            fprintf(stderr, "Error: too many parameters at line %d.\n", yylineno);
+        } else {
+            param_names[param_count] = $2;
+            param_types[param_count] = TYPE_BOOL;
+            param_typesLLVM[param_count++] = LLVMInt1TypeInContext(context);
+            insertSymbol($2, 0.0, TYPE_BOOL);
+        }
+};
+
+
+
+declaration_global
+    : int_declaration_globals {}
+    | float_declaration_globals {}
+    | char_declaration_globals {}
+    | bool_declaration_globals {};
+
+
+int_declaration_globals
+    : INT int_declaration_global int_declaration_global_list DONE {};
+
+int_declaration_global_list
+    : /* empty */
+    | COMMA int_declaration_global int_declaration_global_list;
+
+int_declaration_global
+    : ID {
+        insertSymbol($1, -DBL_MAX, TYPE_INT);
+        LLVMTypeRef type = LLVMInt32TypeInContext(context);
+        LLVMValueRef global = LLVMAddGlobal(module, type, $1);
+        LLVMSetInitializer(global, LLVMConstInt(type, 0, 0)); // valor padrão
+        setVarLLVM($1, global); // Função que associa o nome ao LLVMValueRef global
+    }
+    | ID RECEIVE term_const {
+        insertSymbol($1, $3.value, TYPE_INT);
+        LLVMTypeRef type = LLVMInt32TypeInContext(context);
+        LLVMValueRef global = LLVMAddGlobal(module, type, $1);
+        LLVMSetInitializer(global, $3.llvm_value);
+        setVarLLVM($1, global);
+    }
+    | array {};
+
+array
+    : ID LEFTBRACKET term_const RIGHTBRACKET {
+        // Declaração de vetor
+        int size = (int)$3.value;
+        if (size <= 0) {
+            fprintf(stderr, "Error: array size must be positive at line %d.\n", yylineno);
+        } else {
+            double valores[size];
+            for (int i = 0; i < size; i++) {
+                valores[i] = -DBL_MAX; // Inicializa com valor padrão
             }
-            | INT ID RECEIVE expression int_declaration DONE {
-                insertSymbol($2, $4.value, TYPE_INT);
-                allocaVars($2, TYPE_INT);
-                Symbol* symbol = findSymbol($2);
-                LLVMValueRef var = getVarLLVM($2);
-                LLVMTypeRef llvm_type = LLVMInt32TypeInContext(context);
-                LLVMValueRef value = $4.llvm_value;
-                if(symbol) {
-                    if ($4.type == TYPE_INT) {
-                        LLVMBuildStore(builder, value, var);
-                    }
-                    else if ($4.type == TYPE_FLOAT) {
-                        printf("Warning: casting float to int for variable '%s' at line %d.\n", $2, yylineno);
-                        value = LLVMBuildFPToSI(builder, value, llvm_type, "floattoint");
-                        LLVMBuildStore(builder, value, var);
-                    } else {
-                        fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
-                    }
-                }
+            createArraySymbol($1, valores, size);
+            allocaArrayVars($1, TYPE_INT, size);
+        }
+    }
+    | ID LEFTBRACKET term_const RIGHTBRACKET RECEIVE LEFTKEYS array_values_global RIGHTKEYS {
+        int size = (int)$3.value;
+        if (size <= 0) {
+            fprintf(stderr, "Error: array size must be positive at line %d.\n", yylineno);
+        } else if (array_value_count != size) {
+            fprintf(stderr, "Error: number of initializers (%d) does not match array size (%d) at line %d.\n", array_value_count, size, yylineno);
+        } else {
+            createArraySymbol($1, vals, size);
+            allocaArrayVars($1, TYPE_INT, size);
+            LLVMValueRef var = getVarLLVM($1);
+            for (int i = 0; i < size; i++) {
+                LLVMValueRef idx = LLVMConstInt(LLVMInt32TypeInContext(context), i, 0);
+                LLVMValueRef indices[2] = { LLVMConstInt(LLVMInt32TypeInContext(context), 0, 0), idx };
+                LLVMValueRef array_ptr = LLVMBuildGEP2(builder, LLVMInt32TypeInContext(context), var, indices, 2, "");
+                LLVMValueRef val = LLVMConstInt(LLVMInt32TypeInContext(context), (int)vals[i], 0);
+                LLVMBuildStore(builder, val, array_ptr);
             }
-            | INT ID LEFTBRACKET expression RIGHTBRACKET intArray_declaration DONE {
-                // Declaração de vetor
-                int size = (int)$4.value;
-                if (size <= 0) {
-                    fprintf(stderr, "Error: array size must be positive at line %d.\n", yylineno);
-                } else {
-                    double valores[size];
-                    for (int i = 0; i < size; i++) {
-                        valores[i] = -DBL_MAX; // Inicializa com valor padrão
-                    }
-                    createArraySymbol($2, valores, size);
-                    allocaArrayVars($2, TYPE_INT, size);
-                }
-            }
-            | INT ID LEFTBRACKET expression RIGHTBRACKET RECEIVE LEFTKEYS array_values RIGHTKEYS intArray_declaration DONE {
-                int size = (int)$4.value;
-                if (size <= 0) {
-                    fprintf(stderr, "Error: array size must be positive at line %d.\n", yylineno);
-                } else if (array_value_count != size) {
-                    fprintf(stderr, "Error: number of initializers (%d) does not match array size (%d) at line %d.\n", array_value_count, size, yylineno);
-                } else {
-                    createArraySymbol($2, vals, size);
-                    allocaArrayVars($2, TYPE_INT, size);
-                    LLVMValueRef var = getVarLLVM($2);
-                    for (int i = 0; i < size; i++) {
-                        LLVMValueRef idx = LLVMConstInt(LLVMInt32TypeInContext(context), i, 0);
-                        LLVMValueRef indices[2] = { LLVMConstInt(LLVMInt32TypeInContext(context), 0, 0), idx };
-                        LLVMValueRef array_ptr = LLVMBuildGEP2(builder, LLVMInt32TypeInContext(context), var, indices, 2, "");
-                        LLVMValueRef val = LLVMConstInt(LLVMInt32TypeInContext(context), (int)vals[i], 0);
-                        LLVMBuildStore(builder, val, array_ptr);
-                    }
-                }
-                free(vals);
-                vals = NULL; // Libera o array de valores
-                array_value_count = 0;
-            }
-            | FLOAT ID float_declaration DONE {
-                insertSymbol($2, -DBL_MAX, TYPE_FLOAT);
-                allocaVars($2, TYPE_FLOAT);
-            }
-            | FLOAT ID RECEIVE expression float_declaration DONE {
-                insertSymbol($2, $4.value, TYPE_FLOAT);
-                allocaVars($2, TYPE_FLOAT);
-                Symbol* symbol = findSymbol($2);
-                LLVMValueRef var = getVarLLVM($2);
-                LLVMTypeRef llvm_type = LLVMDoubleTypeInContext(context);
-                LLVMValueRef value = $4.llvm_value;
-                if(symbol) {
-                    if ($4.type == TYPE_FLOAT) {
-                        LLVMBuildStore(builder, value, var);
-                    }
-                    else if ($4.type == TYPE_INT) {
-                        value = LLVMBuildSIToFP(builder, value, llvm_type, "inttofloat");
-                        LLVMBuildStore(builder, value, var);
-                    } else {
-                        fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
-                    }
-                }
-            }
-            | CHAR ID char_declaration DONE {
-                insertSymbol($2, -DBL_MAX, TYPE_CHAR);
-                allocaVars($2, TYPE_CHAR);
-            }
-            | CHAR ID RECEIVE expression char_declaration DONE {
-                insertSymbol($2, $4.value, TYPE_CHAR);
-                allocaVars($2, TYPE_CHAR);
-                Symbol* symbol = findSymbol($2);
-                LLVMValueRef var = getVarLLVM($2);
-                LLVMValueRef value = $4.llvm_value;
-                if(symbol) {
-                    if ($4.type == TYPE_CHAR) {
-                        LLVMBuildStore(builder, value, var);
-                    } else {
-                        fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
-                    }
-                }
-            }
-            | BOOL ID bool_declaration DONE {
-                insertSymbol($2, -DBL_MAX, TYPE_BOOL);
-                allocaVars($2, TYPE_BOOL);
-            }
-            | BOOL ID RECEIVE expression bool_declaration DONE {
-                insertSymbol($2, $4.value, TYPE_BOOL);
-                allocaVars($2, TYPE_BOOL);
-                Symbol* symbol = findSymbol($2);
-                LLVMValueRef var = getVarLLVM($2);
-                LLVMValueRef value = $4.llvm_value;
-                if(symbol) {
-                    if ($4.type == TYPE_BOOL) {
-                        LLVMBuildStore(builder, value, var);
-                    } else {
-                        fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
-                    }
-                }
-            }
-            ;
+        }
+        free(vals);
+        vals = NULL; // Libera o array de valores
+        array_value_count = 0;
+    }
+    ;
 
 
-int_declaration: /* empty */ {}
-                | COMMA ID int_declaration {
-                    insertSymbol($2, -DBL_MAX, TYPE_INT);
-                    allocaVars($2, TYPE_INT);
-                }
-                | COMMA ID RECEIVE expression int_declaration {
-                    insertSymbol($2, $4.value, TYPE_INT);
-                    allocaVars($2, TYPE_INT);
-                    Symbol* symbol = findSymbol($2);
-                    LLVMValueRef var = getVarLLVM($2);
-                    LLVMTypeRef llvm_type = LLVMInt32TypeInContext(context);
-                    LLVMValueRef value = $4.llvm_value;
-                    if(symbol) {
-                        if ($4.type == TYPE_INT) {
-                            LLVMBuildStore(builder, value, var);
-                        }
-                        else if ($4.type == TYPE_FLOAT) {
-                            printf("Warning: casting float to int for variable '%s' at line %d.\n", $2, yylineno);
-                            value = LLVMBuildFPToSI(builder, value, llvm_type, "floattoint");
-                            LLVMBuildStore(builder, value, var);
-                        } else {
-                            fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
-                        }
-                    }
-                }
+
+float_declaration_globals
+    : FLOAT float_declaration_global float_declaration_global_list DONE {};
+
+float_declaration_global_list
+    : /* empty */
+    | COMMA float_declaration_global float_declaration_global_list;
+
+float_declaration_global
+    : ID {
+        insertSymbol($1, -DBL_MAX, TYPE_FLOAT);
+        LLVMTypeRef type = LLVMDoubleTypeInContext(context);
+        LLVMValueRef global = LLVMAddGlobal(module, type, $1);
+        LLVMSetInitializer(global, LLVMConstReal(type, 0.0)); // valor padrão
+        setVarLLVM($1, global); // Função que associa o nome ao LLVMValueRef global
+    }
+    | ID RECEIVE term_const {
+        insertSymbol($1, $3.value, TYPE_FLOAT);
+        LLVMTypeRef type = LLVMDoubleTypeInContext(context);
+        LLVMValueRef global = LLVMAddGlobal(module, type, $1);
+        LLVMSetInitializer(global, $3.llvm_value);
+        setVarLLVM($1, global);
+    }
+    ;
+
+char_declaration_globals
+    : CHAR char_declaration_global char_declaration_global_list DONE {};
+
+char_declaration_global_list
+    : /* empty */ {}
+    | COMMA char_declaration_global char_declaration_global_list {};
+
+char_declaration_global
+    : ID {
+        insertSymbol($1, -DBL_MAX, TYPE_CHAR);
+        LLVMTypeRef type = LLVMInt8TypeInContext(context);
+        LLVMValueRef global = LLVMAddGlobal(module, type, $1);
+        LLVMSetInitializer(global, LLVMConstInt(type, 0, 0)); // valor padrão
+        setVarLLVM($1, global); // Função que associa o nome ao LLVMValueRef global
+    }
+    | ID RECEIVE term_const {
+        insertSymbol($1, $3.value, TYPE_CHAR);
+        LLVMTypeRef type = LLVMInt8TypeInContext(context);
+        LLVMValueRef global = LLVMAddGlobal(module, type, $1);
+        LLVMSetInitializer(global, $3.llvm_value);
+        setVarLLVM($1, global);
+    }
+    ;
+
+bool_declaration_globals
+    : BOOL bool_declaration_global bool_declaration_global_list DONE {};
+
+bool_declaration_global_list
+    : /* empty */ {}
+    | COMMA bool_declaration_global bool_declaration_global_list {};
+
+bool_declaration_global
+    : ID {
+        insertSymbol($1, -DBL_MAX, TYPE_BOOL);
+        LLVMTypeRef type = LLVMInt1TypeInContext(context);
+        LLVMValueRef global = LLVMAddGlobal(module, type, $1);
+        LLVMSetInitializer(global, LLVMConstInt(type, 0, 0)); // valor padrão
+        setVarLLVM($1, global); // Função que associa o nome ao LLVMValueRef global
+    }
+    | ID RECEIVE term_const {
+        insertSymbol($1, $3.value, TYPE_BOOL);
+        LLVMTypeRef type = LLVMInt1TypeInContext(context);
+        LLVMValueRef global = LLVMAddGlobal(module, type, $1);
+        LLVMSetInitializer(global, $3.llvm_value);
+        setVarLLVM($1, global);
+    }
+    ;
 
 
-intArray_declaration: /* empty */ {}
-                    | COMMA ID LEFTBRACKET expression RIGHTBRACKET intArray_declaration {
-                        // Declaração de vetor
-                        int size = (int)$4.value;
-                        if (size <= 0) {
-                            fprintf(stderr, "Error: array size must be positive at line %d.\n", yylineno);
-                        } else {
-                            double valores[size];
-                            for (int i = 0; i < size; i++) {
-                                valores[i] = -DBL_MAX; // Inicializa com valor padrão
-                            }
-                            createArraySymbol($2, valores, size);
-                            allocaArrayVars($2, TYPE_INT, size);
-                        }
-                    }
-                    ;
-
-float_declaration: /* empty */ {}
-                 | COMMA ID float_declaration {
-                    insertSymbol($2, -DBL_MAX, TYPE_FLOAT);
-                    allocaVars($2, TYPE_FLOAT);
-                 }
-                 | COMMA ID RECEIVE expression float_declaration {
-                    insertSymbol($2, $4.value, TYPE_FLOAT);
-                    allocaVars($2, TYPE_FLOAT);
-                    Symbol* symbol = findSymbol($2);
-                    LLVMValueRef var = getVarLLVM($2);
-                    LLVMTypeRef llvm_type = LLVMDoubleTypeInContext(context);
-                    LLVMValueRef value = $4.llvm_value;
-                    if(symbol) {
-                        if ($4.type == TYPE_FLOAT) {
-                            LLVMBuildStore(builder, value, var);
-                        }
-                        else if ($4.type == TYPE_INT) {
-                            value = LLVMBuildSIToFP(builder, value, llvm_type, "inttofloat");
-                            LLVMBuildStore(builder, value, var);
-                        } else {
-                            fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
-                        }
-                    }
-                 }
-
-char_declaration: /* empty */ {}
-                | COMMA ID char_declaration {
-                    insertSymbol($2, -DBL_MAX, TYPE_CHAR);
-                    allocaVars($2, TYPE_CHAR);
-                }
-                | COMMA ID RECEIVE expression char_declaration {
-                    insertSymbol($2, $4.value, TYPE_CHAR);
-                    allocaVars($2, TYPE_CHAR);
-                    Symbol* symbol = findSymbol($2);
-                    LLVMValueRef var = getVarLLVM($2);
-                    LLVMValueRef value = $4.llvm_value;
-                    if(symbol) {
-                        if ($4.type == TYPE_CHAR) {
-                            LLVMBuildStore(builder, value, var);
-                        } else {
-                            fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
-                        }
-                    }
-                }
-
-bool_declaration: /* empty */ {}
-                | COMMA ID bool_declaration {
-                    insertSymbol($2, -DBL_MAX, TYPE_BOOL);
-                    allocaVars($2, TYPE_BOOL);
-                }
-                | COMMA ID RECEIVE expression bool_declaration {
-                    insertSymbol($2, $4.value, TYPE_BOOL);
-                    allocaVars($2, TYPE_BOOL);
-                    Symbol* symbol = findSymbol($2);
-                    LLVMValueRef var = getVarLLVM($2);
-                    LLVMValueRef value = $4.llvm_value;
-                    if(symbol) {
-                        if ($4.type == TYPE_BOOL) {
-                            LLVMBuildStore(builder, value, var);
-                        } else {
-                            fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
-                        }
-                    }
-                }
-                ;
+array_values_global
+    : term_const {
+        if(vals) {
+            free(vals);
+        }
+        vals = malloc(sizeof(double));
+        vals[0] = $1.value;
+        array_value_count = 1;
+    }
+    | array_values_local COMMA term_const {
+        vals = realloc(vals, sizeof(double) * (array_value_count + 1));
+        vals[array_value_count] = $3.value;
+        array_value_count++;
+    }
+    ;
 
 
-array_values: expression {
-                if(vals) {
-                    free(vals);
-                }
-                vals = malloc(sizeof(double));
-                vals[0] = $1.value;
-                array_value_count = 1;
+term_const
+    : NUMBER {
+        $$.value = $1.value; 
+        $$.type = $1.type; 
+        switch ($1.type) {
+            case TYPE_INT:   $$.llvm_value = LLVMConstInt(LLVMInt32TypeInContext(context), (int)$1.value, 0); break;
+            case TYPE_FLOAT: $$.llvm_value = LLVMConstReal(LLVMDoubleTypeInContext(context), $1.value); break;
+            case TYPE_BOOL:  $$.llvm_value = LLVMConstInt(LLVMInt1TypeInContext(context), (int)$1.value, 0); break;
+            default:         $$.llvm_value = LLVMConstReal(LLVMDoubleTypeInContext(context), $1.value); break;
+        }
+    }
+    | CARACTERE {
+        $$.value = (double) $1;
+        $$.type = TYPE_CHAR;
+        $$.llvm_value = LLVMConstInt(LLVMInt8TypeInContext(context), $1, 0);
+};
+
+
+
+declaration_local
+    : INT ID int_declaration_local DONE {
+        insertSymbol($2, -DBL_MAX, TYPE_INT);
+        allocaVars($2, TYPE_INT);
+    }
+    | INT ID RECEIVE expression int_declaration_local DONE {
+        insertSymbol($2, $4.value, TYPE_INT);
+        allocaVars($2, TYPE_INT);
+        Symbol* symbol = findSymbol($2);
+        LLVMValueRef var = getVarLLVM($2);
+        LLVMTypeRef llvm_type = LLVMInt32TypeInContext(context);
+        LLVMValueRef value = $4.llvm_value;
+        if(symbol) {
+            if ($4.type == TYPE_INT) {
+                LLVMBuildStore(builder, value, var);
             }
-            | array_values COMMA expression {
-                vals = realloc(vals, sizeof(double) * (array_value_count + 1));
-                vals[array_value_count] = $3.value;
-                array_value_count++;
+            else if ($4.type == TYPE_FLOAT) {
+                printf("Warning: casting float to int for variable '%s' at line %d.\n", $2, yylineno);
+                value = LLVMBuildFPToSI(builder, value, llvm_type, "floattoint");
+                LLVMBuildStore(builder, value, var);
+            } else {
+                fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
             }
+        }
+    }
+    | INT ID LEFTBRACKET expression RIGHTBRACKET intArray_declaration_local DONE {
+        // Declaração de vetor
+        int size = (int)$4.value;
+        if (size <= 0) {
+            fprintf(stderr, "Error: array size must be positive at line %d.\n", yylineno);
+        } else {
+            double valores[size];
+            for (int i = 0; i < size; i++) {
+                valores[i] = -DBL_MAX; // Inicializa com valor padrão
+            }
+            createArraySymbol($2, valores, size);
+            allocaArrayVars($2, TYPE_INT, size);
+        }
+    }
+    | INT ID LEFTBRACKET expression RIGHTBRACKET RECEIVE LEFTKEYS array_values_local RIGHTKEYS intArray_declaration_local DONE {
+        int size = (int)$4.value;
+        if (size <= 0) {
+            fprintf(stderr, "Error: array size must be positive at line %d.\n", yylineno);
+        } else if (array_value_count != size) {
+            fprintf(stderr, "Error: number of initializers (%d) does not match array size (%d) at line %d.\n", array_value_count, size, yylineno);
+        } else {
+            createArraySymbol($2, vals, size);
+            allocaArrayVars($2, TYPE_INT, size);
+            LLVMValueRef var = getVarLLVM($2);
+            for (int i = 0; i < size; i++) {
+                LLVMValueRef idx = LLVMConstInt(LLVMInt32TypeInContext(context), i, 0);
+                LLVMValueRef indices[2] = { LLVMConstInt(LLVMInt32TypeInContext(context), 0, 0), idx };
+                LLVMValueRef array_ptr = LLVMBuildGEP2(builder, LLVMInt32TypeInContext(context), var, indices, 2, "");
+                LLVMValueRef val = LLVMConstInt(LLVMInt32TypeInContext(context), (int)vals[i], 0);
+                LLVMBuildStore(builder, val, array_ptr);
+            }
+        }
+        free(vals);
+        vals = NULL; // Libera o array de valores
+        array_value_count = 0;
+    }
+    | FLOAT ID float_declaration_local DONE {
+        insertSymbol($2, -DBL_MAX, TYPE_FLOAT);
+        allocaVars($2, TYPE_FLOAT);
+    }
+    | FLOAT ID RECEIVE expression float_declaration_local DONE {
+        insertSymbol($2, $4.value, TYPE_FLOAT);
+        allocaVars($2, TYPE_FLOAT);
+        Symbol* symbol = findSymbol($2);
+        LLVMValueRef var = getVarLLVM($2);
+        LLVMTypeRef llvm_type = LLVMDoubleTypeInContext(context);
+        LLVMValueRef value = $4.llvm_value;
+        if(symbol) {
+            if ($4.type == TYPE_FLOAT) {
+                LLVMBuildStore(builder, value, var);
+            }
+            else if ($4.type == TYPE_INT) {
+                value = LLVMBuildSIToFP(builder, value, llvm_type, "inttofloat");
+                LLVMBuildStore(builder, value, var);
+            } else {
+                fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
+            }
+        }
+    }
+    | CHAR ID char_declaration_local DONE {
+        insertSymbol($2, -DBL_MAX, TYPE_CHAR);
+        allocaVars($2, TYPE_CHAR);
+    }
+    | CHAR ID RECEIVE expression char_declaration_local DONE {
+        insertSymbol($2, $4.value, TYPE_CHAR);
+        allocaVars($2, TYPE_CHAR);
+        Symbol* symbol = findSymbol($2);
+        LLVMValueRef var = getVarLLVM($2);
+        LLVMValueRef value = $4.llvm_value;
+        if(symbol) {
+            if ($4.type == TYPE_CHAR) {
+                LLVMBuildStore(builder, value, var);
+            } else {
+                fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
+            }
+        }
+    }
+    | BOOL ID bool_declaration_local DONE {
+        insertSymbol($2, -DBL_MAX, TYPE_BOOL);
+        allocaVars($2, TYPE_BOOL);
+    }
+    | BOOL ID RECEIVE expression bool_declaration_local DONE {
+        insertSymbol($2, $4.value, TYPE_BOOL);
+        allocaVars($2, TYPE_BOOL);
+        Symbol* symbol = findSymbol($2);
+        LLVMValueRef var = getVarLLVM($2);
+        LLVMValueRef value = $4.llvm_value;
+        if(symbol) {
+            if ($4.type == TYPE_BOOL) {
+                LLVMBuildStore(builder, value, var);
+            } else {
+                fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
+            }
+        }
+    }
+    ;
 
+
+int_declaration_local
+    : /* empty */ {}
+    | COMMA ID int_declaration_local {
+        insertSymbol($2, -DBL_MAX, TYPE_INT);
+        allocaVars($2, TYPE_INT);
+    }
+    | COMMA ID RECEIVE expression int_declaration_local {
+        insertSymbol($2, $4.value, TYPE_INT);
+        allocaVars($2, TYPE_INT);
+        Symbol* symbol = findSymbol($2);
+        LLVMValueRef var = getVarLLVM($2);
+        LLVMTypeRef llvm_type = LLVMInt32TypeInContext(context);
+        LLVMValueRef value = $4.llvm_value;
+        if(symbol) {
+            if ($4.type == TYPE_INT) {
+                LLVMBuildStore(builder, value, var);
+            }
+            else if ($4.type == TYPE_FLOAT) {
+                printf("Warning: casting float to int for variable '%s' at line %d.\n", $2, yylineno);
+                value = LLVMBuildFPToSI(builder, value, llvm_type, "floattoint");
+                LLVMBuildStore(builder, value, var);
+            } else {
+                fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
+            }
+        }
+    }
+    ;
+
+
+intArray_declaration_local
+    : /* empty */ {}
+    | COMMA ID LEFTBRACKET expression RIGHTBRACKET intArray_declaration_local {
+        // Declaração de vetor
+        int size = (int)$4.value;
+        if (size <= 0) {
+            fprintf(stderr, "Error: array size must be positive at line %d.\n", yylineno);
+        } else {
+            double valores[size];
+            for (int i = 0; i < size; i++) {
+                valores[i] = -DBL_MAX; // Inicializa com valor padrão
+            }
+            createArraySymbol($2, valores, size);
+            allocaArrayVars($2, TYPE_INT, size);
+        }
+    }
+    | COMMA ID LEFTBRACKET expression RIGHTBRACKET RECEIVE LEFTKEYS array_values_local RIGHTKEYS intArray_declaration_local {
+        int size = (int)$4.value;
+        if (size <= 0) {
+            fprintf(stderr, "Error: array size must be positive at line %d.\n", yylineno);
+        } else if (array_value_count != size) {
+            fprintf(stderr, "Error: number of initializers (%d) does not match array size (%d) at line %d.\n", array_value_count, size, yylineno);
+        } else {
+            createArraySymbol($2, vals, size);
+            allocaArrayVars($2, TYPE_INT, size);
+            LLVMValueRef var = getVarLLVM($2);
+            for (int i = 0; i < size; i++) {
+                LLVMValueRef idx = LLVMConstInt(LLVMInt32TypeInContext(context), i, 0);
+                LLVMValueRef indices[2] = { LLVMConstInt(LLVMInt32TypeInContext(context), 0, 0), idx };
+                LLVMValueRef array_ptr = LLVMBuildGEP2(builder, LLVMInt32TypeInContext(context), var, indices, 2, "");
+                LLVMValueRef val = LLVMConstInt(LLVMInt32TypeInContext(context), (int)vals[i], 0);
+                LLVMBuildStore(builder, val, array_ptr);
+            }
+        }
+        free(vals);
+        vals = NULL; // Libera o array de valores
+        array_value_count = 0;
+    }
+    ;
+
+float_declaration_local
+    : /* empty */ {}
+    | COMMA ID float_declaration_local {
+        insertSymbol($2, -DBL_MAX, TYPE_FLOAT);
+        allocaVars($2, TYPE_FLOAT);
+    }
+    | COMMA ID RECEIVE expression float_declaration_local {
+        insertSymbol($2, $4.value, TYPE_FLOAT);
+        allocaVars($2, TYPE_FLOAT);
+        Symbol* symbol = findSymbol($2);
+        LLVMValueRef var = getVarLLVM($2);
+        LLVMTypeRef llvm_type = LLVMDoubleTypeInContext(context);
+        LLVMValueRef value = $4.llvm_value;
+        if(symbol) {
+            if ($4.type == TYPE_FLOAT) {
+                LLVMBuildStore(builder, value, var);
+            }
+            else if ($4.type == TYPE_INT) {
+                value = LLVMBuildSIToFP(builder, value, llvm_type, "inttofloat");
+                LLVMBuildStore(builder, value, var);
+            } else {
+                fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
+            }
+        }
+    }
+    ;
+
+char_declaration_local
+    : /* empty */ {}
+    | COMMA ID char_declaration_local {
+        insertSymbol($2, -DBL_MAX, TYPE_CHAR);
+        allocaVars($2, TYPE_CHAR);
+    }
+    | COMMA ID RECEIVE expression char_declaration_local {
+        insertSymbol($2, $4.value, TYPE_CHAR);
+        allocaVars($2, TYPE_CHAR);
+        Symbol* symbol = findSymbol($2);
+        LLVMValueRef var = getVarLLVM($2);
+        LLVMValueRef value = $4.llvm_value;
+        if(symbol) {
+            if ($4.type == TYPE_CHAR) {
+                LLVMBuildStore(builder, value, var);
+            } else {
+                fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
+            }
+        }
+    }
+    ;
+
+bool_declaration_local
+    : /* empty */ {}
+    | COMMA ID bool_declaration_local {
+        insertSymbol($2, -DBL_MAX, TYPE_BOOL);
+        allocaVars($2, TYPE_BOOL);
+    }
+    | COMMA ID RECEIVE expression bool_declaration_local {
+        insertSymbol($2, $4.value, TYPE_BOOL);
+        allocaVars($2, TYPE_BOOL);
+        Symbol* symbol = findSymbol($2);
+        LLVMValueRef var = getVarLLVM($2);
+        LLVMValueRef value = $4.llvm_value;
+        if(symbol) {
+            if ($4.type == TYPE_BOOL) {
+                LLVMBuildStore(builder, value, var);
+            } else {
+                fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
+            }
+        }
+    }
+    ;
+
+
+array_values_local
+    : expression {
+        if(vals) {
+            free(vals);
+        }
+        vals = malloc(sizeof(double));
+        vals[0] = $1.value;
+        array_value_count = 1;
+    }
+    | array_values_local COMMA expression {
+        vals = realloc(vals, sizeof(double) * (array_value_count + 1));
+        vals[array_value_count] = $3.value;
+        array_value_count++;
+};
 
 
 comand: assignment {}
@@ -371,188 +838,187 @@ comand: assignment {}
       | while {}
       | printf {}
       | scanf {}
+      | return {}
+      | call_function DONE {}
       ;
 
 
-
-assignment: ID RECEIVE expression DONE {
-                Symbol* symbol = findSymbol($1);
-                LLVMValueRef var = getVarLLVM($1);
-                LLVMTypeRef llvm_type;
-                if (symbol) {
-                    switch (symbol->type) {
-                        case TYPE_INT:   llvm_type = LLVMInt32TypeInContext(context); break;
-                        case TYPE_FLOAT: llvm_type = LLVMDoubleTypeInContext(context); break;
-                        case TYPE_CHAR:  llvm_type = LLVMInt8TypeInContext(context); break;
-                        case TYPE_BOOL:  llvm_type = LLVMInt1TypeInContext(context); break;
-                        default:         llvm_type = LLVMInt32TypeInContext(context); break;
-                    }
-                }
-                LLVMValueRef value = $3.llvm_value;
-                if(symbol) {
-                    if (symbol->type == $3.type) {
-                        LLVMBuildStore(builder, value, var);
-                    }
-                    // Cast se necessário
-                    else if (symbol->type == TYPE_FLOAT && $3.type == TYPE_INT) {
-                        value = LLVMBuildSIToFP(builder, value, llvm_type, "inttofloat");
-                        LLVMBuildStore(builder, value, var);
-                    }
-                    else if (symbol->type == TYPE_INT && $3.type == TYPE_FLOAT) {
-                        printf("Warning: casting float to int for variable '%s' at line %d.\n", $1, yylineno);
-                        value = LLVMBuildFPToSI(builder, value, llvm_type, "floattoint");
-                        LLVMBuildStore(builder, value, var);
-                    }
-                }
-
-                // Atualiza a tabela de símbolos
-                if (symbol) {
-                    if (symbol->type == $3.type) {
-                        insertSymbol($1, $3.value, symbol->type);
-                    } else if (symbol->type == TYPE_FLOAT && $3.type == TYPE_INT) {
-                        insertSymbol($1, $3.value, symbol->type);
-                    } else if (symbol->type == TYPE_INT && $3.type == TYPE_FLOAT) {
-                        insertSymbol($1, (int)$3.value, symbol->type);
-                    } else {
-                        fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
-                    }
-                } else {
-                    fprintf(stderr, "Error: undefined variable '%s' at line %d.\n", $1, yylineno);
-                }
-		    }
-            | ID LEFTBRACKET expression RIGHTBRACKET RECEIVE expression DONE {
-                ArraySymbol* symbol = findArraySymbol($1);
-                if (!symbol) {
-                    fprintf(stderr, "Error: variable '%s' is not an array or not exist at line %d.\n", $1, yylineno);
-                }
-                LLVMValueRef var = getVarLLVM($1);
-                LLVMTypeRef llvm_type = LLVMInt32TypeInContext(context);
-                LLVMValueRef index = $3.llvm_value;
-                LLVMValueRef value = $6.llvm_value;
-
-                // Gera o índice do array
-                LLVMValueRef indices[2] = { LLVMConstInt(LLVMInt32TypeInContext(context), 0, false), index };
-                LLVMValueRef array_ptr = LLVMBuildGEP2(builder, LLVMInt32TypeInContext(context), var, indices, 2, "arrayptr");
-
-                // Armazena o valor no array
-                if ($6.type == TYPE_INT) {
-                    LLVMBuildStore(builder, value, array_ptr);
-                    insertValueArraySymbol($1, $6.value, (int)$3.value);
-                } else if ($6.type == TYPE_FLOAT) {
-                    printf("Warning: casting float to int for array '%s' at line %d.\n", $1, yylineno);
-                    value = LLVMBuildFPToSI(builder, value, llvm_type, "floattoint");
-                    LLVMBuildStore(builder, value, array_ptr);
-                    insertValueArraySymbol($1, (int)$6.value, (int)$3.value);
-                } else {
-                    fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
-                }
+assignment
+    : ID RECEIVE expression DONE {
+        Symbol* symbol = findSymbol($1);
+        LLVMValueRef var = getVarLLVM($1);
+        LLVMTypeRef llvm_type;
+        if (symbol) {
+            switch (symbol->type) {
+                case TYPE_INT:   llvm_type = LLVMInt32TypeInContext(context); break;
+                case TYPE_FLOAT: llvm_type = LLVMDoubleTypeInContext(context); break;
+                case TYPE_CHAR:  llvm_type = LLVMInt8TypeInContext(context); break;
+                case TYPE_BOOL:  llvm_type = LLVMInt1TypeInContext(context); break;
+                default:         llvm_type = LLVMInt32TypeInContext(context); break;
             }
-	        ;
-
-
-
-if_statement: IF LEFTPAR expression RIGHTPAR {
-                if ($3.type != TYPE_BOOL) {
-                    fprintf(stderr, "Error: condition is not boolean at line %d.\n", yylineno);
-                }
-                
-                // Cria blocos básicos
-                LLVMBasicBlockRef ifBB = LLVMAppendBasicBlockInContext(context, mainFunc, "if");
-                LLVMBasicBlockRef nextCondBB = LLVMAppendBasicBlockInContext(context, mainFunc, "next_cond");
-                LLVMBasicBlockRef intermediary = LLVMAppendBasicBlockInContext(context, mainFunc, "intermediary");
-                
-                // Empilha contexto
-                push_cond_context(intermediary, nextCondBB);
-                
-                // Gera branch condicional
-                LLVMBuildCondBr(builder, $3.llvm_value, ifBB, nextCondBB);
-                
-                // Entra no bloco if
-                LLVMPositionBuilderAtEnd(builder, ifBB);
-
-                pushScope();
-            } 
-            LEFTKEYS program RIGHTKEYS {
-
-                popScope();
-
-                ConditionalContext* current = top_cond_context();
-                LLVMBuildBr(builder, current->endBB);
-                LLVMPositionBuilderAtEnd(builder, current->nextCondBB);
+        }
+        LLVMValueRef value = $3.llvm_value;
+        if(symbol) {
+            if (symbol->type == $3.type) {
+                LLVMBuildStore(builder, value, var);
             }
-            else_if_chain
-            {
-                // Finaliza este contexto
-                ConditionalContext current = pop_cond_context();
-                LLVMPositionBuilderAtEnd(builder, current.endBB);
-                
-                LLVMBasicBlockRef endBB = LLVMAppendBasicBlockInContext(context, mainFunc, "endif");
-                LLVMBuildBr(builder, endBB);
-
-                LLVMPositionBuilderAtEnd(builder, endBB);
+            // Cast se necessário
+            else if (symbol->type == TYPE_FLOAT && $3.type == TYPE_INT) {
+                value = LLVMBuildSIToFP(builder, value, llvm_type, "inttofloat");
+                LLVMBuildStore(builder, value, var);
             }
-            ;
-
-else_if_chain: /* empty */ {
-                ConditionalContext* current = top_cond_context();
-                LLVMBuildBr(builder, current->endBB);
+            else if (symbol->type == TYPE_INT && $3.type == TYPE_FLOAT) {
+                printf("Warning: casting float to int for variable '%s' at line %d.\n", $1, yylineno);
+                value = LLVMBuildFPToSI(builder, value, llvm_type, "floattoint");
+                LLVMBuildStore(builder, value, var);
             }
-            | ELSE LEFTPAR expression RIGHTPAR {
-                fprintf(stderr, "Error: else cannot have a condition at line %d.\n", yylineno);
+        }
+
+        // Atualiza a tabela de símbolos
+        if (symbol) {
+            if (symbol->type == $3.type) {
+                insertSymbol($1, $3.value, symbol->type);
+            } else if (symbol->type == TYPE_FLOAT && $3.type == TYPE_INT) {
+                insertSymbol($1, $3.value, symbol->type);
+            } else if (symbol->type == TYPE_INT && $3.type == TYPE_FLOAT) {
+                insertSymbol($1, (int)$3.value, symbol->type);
+            } else {
+                fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
             }
-            | ELSE {
+        } else {
+            fprintf(stderr, "Error: undefined variable '%s' at line %d.\n", $1, yylineno);
+        }
+    }
+    | ID LEFTBRACKET expression RIGHTBRACKET RECEIVE expression DONE {
+        ArraySymbol* symbol = findArraySymbol($1);
+        if (!symbol) {
+            fprintf(stderr, "Error: variable '%s' is not an array or not exist at line %d.\n", $1, yylineno);
+        }
+        LLVMValueRef var = getVarLLVM($1);
+        LLVMTypeRef llvm_type = LLVMInt32TypeInContext(context);
+        LLVMValueRef index = $3.llvm_value;
+        LLVMValueRef value = $6.llvm_value;
 
-                pushScope();
-                
-                ConditionalContext* current = top_cond_context();
-                // Transforma o nextCondBB em bloco else
-                LLVMPositionBuilderAtEnd(builder, current->nextCondBB);
-            } 
-            LEFTKEYS program RIGHTKEYS {
+        // Gera o índice do array
+        LLVMValueRef indices[2] = { LLVMConstInt(LLVMInt32TypeInContext(context), 0, false), index };
+        LLVMValueRef array_ptr = LLVMBuildGEP2(builder, LLVMInt32TypeInContext(context), var, indices, 2, "arrayptr");
 
-                popScope();
-
-                ConditionalContext* current = top_cond_context();
-                LLVMBuildBr(builder, current->endBB);
-            }
-            | ELSEIF LEFTPAR expression RIGHTPAR {
-                if ($3.type != TYPE_BOOL) {
-                    fprintf(stderr, "Error: condition is not boolean at line %d.\n", yylineno);
-                }
-                
-                ConditionalContext* current = top_cond_context();
-                
-                // Cria blocos para este elseif
-                LLVMBasicBlockRef elseifBB = LLVMAppendBasicBlockInContext(context, mainFunc, "elseif");
-                LLVMBasicBlockRef newNextBB = LLVMAppendBasicBlockInContext(context, mainFunc, "next_cond");
-                
-                // Gera branch condicional
-                LLVMBuildCondBr(builder, $3.llvm_value, elseifBB, newNextBB);
-                
-                // Atualiza contexto
-                current->nextCondBB = newNextBB;
-                
-                // Entra no bloco elseif
-                LLVMPositionBuilderAtEnd(builder, elseifBB);
-
-                pushScope();
-            } 
-            LEFTKEYS program RIGHTKEYS {
-
-                popScope();
-
-                ConditionalContext* current = top_cond_context();
-                LLVMBuildBr(builder, current->endBB);
-                LLVMPositionBuilderAtEnd(builder, current->nextCondBB);
-            }
-            else_if_chain
-            ;
+        // Armazena o valor no array
+        if ($6.type == TYPE_INT) {
+            LLVMBuildStore(builder, value, array_ptr);
+            insertValueArraySymbol($1, $6.value, (int)$3.value);
+        } else if ($6.type == TYPE_FLOAT) {
+            printf("Warning: casting float to int for array '%s' at line %d.\n", $1, yylineno);
+            value = LLVMBuildFPToSI(builder, value, llvm_type, "floattoint");
+            LLVMBuildStore(builder, value, array_ptr);
+            insertValueArraySymbol($1, (int)$6.value, (int)$3.value);
+        } else {
+            fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
+        }
+    }
+    ;
 
 
 
+if_statement
+    : IF LEFTPAR expression RIGHTPAR {
+        if ($3.type != TYPE_BOOL) {
+            fprintf(stderr, "Error: condition is not boolean at line %d.\n", yylineno);
+        }
+        
+        // Cria blocos básicos
+        LLVMBasicBlockRef ifBB = LLVMAppendBasicBlockInContext(context, currentFunc, "if");
+        LLVMBasicBlockRef nextCondBB = LLVMAppendBasicBlockInContext(context, currentFunc, "next_cond");
+        LLVMBasicBlockRef intermediary = LLVMAppendBasicBlockInContext(context, currentFunc, "intermediary");
+        
+        // Empilha contexto
+        push_cond_context(intermediary, nextCondBB);
+        
+        // Gera branch condicional
+        LLVMBuildCondBr(builder, $3.llvm_value, ifBB, nextCondBB);
+        
+        // Entra no bloco if
+        LLVMPositionBuilderAtEnd(builder, ifBB);
+
+        pushScope();
+    } LEFTKEYS program_locals RIGHTKEYS {
+
+        popScope();
+
+        ConditionalContext* current = top_cond_context();
+        LLVMBuildBr(builder, current->endBB);
+        LLVMPositionBuilderAtEnd(builder, current->nextCondBB);
+    } else_if_chain {
+        // Finaliza este contexto
+        ConditionalContext current = pop_cond_context();
+        LLVMPositionBuilderAtEnd(builder, current.endBB);
+        
+        LLVMBasicBlockRef endBB = LLVMAppendBasicBlockInContext(context, currentFunc, "endif");
+        LLVMBuildBr(builder, endBB);
+
+        LLVMPositionBuilderAtEnd(builder, endBB);
+    }
+    ;
+
+else_if_chain
+    : /* empty */ {
+        ConditionalContext* current = top_cond_context();
+        LLVMBuildBr(builder, current->endBB);
+    }
+    | ELSE LEFTPAR expression RIGHTPAR {
+        fprintf(stderr, "Error: else cannot have a condition at line %d.\n", yylineno);
+    }
+    | ELSE {
+
+        pushScope();
+        
+        ConditionalContext* current = top_cond_context();
+        // Transforma o nextCondBB em bloco else
+        LLVMPositionBuilderAtEnd(builder, current->nextCondBB);
+    } LEFTKEYS program_locals RIGHTKEYS {
+
+        popScope();
+
+        ConditionalContext* current = top_cond_context();
+        LLVMBuildBr(builder, current->endBB);
+    }
+    | ELSEIF LEFTPAR expression RIGHTPAR {
+        if ($3.type != TYPE_BOOL) {
+            fprintf(stderr, "Error: condition is not boolean at line %d.\n", yylineno);
+        }
+        
+        ConditionalContext* current = top_cond_context();
+        
+        // Cria blocos para este elseif
+        LLVMBasicBlockRef elseifBB = LLVMAppendBasicBlockInContext(context, currentFunc, "elseif");
+        LLVMBasicBlockRef newNextBB = LLVMAppendBasicBlockInContext(context, currentFunc, "next_cond");
+        
+        // Gera branch condicional
+        LLVMBuildCondBr(builder, $3.llvm_value, elseifBB, newNextBB);
+        
+        // Atualiza contexto
+        current->nextCondBB = newNextBB;
+        
+        // Entra no bloco elseif
+        LLVMPositionBuilderAtEnd(builder, elseifBB);
+
+        pushScope();
+    } LEFTKEYS program_locals RIGHTKEYS {
+
+        popScope();
+
+        ConditionalContext* current = top_cond_context();
+        LLVMBuildBr(builder, current->endBB);
+        LLVMPositionBuilderAtEnd(builder, current->nextCondBB);
+    } else_if_chain {}
+    ;
 
 
-while: WHILE while_aux LEFTPAR expression RIGHTPAR {
+
+
+
+while
+    : WHILE while_aux LEFTPAR expression RIGHTPAR {
         pushScope();
         if ($4.type != TYPE_BOOL) {
             fprintf(stderr, "Error: condition is not boolean at line %d.\n", yylineno);
@@ -562,7 +1028,7 @@ while: WHILE while_aux LEFTPAR expression RIGHTPAR {
 
         // Corpo do while
         LLVMPositionBuilderAtEnd(builder, $2.bodyBB);
-    } LEFTKEYS program RIGHTKEYS {
+    } LEFTKEYS program_locals RIGHTKEYS {
         // Ao final do corpo, volta para o condicional
         LLVMBuildBr(builder, $2.condBB);
 
@@ -573,63 +1039,31 @@ while: WHILE while_aux LEFTPAR expression RIGHTPAR {
     }
     ;
 
-while_aux: {
-    // Cria blocos para condicional, corpo e fim do while
-        $$.condBB = LLVMAppendBasicBlockInContext(context, mainFunc, "while.cond");
-        $$.bodyBB = LLVMAppendBasicBlockInContext(context, mainFunc, "while.body");
-        $$.endWHILEBB = LLVMAppendBasicBlockInContext(context, mainFunc, "while.end");
+while_aux
+    : {
+        // Cria blocos para condicional, corpo e fim do while
+        $$.condBB = LLVMAppendBasicBlockInContext(context, currentFunc, "while.cond");
+        $$.bodyBB = LLVMAppendBasicBlockInContext(context, currentFunc, "while.body");
+        $$.endWHILEBB = LLVMAppendBasicBlockInContext(context, currentFunc, "while.end");
 
         // Branch para o bloco condicional
         LLVMBuildBr(builder, $$.condBB);
 
         // Condicional
         LLVMPositionBuilderAtEnd(builder, $$.condBB);
-};
+    }
+    ;
 
-printf: PRINTF LEFTPAR ID RIGHTPAR DONE {
-            Symbol* sym = findSymbol($3);
-            if (sym == NULL) {
-                fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", $3, yylineno);
-            } else if(sym->value == -DBL_MAX) {
-                fprintf(stderr, "Error: variable '%s' is uninitialized at line %d.\n", $3, yylineno);
-            } else {
-                LLVMValueRef fmt = NULL;
-                switch (sym->type) {
-                    case TYPE_INT:
-                        fmt = fmt_int;
-                        break;
-                    case TYPE_FLOAT:
-                        fmt = fmt_float;
-                        break;
-                    case TYPE_CHAR:
-                        fmt = fmt_char;
-                        break;
-                    case TYPE_BOOL:
-                        fmt = fmt_bool;
-                        break;
-                    default:
-                        fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", $3, yylineno);
-                }
-                if (fmt) {
-                    LLVMValueRef var = getVarLLVM($3);
-                    LLVMTypeRef llvm_type;
-                    switch (sym->type) {
-                        case TYPE_INT:   llvm_type = LLVMInt32TypeInContext(context); break;
-                        case TYPE_FLOAT: llvm_type = LLVMDoubleTypeInContext(context); break;
-                        case TYPE_CHAR:  llvm_type = LLVMInt8TypeInContext(context); break;
-                        case TYPE_BOOL:  llvm_type = LLVMInt1TypeInContext(context); break;
-                        default:         llvm_type = LLVMDoubleTypeInContext(context); break;
-                    }
-                    LLVMValueRef loaded = LLVMBuildLoad2(builder, llvm_type, var, "loadtmp");
-                    LLVMValueRef args[2] = { fmt, loaded };
-                    LLVMValueRef printf_func = LLVMGetNamedFunction(module, "printf");
-                    LLVMBuildCall2(builder, printf_type, printf_func, args, 2, "");
-                }
-            }
-        }
-        | PRINTF LEFTPAR NUMBER RIGHTPAR DONE {
+printf
+    : PRINTF LEFTPAR ID RIGHTPAR DONE {
+        Symbol* sym = findSymbol($3);
+        if (sym == NULL) {
+            fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", $3, yylineno);
+        } else if(sym->value == -DBL_MAX) {
+            fprintf(stderr, "Error: variable '%s' is uninitialized at line %d.\n", $3, yylineno);
+        } else {
             LLVMValueRef fmt = NULL;
-            switch ($3.type) {
+            switch (sym->type) {
                 case TYPE_INT:
                     fmt = fmt_int;
                     break;
@@ -643,343 +1077,413 @@ printf: PRINTF LEFTPAR ID RIGHTPAR DONE {
                     fmt = fmt_bool;
                     break;
                 default:
-                    fprintf(stderr, "Error: unsupported type for number at line %d.\n", yylineno);
+                    fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", $3, yylineno);
             }
             if (fmt) {
-                LLVMValueRef args[2] = { fmt, $3.llvm_value };
+                LLVMValueRef var = getVarLLVM($3);
+                LLVMTypeRef llvm_type;
+                switch (sym->type) {
+                    case TYPE_INT:   llvm_type = LLVMInt32TypeInContext(context); break;
+                    case TYPE_FLOAT: llvm_type = LLVMDoubleTypeInContext(context); break;
+                    case TYPE_CHAR:  llvm_type = LLVMInt8TypeInContext(context); break;
+                    case TYPE_BOOL:  llvm_type = LLVMInt1TypeInContext(context); break;
+                    default:         llvm_type = LLVMDoubleTypeInContext(context); break;
+                }
+                LLVMValueRef loaded = LLVMBuildLoad2(builder, llvm_type, var, "loadtmp");
+                LLVMValueRef args[2] = { fmt, loaded };
                 LLVMValueRef printf_func = LLVMGetNamedFunction(module, "printf");
                 LLVMBuildCall2(builder, printf_type, printf_func, args, 2, "");
             }
         }
-        | PRINTF LEFTPAR STRING RIGHTPAR DONE {
-            LLVMValueRef fmt = fmt_str;
-            LLVMValueRef args[1] = { fmt };
+    }
+    | PRINTF LEFTPAR NUMBER RIGHTPAR DONE {
+        LLVMValueRef fmt = NULL;
+        switch ($3.type) {
+            case TYPE_INT:
+                fmt = fmt_int;
+                break;
+            case TYPE_FLOAT:
+                fmt = fmt_float;
+                break;
+            case TYPE_CHAR:
+                fmt = fmt_char;
+                break;
+            case TYPE_BOOL:
+                fmt = fmt_bool;
+                break;
+            default:
+                fprintf(stderr, "Error: unsupported type for number at line %d.\n", yylineno);
+        }
+        if (fmt) {
+            LLVMValueRef args[2] = { fmt, $3.llvm_value };
             LLVMValueRef printf_func = LLVMGetNamedFunction(module, "printf");
-            LLVMBuildCall2(builder, printf_type, printf_func, args, 1, "");
-            free($3);
+            LLVMBuildCall2(builder, printf_type, printf_func, args, 2, "");
         }
-        ;
+    }
+    | PRINTF LEFTPAR STRING RIGHTPAR DONE {
+        LLVMValueRef fmt = fmt_str;
+        // Cria um valor global para a string literal
+        LLVMValueRef str_global = LLVMAddGlobal(module, LLVMArrayType(LLVMInt8TypeInContext(context), strlen($3) + 1), "str_literal");
+        LLVMSetInitializer(str_global, LLVMConstStringInContext(context, $3, strlen($3), 0));
+        // Gera ponteiro para o início da string
+        LLVMValueRef zero = LLVMConstInt(LLVMInt32TypeInContext(context), 0, 0);
+        LLVMValueRef indices[2] = { zero, zero };
+        LLVMValueRef str_ptr = LLVMBuildGEP2(builder, LLVMArrayType(LLVMInt8TypeInContext(context), strlen($3) + 1), str_global, indices, 2, "strptr");
+        LLVMValueRef args[2] = { fmt, str_ptr };
+        LLVMValueRef printf_func = LLVMGetNamedFunction(module, "printf");
+        LLVMBuildCall2(builder, printf_type, printf_func, args, 2, "");
+        free($3);
+    }
+    ;
 
 
-scanf:  SCANF LEFTPAR ID RIGHTPAR DONE {
-            Symbol* sym = findSymbol($3);
-            sym->value = 0.0;
-            if (sym == NULL) {
-                fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", $3, yylineno);
+scanf
+    : SCANF LEFTPAR ID RIGHTPAR DONE {
+        Symbol* sym = findSymbol($3);
+        sym->value = 0.0;
+        if (sym == NULL) {
+            fprintf(stderr, "Error: variable '%s' not declared at line %d.\n", $3, yylineno);
+        } else {
+            LLVMValueRef fmt = NULL;
+            switch (sym->type) {
+                case TYPE_INT:
+                    fmt = fmt_int;
+                    break;
+                case TYPE_FLOAT:
+                    fmt = fmt_float;
+                    break;
+                case TYPE_CHAR:
+                    fmt = fmt_char;
+                    break;
+                case TYPE_BOOL:
+                    fmt = fmt_bool;
+                    break;
+                default:
+                    fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", $3, yylineno);
+            }
+            if (fmt) {
+                LLVMValueRef var = getVarLLVM($3);
+                LLVMValueRef args[2] = { fmt, var };
+                LLVMValueRef scanf_func = LLVMGetNamedFunction(module, "scanf");
+                LLVMBuildCall2(builder, scanf_type, scanf_func, args, 2, "");
+            }
+        }
+    }
+    ;
+
+return
+    : RETURN expression DONE {
+        if(functionList->returnType != TYPE_VOID) {
+            if($2.type != functionList->returnType) {
+                fprintf(stderr, "Error: return type mismatch at line %d. Expected %s but got %s.\n", yylineno, typeToString(functionList->returnType), typeToString($2.type));
             } else {
-                LLVMValueRef fmt = NULL;
-                switch (sym->type) {
-                    case TYPE_INT:
-                        fmt = fmt_int;
-                        break;
-                    case TYPE_FLOAT:
-                        fmt = fmt_float;
-                        break;
-                    case TYPE_CHAR:
-                        fmt = fmt_char;
-                        break;
-                    case TYPE_BOOL:
-                        fmt = fmt_bool;
-                        break;
-                    default:
-                        fprintf(stderr, "Error: unsupported type for variable '%s' at line %d.\n", $3, yylineno);
-                }
-                if (fmt) {
-                    LLVMValueRef var = getVarLLVM($3);
-                    LLVMValueRef args[2] = { fmt, var };
-                    LLVMValueRef scanf_func = LLVMGetNamedFunction(module, "scanf");
-                    LLVMBuildCall2(builder, scanf_type, scanf_func, args, 2, "");
-                }
+                LLVMBuildRet(builder, $2.llvm_value);
             }
+        } else {
+            fprintf(stderr, "Error: cannot return a value in a void function at line %d.\n", yylineno);
         }
-        ;
-
-
-
-expression: soma_sub { $$.value = $1.value; $$.type = $1.type; $$.llvm_value = $1.llvm_value; }
-		  | mult_div { $$.value = $1.value; $$.type = $1.type; $$.llvm_value = $1.llvm_value; }
-          | LEFTPAR expression RIGHTPAR { $$.value = $2.value; $$.type = $2.type; $$.llvm_value = $2.llvm_value; }
-          | comparison { $$.value = $1.value; $$.type = $1.type; $$.llvm_value = $1.llvm_value; }
-          | log_exp { $$.value = $1.value; $$.type = $1.type; $$.llvm_value = $1.llvm_value; }
-          | cast { $$.value = $1.value; $$.type = $1.type; $$.llvm_value = $1.llvm_value; }
-		  | term { $$.value = $1.value; $$.type = $1.type; $$.llvm_value = $1.llvm_value; }
-		  ;
-
-soma_sub: expression PLUS expression { 
-                if ($1.type == TYPE_INT && $3.type == TYPE_INT) {
-                    $$.value = $1.value + $3.value;
-                    $$.type = TYPE_INT;
-                    $$.llvm_value = LLVMBuildAdd(builder, $1.llvm_value, $3.llvm_value, "addtmp");
-                } else if ((($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && ($3.type == TYPE_INT || $3.type == TYPE_FLOAT))) {
-                    // Promove para float se necessário
-                    LLVMValueRef left = $1.llvm_value;
-                    LLVMValueRef right = $3.llvm_value;
-                    if ($1.type == TYPE_INT)
-                        left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
-                    if ($3.type == TYPE_INT)
-                        right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
-                    $$.value = $1.value + $3.value;
-                    $$.type = TYPE_FLOAT;
-                    $$.llvm_value = LLVMBuildFAdd(builder, left, right, "faddtmp");
-                } else {
-                    fprintf(stderr, "Error: incompatible types for addition at line %d.\n", yylineno);
-                    $$.value = -1;
-                    $$.type = TYPE_UNKNOWN;
-                }
+    }
+    | RETURN DONE {
+        if(functionList->returnType != TYPE_VOID) {
+            fprintf(stderr, "Error: function '%s' must return a value at line %d.\n", functionList->id, yylineno);
+        } else {
+            LLVMBuildRetVoid(builder);
         }
-    	| expression MIN  expression {
-                if ($1.type == TYPE_INT && $3.type == TYPE_INT) {
-                    $$.value = $1.value - $3.value;
-                    $$.type = TYPE_INT;
-                    $$.llvm_value = LLVMBuildSub(builder, $1.llvm_value, $3.llvm_value, "subtmp");
-                } else if ((($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && ($3.type == TYPE_INT || $3.type == TYPE_FLOAT))) {
-                    // Promove para float se necessário
-                    LLVMValueRef left = $1.llvm_value;
-                    LLVMValueRef right = $3.llvm_value;
-                    if ($1.type == TYPE_INT)
-                        left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
-                    if ($3.type == TYPE_INT)
-                        right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
-                    $$.value = $1.value - $3.value;
-                    $$.type = TYPE_FLOAT;
-                    $$.llvm_value = LLVMBuildFSub(builder, left, right, "fsubtmp");
-                } else {
-                    fprintf(stderr, "Error: incompatible types for subtraction at line %d.\n", yylineno);
-                    $$.value = -1;
-                    $$.type = TYPE_UNKNOWN;
-                }
+};
+
+
+
+expression
+    : soma_sub { $$.value = $1.value; $$.type = $1.type; $$.llvm_value = $1.llvm_value; }
+    | mult_div { $$.value = $1.value; $$.type = $1.type; $$.llvm_value = $1.llvm_value; }
+    | LEFTPAR expression RIGHTPAR { $$.value = $2.value; $$.type = $2.type; $$.llvm_value = $2.llvm_value; }
+    | comparison { $$.value = $1.value; $$.type = $1.type; $$.llvm_value = $1.llvm_value; }
+    | log_exp { $$.value = $1.value; $$.type = $1.type; $$.llvm_value = $1.llvm_value; }
+    | cast { $$.value = $1.value; $$.type = $1.type; $$.llvm_value = $1.llvm_value; }
+    | call_function { $$.value = $1.value; $$.type = $1.type; $$.llvm_value = $1.llvm_value; }
+    | term { $$.value = $1.value; $$.type = $1.type; $$.llvm_value = $1.llvm_value; }
+    ;
+
+soma_sub
+    : expression PLUS expression { 
+        if ($1.type == TYPE_INT && $3.type == TYPE_INT) {
+            $$.value = $1.value + $3.value;
+            $$.type = TYPE_INT;
+            $$.llvm_value = LLVMBuildAdd(builder, $1.llvm_value, $3.llvm_value, "addtmp");
+        } else if ((($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && ($3.type == TYPE_INT || $3.type == TYPE_FLOAT))) {
+            // Promove para float se necessário
+            LLVMValueRef left = $1.llvm_value;
+            LLVMValueRef right = $3.llvm_value;
+            if ($1.type == TYPE_INT)
+                left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
+            if ($3.type == TYPE_INT)
+                right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
+            $$.value = $1.value + $3.value;
+            $$.type = TYPE_FLOAT;
+            $$.llvm_value = LLVMBuildFAdd(builder, left, right, "faddtmp");
+        } else {
+            fprintf(stderr, "Error: incompatible types for addition at line %d.\n", yylineno);
+            $$.value = -1;
+            $$.type = TYPE_UNKNOWN;
         }
-		;
-
-mult_div: expression MULT expression {
-                if ($1.type == TYPE_INT && $3.type == TYPE_INT) {
-                    $$.value = $1.value * $3.value;
-                    $$.type = TYPE_INT;
-                    $$.llvm_value = LLVMBuildMul(builder, $1.llvm_value, $3.llvm_value, "multtmp");
-                } else if ((($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && ($3.type == TYPE_INT || $3.type == TYPE_FLOAT))) {
-                    // Promove para float se necessário
-                    LLVMValueRef left = $1.llvm_value;
-                    LLVMValueRef right = $3.llvm_value;
-                    if ($1.type == TYPE_INT)
-                        left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
-                    if ($3.type == TYPE_INT)
-                        right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
-                    $$.value = $1.value * $3.value;
-                    $$.type = TYPE_FLOAT;
-                    $$.llvm_value = LLVMBuildFMul(builder, left, right, "fmulttmp");
-                } else {
-                    fprintf(stderr, "Error: incompatible types for multiplication at line %d.\n", yylineno);
-                    $$.value = -1;
-                    $$.type = TYPE_UNKNOWN;
-                }
+    }
+    | expression MIN  expression {
+        if ($1.type == TYPE_INT && $3.type == TYPE_INT) {
+            $$.value = $1.value - $3.value;
+            $$.type = TYPE_INT;
+            $$.llvm_value = LLVMBuildSub(builder, $1.llvm_value, $3.llvm_value, "subtmp");
+        } else if ((($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && ($3.type == TYPE_INT || $3.type == TYPE_FLOAT))) {
+            // Promove para float se necessário
+            LLVMValueRef left = $1.llvm_value;
+            LLVMValueRef right = $3.llvm_value;
+            if ($1.type == TYPE_INT)
+                left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
+            if ($3.type == TYPE_INT)
+                right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
+            $$.value = $1.value - $3.value;
+            $$.type = TYPE_FLOAT;
+            $$.llvm_value = LLVMBuildFSub(builder, left, right, "fsubtmp");
+        } else {
+            fprintf(stderr, "Error: incompatible types for subtraction at line %d.\n", yylineno);
+            $$.value = -1;
+            $$.type = TYPE_UNKNOWN;
         }
-		| expression DIV  expression { 
-                if ($3.value == 0.0) {
-                        fprintf(stderr, "Error: division by zero at line %d.\n", yylineno);
-                        $$.value = -1;
-                        $$.type = TYPE_UNKNOWN;
-                } else {
-                    if ($1.type == TYPE_INT && $3.type == TYPE_INT) {
-                        $$.value = $1.value / $3.value;
-                        $$.type = TYPE_INT;
-                        $$.llvm_value = LLVMBuildSDiv(builder, $1.llvm_value, $3.llvm_value, "divtmp");
-                    } else if ((($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && ($3.type == TYPE_INT || $3.type == TYPE_FLOAT))) {
-                        // Promove para float se necessário
-                        LLVMValueRef left = $1.llvm_value;
-                        LLVMValueRef right = $3.llvm_value;
-                        if ($1.type == TYPE_INT)
-                            left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
-                        if ($3.type == TYPE_INT)
-                            right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
-                        $$.value = $1.value / $3.value;
-                        $$.type = TYPE_FLOAT;
-                        $$.llvm_value = LLVMBuildFDiv(builder, left, right, "fdivtmp");
-                    } else {
-                        fprintf(stderr, "Error: incompatible types for division at line %d.\n", yylineno);
-                        $$.value = -1;
-                        $$.type = TYPE_UNKNOWN;
-                    }
-                }
-		}
-		;
+    }
+    ;
 
-comparison: expression LESS expression {
-                if ($1.type == TYPE_INT && $3.type == TYPE_INT) {
-                    $$.value = $1.value < $3.value;
-                    $$.type = TYPE_BOOL;
-                    $$.llvm_value = LLVMBuildICmp(builder, LLVMIntSLT, $1.llvm_value, $3.llvm_value, "cmptmp");
-                } else if (($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && ($3.type == TYPE_FLOAT || $3.type == TYPE_INT)) {
-                    // Promove para float se necessário
-                    LLVMValueRef left = $1.llvm_value;
-                    LLVMValueRef right = $3.llvm_value;
-                    if ($1.type == TYPE_INT)
-                        left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
-                    if ($3.type == TYPE_INT)
-                        right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
-                    $$.value = $1.value < $3.value;
-                    $$.type = TYPE_BOOL;
-                    $$.llvm_value = LLVMBuildFCmp(builder, LLVMRealULT, left, right, "cmptmp");
-                } else {
-                    fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
-                    $$.value = -1;
-                    $$.type = TYPE_UNKNOWN;
-                }
-            }
-            | expression GREAT expression {
-                if ($1.type == TYPE_INT && $3.type == TYPE_INT) {
-                    $$.value = $1.value > $3.value;
-                    $$.type = TYPE_BOOL;
-                    $$.llvm_value = LLVMBuildICmp(builder, LLVMIntSGT, $1.llvm_value, $3.llvm_value, "cmptmp");
-                } else if (($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && ($3.type == TYPE_FLOAT || $3.type == TYPE_INT)) {
-                    // Promove para float se necessário
-                    LLVMValueRef left = $1.llvm_value;
-                    LLVMValueRef right = $3.llvm_value;
-                    if ($1.type == TYPE_INT)
-                        left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
-                    if ($3.type == TYPE_INT)
-                        right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
-                    $$.value = $1.value > $3.value;
-                    $$.type = TYPE_BOOL;
-                    $$.llvm_value = LLVMBuildFCmp(builder, LLVMRealUGT, left, right, "fcmptmp");
-                } else {
-                    fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
-                    $$.value = -1;
-                    $$.type = TYPE_UNKNOWN;
-                }
-            }
-            | expression LEQUAL expression {
-                if ($1.type == TYPE_INT && $3.type == TYPE_INT) {
-                    $$.value = $1.value <= $3.value;
-                    $$.type = TYPE_BOOL;
-                    $$.llvm_value = LLVMBuildICmp(builder, LLVMIntSLE, $1.llvm_value, $3.llvm_value, "cmptmp");
-                } else if (($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && ($3.type == TYPE_FLOAT || $3.type == TYPE_INT)) {
-                    // Promove para float se necessário
-                    LLVMValueRef left = $1.llvm_value;
-                    LLVMValueRef right = $3.llvm_value;
-                    if ($1.type == TYPE_INT)
-                        left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
-                    if ($3.type == TYPE_INT)
-                        right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
-                    $$.value = $1.value <= $3.value;
-                    $$.type = TYPE_BOOL;
-                    $$.llvm_value = LLVMBuildFCmp(builder, LLVMRealULE, left, right, "fcmptmp");
-                } else {
-                    fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
-                    $$.value = -1;
-                    $$.type = TYPE_UNKNOWN;
-                }
-            }
-            | expression GEQUAL expression {
-                if ($1.type == TYPE_INT && $3.type == TYPE_INT) {
-                    $$.value = $1.value >= $3.value;
-                    $$.type = TYPE_BOOL;
-                    $$.llvm_value = LLVMBuildICmp(builder, LLVMIntSGE, $1.llvm_value, $3.llvm_value, "cmptmp");
-                } else if (($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && ($3.type == TYPE_FLOAT || $3.type == TYPE_INT)) {
-                    // Promove para float se necessário
-                    LLVMValueRef left = $1.llvm_value;
-                    LLVMValueRef right = $3.llvm_value;
-                    if ($1.type == TYPE_INT)
-                        left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
-                    if ($3.type == TYPE_INT)
-                        right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
-                    $$.value = $1.value >= $3.value;
-                    $$.type = TYPE_BOOL;
-                    $$.llvm_value = LLVMBuildFCmp(builder, LLVMRealUGE, left, right, "fcmptmp");
-                } else {
-                    fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
-                    $$.value = -1;
-                    $$.type = TYPE_UNKNOWN;
-                }
-            }
-            | expression EQUAL  expression { 
-                if ($1.type == TYPE_INT && $3.type == TYPE_INT) {
-                    $$.value = $1.value == $3.value;
-                    $$.type = TYPE_BOOL;
-                    $$.llvm_value = LLVMBuildICmp(builder, LLVMIntEQ, $1.llvm_value, $3.llvm_value, "cmptmp");
-                } else if (($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && ($3.type == TYPE_FLOAT || $3.type == TYPE_INT)) {
-                    // Promove para float se necessário
-                    LLVMValueRef left = $1.llvm_value;
-                    LLVMValueRef right = $3.llvm_value;
-                    if ($1.type == TYPE_INT)
-                        left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
-                    else if ($3.type == TYPE_INT)
-                        right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
-                    $$.value = $1.value == $3.value;
-                    $$.type = TYPE_BOOL;
-                    $$.llvm_value = LLVMBuildFCmp(builder, LLVMRealUEQ, left, right, "fcmptmp");
-                } else if ($1.type == TYPE_CHAR && $3.type == TYPE_CHAR) {
-                    $$.value = $1.value == $3.value;
-                    $$.type = TYPE_BOOL;
-                    $$.llvm_value = LLVMBuildICmp(builder, LLVMIntEQ, $1.llvm_value, $3.llvm_value, "cmptmp");
-                } else {
-                    fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
-                    $$.value = -1;
-                    $$.type = TYPE_UNKNOWN;
-                }
-            }
-            | expression NEQUAL expression {
-                if ($1.type == TYPE_INT && $3.type == TYPE_INT) {
-                    $$.value = $1.value != $3.value;
-                    $$.type = TYPE_BOOL;
-                    $$.llvm_value = LLVMBuildICmp(builder, LLVMIntNE, $1.llvm_value, $3.llvm_value, "cmptmp");
-                } else if (($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && ($3.type == TYPE_FLOAT || $3.type == TYPE_INT)) {
-                    LLVMValueRef left = $1.llvm_value;
-                    LLVMValueRef right = $3.llvm_value;
-                    if ($1.type == TYPE_INT)
-                        left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
-                    if ($3.type == TYPE_INT)
-                        right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
-                    $$.value = $1.value != $3.value;
-                    $$.type = TYPE_BOOL;
-                    $$.llvm_value = LLVMBuildFCmp(builder, LLVMRealUNE, left, right, "fcmptmp");
-                } else if ($1.type == TYPE_CHAR && $3.type == TYPE_CHAR) {
-                    $$.value = $1.value != $3.value;
-                    $$.type = TYPE_BOOL;
-                    $$.llvm_value = LLVMBuildICmp(builder, LLVMIntNE, $1.llvm_value, $3.llvm_value, "cmptmp");
-                } else {
-                    fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
-                    $$.value = -1;
-                    $$.type = TYPE_UNKNOWN;
-                }
-            }
-            ;
-
-log_exp: expression AND expression {
-            if ($1.type == TYPE_BOOL && $3.type == TYPE_BOOL) {
-                $$.value = $1.value && $3.value;
-                $$.type = TYPE_BOOL;
-                $$.llvm_value = LLVMBuildAnd(builder, $1.llvm_value, $3.llvm_value, "andtmp");
-            } else {
-                fprintf(stderr, "Error: logical AND between incompatible types at line %d.\n", yylineno);
+mult_div
+    : expression MULT expression {
+        if ($1.type == TYPE_INT && $3.type == TYPE_INT) {
+            $$.value = $1.value * $3.value;
+            $$.type = TYPE_INT;
+            $$.llvm_value = LLVMBuildMul(builder, $1.llvm_value, $3.llvm_value, "multtmp");
+        } else if ((($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && ($3.type == TYPE_INT || $3.type == TYPE_FLOAT))) {
+            // Promove para float se necessário
+            LLVMValueRef left = $1.llvm_value;
+            LLVMValueRef right = $3.llvm_value;
+            if ($1.type == TYPE_INT)
+                left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
+            if ($3.type == TYPE_INT)
+                right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
+            $$.value = $1.value * $3.value;
+            $$.type = TYPE_FLOAT;
+            $$.llvm_value = LLVMBuildFMul(builder, left, right, "fmulttmp");
+        } else {
+            fprintf(stderr, "Error: incompatible types for multiplication at line %d.\n", yylineno);
+            $$.value = -1;
+            $$.type = TYPE_UNKNOWN;
+        }
+    }
+    | expression DIV  expression { 
+        if ($3.value == 0.0) {
+                fprintf(stderr, "Error: division by zero at line %d.\n", yylineno);
                 $$.value = -1;
                 $$.type = TYPE_UNKNOWN;
-            }
-       }
-       | expression OR  expression {
-            if ($1.type == TYPE_BOOL && $3.type == TYPE_BOOL) {
-                $$.value = $1.value || $3.value;
-                $$.type = TYPE_BOOL;
-                $$.llvm_value = LLVMBuildOr(builder, $1.llvm_value, $3.llvm_value, "ortmp");
+        } else {
+            if ($1.type == TYPE_INT && $3.type == TYPE_INT) {
+                $$.value = $1.value / $3.value;
+                $$.type = TYPE_INT;
+                $$.llvm_value = LLVMBuildSDiv(builder, $1.llvm_value, $3.llvm_value, "divtmp");
+            } else if ((($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && ($3.type == TYPE_INT || $3.type == TYPE_FLOAT))) {
+                // Promove para float se necessário
+                LLVMValueRef left = $1.llvm_value;
+                LLVMValueRef right = $3.llvm_value;
+                if ($1.type == TYPE_INT)
+                    left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
+                if ($3.type == TYPE_INT)
+                    right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
+                $$.value = $1.value / $3.value;
+                $$.type = TYPE_FLOAT;
+                $$.llvm_value = LLVMBuildFDiv(builder, left, right, "fdivtmp");
             } else {
-                fprintf(stderr, "Error: logical OR between incompatible types at line %d.\n", yylineno);
-                $$.value = -1;
-                $$.type = TYPE_UNKNOWN;
-            }
-       }
-       | NOT expression {
-            if ($2.type == TYPE_BOOL) {
-                $$.value = !$2.value;
-                $$.type = TYPE_BOOL;
-                $$.llvm_value = LLVMBuildNot(builder, $2.llvm_value, "nottmp");
-            } else {
-                fprintf(stderr, "Error: logical NOT on incompatible type at line %d.\n", yylineno);
+                fprintf(stderr, "Error: incompatible types for division at line %d.\n", yylineno);
                 $$.value = -1;
                 $$.type = TYPE_UNKNOWN;
             }
         }
-       ;
+    }
+    ;
 
-cast: LEFTPAR INT RIGHTPAR LEFTPAR expression RIGHTPAR {
+comparison
+    : expression LESS expression {
+        if ($1.type == TYPE_INT && $3.type == TYPE_INT) {
+            $$.value = $1.value < $3.value;
+            $$.type = TYPE_BOOL;
+            $$.llvm_value = LLVMBuildICmp(builder, LLVMIntSLT, $1.llvm_value, $3.llvm_value, "cmptmp");
+        } else if (($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && ($3.type == TYPE_FLOAT || $3.type == TYPE_INT)) {
+            // Promove para float se necessário
+            LLVMValueRef left = $1.llvm_value;
+            LLVMValueRef right = $3.llvm_value;
+            if ($1.type == TYPE_INT)
+                left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
+            if ($3.type == TYPE_INT)
+                right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
+            $$.value = $1.value < $3.value;
+            $$.type = TYPE_BOOL;
+            $$.llvm_value = LLVMBuildFCmp(builder, LLVMRealULT, left, right, "cmptmp");
+        } else {
+            fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
+            $$.value = -1;
+            $$.type = TYPE_UNKNOWN;
+        }
+    }
+    | expression GREAT expression {
+        if ($1.type == TYPE_INT && $3.type == TYPE_INT) {
+            $$.value = $1.value > $3.value;
+            $$.type = TYPE_BOOL;
+            $$.llvm_value = LLVMBuildICmp(builder, LLVMIntSGT, $1.llvm_value, $3.llvm_value, "cmptmp");
+        } else if (($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && ($3.type == TYPE_FLOAT || $3.type == TYPE_INT)) {
+            // Promove para float se necessário
+            LLVMValueRef left = $1.llvm_value;
+            LLVMValueRef right = $3.llvm_value;
+            if ($1.type == TYPE_INT)
+                left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
+            if ($3.type == TYPE_INT)
+                right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
+            $$.value = $1.value > $3.value;
+            $$.type = TYPE_BOOL;
+            $$.llvm_value = LLVMBuildFCmp(builder, LLVMRealUGT, left, right, "fcmptmp");
+        } else {
+            fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
+            $$.value = -1;
+            $$.type = TYPE_UNKNOWN;
+        }
+    }
+    | expression LEQUAL expression {
+        if ($1.type == TYPE_INT && $3.type == TYPE_INT) {
+            $$.value = $1.value <= $3.value;
+            $$.type = TYPE_BOOL;
+            $$.llvm_value = LLVMBuildICmp(builder, LLVMIntSLE, $1.llvm_value, $3.llvm_value, "cmptmp");
+        } else if (($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && ($3.type == TYPE_FLOAT || $3.type == TYPE_INT)) {
+            // Promove para float se necessário
+            LLVMValueRef left = $1.llvm_value;
+            LLVMValueRef right = $3.llvm_value;
+            if ($1.type == TYPE_INT)
+                left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
+            if ($3.type == TYPE_INT)
+                right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
+            $$.value = $1.value <= $3.value;
+            $$.type = TYPE_BOOL;
+            $$.llvm_value = LLVMBuildFCmp(builder, LLVMRealULE, left, right, "fcmptmp");
+        } else {
+            fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
+            $$.value = -1;
+            $$.type = TYPE_UNKNOWN;
+        }
+    }
+    | expression GEQUAL expression {
+        if ($1.type == TYPE_INT && $3.type == TYPE_INT) {
+            $$.value = $1.value >= $3.value;
+            $$.type = TYPE_BOOL;
+            $$.llvm_value = LLVMBuildICmp(builder, LLVMIntSGE, $1.llvm_value, $3.llvm_value, "cmptmp");
+        } else if (($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && ($3.type == TYPE_FLOAT || $3.type == TYPE_INT)) {
+            // Promove para float se necessário
+            LLVMValueRef left = $1.llvm_value;
+            LLVMValueRef right = $3.llvm_value;
+            if ($1.type == TYPE_INT)
+                left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
+            if ($3.type == TYPE_INT)
+                right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
+            $$.value = $1.value >= $3.value;
+            $$.type = TYPE_BOOL;
+            $$.llvm_value = LLVMBuildFCmp(builder, LLVMRealUGE, left, right, "fcmptmp");
+        } else {
+            fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
+            $$.value = -1;
+            $$.type = TYPE_UNKNOWN;
+        }
+    }
+    | expression EQUAL  expression { 
+        if ($1.type == TYPE_INT && $3.type == TYPE_INT) {
+            $$.value = $1.value == $3.value;
+            $$.type = TYPE_BOOL;
+            $$.llvm_value = LLVMBuildICmp(builder, LLVMIntEQ, $1.llvm_value, $3.llvm_value, "cmptmp");
+        } else if (($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && ($3.type == TYPE_FLOAT || $3.type == TYPE_INT)) {
+            // Promove para float se necessário
+            LLVMValueRef left = $1.llvm_value;
+            LLVMValueRef right = $3.llvm_value;
+            if ($1.type == TYPE_INT)
+                left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
+            else if ($3.type == TYPE_INT)
+                right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
+            $$.value = $1.value == $3.value;
+            $$.type = TYPE_BOOL;
+            $$.llvm_value = LLVMBuildFCmp(builder, LLVMRealUEQ, left, right, "fcmptmp");
+        } else if ($1.type == TYPE_CHAR && $3.type == TYPE_CHAR) {
+            $$.value = $1.value == $3.value;
+            $$.type = TYPE_BOOL;
+            $$.llvm_value = LLVMBuildICmp(builder, LLVMIntEQ, $1.llvm_value, $3.llvm_value, "cmptmp");
+        } else {
+            fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
+            $$.value = -1;
+            $$.type = TYPE_UNKNOWN;
+        }
+    }
+    | expression NEQUAL expression {
+        if ($1.type == TYPE_INT && $3.type == TYPE_INT) {
+            $$.value = $1.value != $3.value;
+            $$.type = TYPE_BOOL;
+            $$.llvm_value = LLVMBuildICmp(builder, LLVMIntNE, $1.llvm_value, $3.llvm_value, "cmptmp");
+        } else if (($1.type == TYPE_FLOAT || $1.type == TYPE_INT) && ($3.type == TYPE_FLOAT || $3.type == TYPE_INT)) {
+            LLVMValueRef left = $1.llvm_value;
+            LLVMValueRef right = $3.llvm_value;
+            if ($1.type == TYPE_INT)
+                left = LLVMBuildSIToFP(builder, left, LLVMDoubleTypeInContext(context), "inttofloatl");
+            if ($3.type == TYPE_INT)
+                right = LLVMBuildSIToFP(builder, right, LLVMDoubleTypeInContext(context), "inttofloatr");
+            $$.value = $1.value != $3.value;
+            $$.type = TYPE_BOOL;
+            $$.llvm_value = LLVMBuildFCmp(builder, LLVMRealUNE, left, right, "fcmptmp");
+        } else if ($1.type == TYPE_CHAR && $3.type == TYPE_CHAR) {
+            $$.value = $1.value != $3.value;
+            $$.type = TYPE_BOOL;
+            $$.llvm_value = LLVMBuildICmp(builder, LLVMIntNE, $1.llvm_value, $3.llvm_value, "cmptmp");
+        } else {
+            fprintf(stderr, "Error: comparison between incompatible types at line %d.\n", yylineno);
+            $$.value = -1;
+            $$.type = TYPE_UNKNOWN;
+        }
+    }
+    ;
+
+log_exp
+    : expression AND expression {
+        if ($1.type == TYPE_BOOL && $3.type == TYPE_BOOL) {
+            $$.value = $1.value && $3.value;
+            $$.type = TYPE_BOOL;
+            $$.llvm_value = LLVMBuildAnd(builder, $1.llvm_value, $3.llvm_value, "andtmp");
+        } else {
+            fprintf(stderr, "Error: logical AND between incompatible types at line %d.\n", yylineno);
+            $$.value = -1;
+            $$.type = TYPE_UNKNOWN;
+        }
+    }
+    | expression OR  expression {
+        if ($1.type == TYPE_BOOL && $3.type == TYPE_BOOL) {
+            $$.value = $1.value || $3.value;
+            $$.type = TYPE_BOOL;
+            $$.llvm_value = LLVMBuildOr(builder, $1.llvm_value, $3.llvm_value, "ortmp");
+        } else {
+            fprintf(stderr, "Error: logical OR between incompatible types at line %d.\n", yylineno);
+            $$.value = -1;
+            $$.type = TYPE_UNKNOWN;
+        }
+    }
+    | NOT expression {
+        if ($2.type == TYPE_BOOL) {
+            $$.value = !$2.value;
+            $$.type = TYPE_BOOL;
+            $$.llvm_value = LLVMBuildNot(builder, $2.llvm_value, "nottmp");
+        } else {
+            fprintf(stderr, "Error: logical NOT on incompatible type at line %d.\n", yylineno);
+            $$.value = -1;
+            $$.type = TYPE_UNKNOWN;
+        }
+    }
+    ;
+
+cast
+    : LEFTPAR INT RIGHTPAR LEFTPAR expression RIGHTPAR {
         int temp = (int) $5.value;
         $$.value = (double) temp;
         $$.type = TYPE_INT;
@@ -1027,7 +1531,72 @@ cast: LEFTPAR INT RIGHTPAR LEFTPAR expression RIGHTPAR {
     }
     ;
 
-term: NUMBER { 
+
+call_function
+    : ID LEFTPAR call_parameters RIGHTPAR {
+        FunctionSymbol* func = findFunctionSymbol($1);
+        if (func == NULL) {
+            fprintf(stderr, "Error: function '%s' not declared at line %d.\n", $1, yylineno);
+            $$.value = -1;
+            $$.type = TYPE_UNKNOWN;
+            $$.llvm_value = NULL;
+        } else {
+            if (func->paramCount != param_call_count) {
+                fprintf(stderr, "Error: function '%s' expects %d parameters but got %d at line %d.\n", $1, func->paramCount, param_call_count, yylineno);
+                $$.value = -1;
+                $$.type = TYPE_UNKNOWN;
+                $$.llvm_value = NULL;
+            } else {
+                LLVMValueRef args[param_call_count];
+                int j = 0;
+                for (int i = param_call_count - 1; i >= 0; i--) {
+                    args[j++] = param_call[i].llvm_value;
+                }
+                switch (func->returnType) {
+                    case TYPE_INT:   func_type = LLVMFunctionType(LLVMInt32TypeInContext(context), NULL, 0, 0); break;
+                    case TYPE_FLOAT: func_type = LLVMFunctionType(LLVMDoubleTypeInContext(context), NULL, 0, 0); break;
+                    case TYPE_CHAR:  func_type = LLVMFunctionType(LLVMInt8TypeInContext(context), NULL, 0, 0); break;
+                    case TYPE_BOOL:  func_type = LLVMFunctionType(LLVMInt1TypeInContext(context), NULL, 0, 0); break;
+                    default:         func_type = LLVMFunctionType(LLVMVoidTypeInContext(context), NULL, 0, 0); break;
+                }
+                LLVMValueRef func_ref = LLVMGetNamedFunction(module, $1);
+                if (func_ref == NULL) {
+                    fprintf(stderr, "Error: function '%s' not found in module at line %d.\n", $1, yylineno);
+                    $$.value = -1;
+                    $$.type = TYPE_UNKNOWN;
+                    $$.llvm_value = NULL;
+                } else {
+                    // Chama a função e armazena o valor de retorno
+                    $$.llvm_value = LLVMBuildCall2(builder, func_type, func_ref, args, param_call_count, "");
+                    $$.type = func->returnType;
+                    $$.value = 0; // Opcional: você pode tentar calcular o valor se quiser
+                }
+            }
+        }
+        param_call_count = 0; // Limpa para próxima chamada
+    }
+    ;
+
+call_parameters
+    : /* empty */ {}
+    | term call_parameter_list {
+        param_call[param_call_count].value = $1.value;
+        param_call[param_call_count].type = $1.type;
+        param_call[param_call_count++].llvm_value = $1.llvm_value;
+    }
+    ;
+
+call_parameter_list
+    : /* empty */ {}
+    | COMMA term call_parameter_list {
+        param_call[param_call_count].value = $2.value;
+        param_call[param_call_count].type = $2.type;
+        param_call[param_call_count++].llvm_value = $2.llvm_value;
+    }
+    ;
+
+term
+    : NUMBER { 
         $$.value = $1.value; 
         $$.type = $1.type; 
         switch ($1.type) {
@@ -1100,8 +1669,7 @@ term: NUMBER {
         $$.value = (double) $1;
         $$.type = TYPE_CHAR;
         $$.llvm_value = LLVMConstInt(LLVMInt8TypeInContext(context), $1, 0);
-    }
-	;
+};
 
 
 %%
@@ -1163,7 +1731,7 @@ void printSymbolTable(SymbolTable* table) {
     printf("-------------------------------------------------\n\n");
 }
 
-int main( ) {
+int main() {
     signal(SIGSEGV, handleSegfault); // Handle segmentation faults
     pushScope(); // Initialize the first scope
 
@@ -1187,23 +1755,25 @@ int main( ) {
     );
     LLVMAddFunction(module, "scanf", scanf_type);
 
-    // Cria função main: int main()
-    LLVMTypeRef mainType = LLVMFunctionType(LLVMInt32TypeInContext(context), NULL, 0, 0);
-    mainFunc = LLVMAddFunction(module, "main", mainType);
-    entry = LLVMAppendBasicBlockInContext(context, mainFunc, "entry");
-    LLVMPositionBuilderAtEnd(builder, entry);
+    currentFunc = NULL; // Inicializa o ponteiro da função atual
 
     // Variáveis globais para formatação de strings
-    fmt_int   = LLVMBuildGlobalStringPtr(builder, "%d\n", "fmt_int");
-    fmt_float = LLVMBuildGlobalStringPtr(builder, "%f\n", "fmt_float");
-    fmt_char  = LLVMBuildGlobalStringPtr(builder, "%c\n", "fmt_char");
-    fmt_bool  = LLVMBuildGlobalStringPtr(builder, "%d\n", "fmt_bool");
-    fmt_str   = LLVMBuildGlobalStringPtr(builder, "%s\n", "fmt_str");
+    fmt_int   = LLVMAddGlobal(module, LLVMArrayType(LLVMInt8TypeInContext(context), 4), "fmt_int");
+    LLVMSetInitializer(fmt_int, LLVMConstStringInContext(context, "%d\n", 4, 0));
+
+    fmt_float = LLVMAddGlobal(module, LLVMArrayType(LLVMInt8TypeInContext(context), 4), "fmt_float");
+    LLVMSetInitializer(fmt_float, LLVMConstStringInContext(context, "%f\n", 4, 0));
+
+    fmt_char  = LLVMAddGlobal(module, LLVMArrayType(LLVMInt8TypeInContext(context), 4), "fmt_char");
+    LLVMSetInitializer(fmt_char, LLVMConstStringInContext(context, "%c\n", 4, 0));
+
+    fmt_bool  = LLVMAddGlobal(module, LLVMArrayType(LLVMInt8TypeInContext(context), 4), "fmt_bool");
+    LLVMSetInitializer(fmt_bool, LLVMConstStringInContext(context, "%d\n", 4, 0));
+
+    fmt_str   = LLVMAddGlobal(module, LLVMArrayType(LLVMInt8TypeInContext(context), 4), "fmt_str");
+    LLVMSetInitializer(fmt_str, LLVMConstStringInContext(context, "%s\n", 4, 0));
 
     yyparse( );
-
-    // Retorno main
-    LLVMBuildRet(builder, LLVMConstInt(LLVMInt32TypeInContext(context), 0, 0));
 
     // Imprime IR
     char *irstr = LLVMPrintModuleToString(module);

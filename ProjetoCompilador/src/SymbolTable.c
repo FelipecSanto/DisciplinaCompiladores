@@ -3,6 +3,7 @@
 #include <string.h>
 
 SymbolTable* currentScope = NULL;
+FunctionSymbol* functionList = NULL;
 
 unsigned int hash(const char* id) {
     unsigned int h = 0;
@@ -34,6 +35,16 @@ ArraySymbol* findArraySymbol(const char* id) {
             arr = arr->next;
         }
         scope = scope->prev;
+    }
+    return NULL;
+}
+
+FunctionSymbol* findFunctionSymbol(const char* id) {
+    FunctionSymbol* curr = functionList;
+    while (curr) {
+        if (strcmp(curr->id, id) == 0)
+            return curr;
+        curr = curr->next;
     }
     return NULL;
 }
@@ -87,6 +98,24 @@ void insertValueArraySymbol(const char* id, double value, int indice) {
             arr->values[indice] = value;
         }
     }
+}
+
+void insertFunctionSymbol(const char* id, VarType returnType, int paramCount, VarType* paramTypes) {
+    // Verifica se já existe
+    FunctionSymbol* existing = findFunctionSymbol(id);
+    if (existing) {
+        fprintf(stderr, "Function '%s' already declared.\n", id);
+        return;
+    }
+    FunctionSymbol* func = malloc(sizeof(FunctionSymbol));
+    func->id = strdup(id);
+    func->returnType = returnType;
+    func->paramCount = paramCount;
+    func->paramTypes = malloc(sizeof(VarType) * paramCount);
+    for (int i = 0; i < paramCount; i++)
+        func->paramTypes[i] = paramTypes[i];
+    func->next = functionList;
+    functionList = func;
 }
 
 void pushScope() {

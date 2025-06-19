@@ -1,15 +1,17 @@
-int a;
-int b;
+int main() {
+    int a;
+    int b;
 
-a = 5;
-b = 3;
+    a = 5;
+    b = 3;
 
-if (a > 3) {
-    int c;
-    c = a + b;
-}
+    if (a > 3) {
+        int c;
+        c = a + b;
+    }
 
-if(b < 10){
-    // Erro, c não existe no escopo.
-    c = 2;
+    if(b < 10){
+        // Erro, c não existe no escopo.
+        c = 2;
+    }
 }
