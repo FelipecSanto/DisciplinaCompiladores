@@ -2,7 +2,6 @@
 #include "LLVMUtils.h"
 #include "SymbolTable.h"
 #include "UtilsConditionals.h"
-#include "stdbool.h"
 #include "VarType.h"
 
 #define MAX_PARAMS 10
@@ -59,7 +58,7 @@ int param_call_count = 0;
 %token IF ELSE ELSEIF
 %token INT CHAR FLOAT BOOL
 %token PRINTF SCANF ADDRESS
-%token WHILE FOR
+%token WHILE
 %token VOID RETURN
 %token <number> NUMBER
 %token <id> ID STRING
@@ -102,7 +101,7 @@ int param_call_count = 0;
 %type int_declaration_locals float_declaration_locals char_declaration_locals bool_declaration_locals
 
 %type <if_else_blocks> if_statement
-%type <while_blocks> while while_aux for for_aux
+%type <while_blocks> while while_aux
 
 /* give us more detailed errors */
 %define parse.error verbose
@@ -750,8 +749,6 @@ array_values_local
 comand: assignment {}
       | if_statement {}
       | while {}
-      | for {}
-      | for {}
       | printf {}
       | scanf {}
       | return {}

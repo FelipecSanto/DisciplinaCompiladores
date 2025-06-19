@@ -31,7 +31,6 @@
 "&"                         { return ADDRESS; }
 
 [wW][hH][iI][lL][eE]	    { return WHILE; }
-[fF][oO][rR]	            { return FOR; }
 
 [vV][oO][iI][dD]			{ return VOID; }
 
