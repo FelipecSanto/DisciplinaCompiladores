@@ -29,6 +29,7 @@
 [Ss][cC][aA][nN][fF]	    { return SCANF; }
 
 [wW][hH][iI][lL][eE]	    { return WHILE; }
+[fF][oO][rR]	            { return FOR; }
 
 [tT][rR][uU][eE]			{ yylval.number.value = 1; yylval.number.type = TYPE_BOOL; return NUMBER; }
 [fF][aA][lL][sS][eE]		{ yylval.number.value = 0; yylval.number.type = TYPE_BOOL; return NUMBER; }
