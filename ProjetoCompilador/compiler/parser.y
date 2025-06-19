@@ -1057,8 +1057,6 @@ while_aux
     }
     ;
 
-
-
 for
     : FOR for_aux LEFTPAR declaration_local {
         // Pula direto para o bloco de condição após a declaração
