@@ -2,6 +2,7 @@
 #include "LLVMUtils.h"
 #include "SymbolTable.h"
 #include "UtilsConditionals.h"
+#include "stdbool.h"
 #include "VarType.h"
 
 #define MAX_PARAMS 10
@@ -53,7 +54,7 @@ int param_call_count = 0;
 %token IF ELSE ELSEIF
 %token INT CHAR FLOAT BOOL
 %token PRINTF SCANF
-%token WHILE
+%token WHILE FOR
 %token VOID RETURN
 %token <number> NUMBER
 %token <id> ID STRING
@@ -93,7 +94,7 @@ int param_call_count = 0;
 %type intArray_declaration_local array_values_local
 
 %type <if_else_blocks> if_statement
-%type <while_blocks> while while_aux
+%type <while_blocks> while while_aux for for_aux
 
 /* give us more detailed errors */
 %define parse.error verbose
@@ -836,6 +837,8 @@ array_values_local
 comand: assignment {}
       | if_statement {}
       | while {}
+      | for {}
+      | for {}
       | printf {}
       | scanf {}
       | return {}
@@ -1053,6 +1056,49 @@ while_aux
         LLVMPositionBuilderAtEnd(builder, $$.condBB);
     }
     ;
+
+
+
+for
+    : FOR for_aux LEFTPAR declaration_local {
+        // Pula direto para o bloco de condição após a declaração
+        LLVMBuildBr(builder, $2.condBB);
+
+        // Posiciona no bloco condicional
+        LLVMPositionBuilderAtEnd(builder, $2.condBB);
+    }
+    expression DONE assignment RIGHTPAR {
+        pushScope();
+        if ($6.type != TYPE_BOOL) {
+            fprintf(stderr, "Error: condition is not boolean at line %d.\n", yylineno);
+        }
+
+        // Condicional
+        LLVMBuildCondBr(builder, $6.llvm_value, $2.bodyBB, $2.endWHILEBB);
+
+        // Corpo do for
+        LLVMPositionBuilderAtEnd(builder, $2.bodyBB);
+    } LEFTKEYS program_locals RIGHTKEYS {
+        // Volta para condicional
+        LLVMBuildBr(builder, $2.condBB);
+
+        // Posiciona no final do for
+        LLVMPositionBuilderAtEnd(builder, $2.endWHILEBB);
+
+        popScope();
+    }
+    ;
+
+for_aux
+    : {
+        // Cria os blocos condicional, corpo e final
+        $$.condBB = LLVMAppendBasicBlockInContext(context, currentFunc, "for.cond");
+        $$.bodyBB = LLVMAppendBasicBlockInContext(context, currentFunc, "for.body");
+        $$.endWHILEBB = LLVMAppendBasicBlockInContext(context, currentFunc, "for.end");
+    }
+    ;
+
+
 
 printf
     : PRINTF LEFTPAR ID RIGHTPAR DONE {
