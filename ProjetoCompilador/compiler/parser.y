@@ -2,6 +2,7 @@
 #include "LLVMUtils.h"
 #include "SymbolTable.h"
 #include "UtilsConditionals.h"
+#include "stdbool.h"
 #include "VarType.h"
 
 #define MAX_PARAMS 10
@@ -87,7 +88,7 @@ int param_call_count = 0;
 %type function parameters parameter parameter_list call_parameters call_parameter_list
 %type int_function float_function char_function bool_function void_function
 
-%type printf scanf assignment return comand
+%type printf scanf assignment assignment_notfull return comand
 %type <printf> printf_args scanf_args
 
 %type int_declaration_global float_declaration_global char_declaration_global bool_declaration_global 
@@ -758,7 +759,11 @@ comand: assignment {}
 
 
 assignment
-    : ID RECEIVE expression DONE {
+    : assignment_notfull DONE
+    ;
+
+assignment_notfull
+    : ID RECEIVE expression {
         Symbol* symbol = findSymbol($1);
         LLVMValueRef var = getVarLLVM($1);
         LLVMTypeRef llvm_type;
@@ -803,7 +808,7 @@ assignment
             fprintf(stderr, "Error: undefined variable '%s' at line %d.\n", $1, yylineno);
         }
     }
-    | ID LEFTBRACKET expression RIGHTBRACKET RECEIVE expression DONE {
+    | ID LEFTBRACKET expression RIGHTBRACKET RECEIVE expression {
         ArraySymbol* symbol = findArraySymbol($1);
         if (!symbol) {
             fprintf(stderr, "Error: variable '%s' is not an array or not exist at line %d.\n", $1, yylineno);
@@ -977,7 +982,7 @@ for
         // Posiciona no bloco condicional
         LLVMPositionBuilderAtEnd(builder, $2.condBB);
     }
-    expression DONE assignment RIGHTPAR {
+    expression DONE assignment_notfull RIGHTPAR {
         pushScope();
         if ($6.type != TYPE_BOOL) {
             fprintf(stderr, "Error: condition is not boolean at line %d.\n", yylineno);
