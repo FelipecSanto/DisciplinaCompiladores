@@ -2,6 +2,7 @@
 #include "LLVMUtils.h"
 #include "SymbolTable.h"
 #include "UtilsConditionals.h"
+#include "stdbool.h"
 #include "VarType.h"
 
 #define MAX_PARAMS 10
@@ -1058,7 +1059,8 @@ while_aux
 
 
 
-for: FOR for_aux LEFTPAR declaration {
+for
+    : FOR for_aux LEFTPAR declaration_local {
         // Pula direto para o bloco de condição após a declaração
         LLVMBuildBr(builder, $2.condBB);
 
@@ -1076,7 +1078,7 @@ for: FOR for_aux LEFTPAR declaration {
 
         // Corpo do for
         LLVMPositionBuilderAtEnd(builder, $2.bodyBB);
-    } LEFTKEYS program RIGHTKEYS {
+    } LEFTKEYS program_locals RIGHTKEYS {
         // Volta para condicional
         LLVMBuildBr(builder, $2.condBB);
 
@@ -1087,11 +1089,12 @@ for: FOR for_aux LEFTPAR declaration {
     }
     ;
 
-for_aux: {
+for_aux
+    : {
         // Cria os blocos condicional, corpo e final
-        $$.condBB = LLVMAppendBasicBlockInContext(context, mainFunc, "for.cond");
-        $$.bodyBB = LLVMAppendBasicBlockInContext(context, mainFunc, "for.body");
-        $$.endWHILEBB = LLVMAppendBasicBlockInContext(context, mainFunc, "for.end");
+        $$.condBB = LLVMAppendBasicBlockInContext(context, currentFunc, "for.cond");
+        $$.bodyBB = LLVMAppendBasicBlockInContext(context, currentFunc, "for.body");
+        $$.endWHILEBB = LLVMAppendBasicBlockInContext(context, currentFunc, "for.end");
     }
     ;
 
