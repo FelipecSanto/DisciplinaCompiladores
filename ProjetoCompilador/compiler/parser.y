@@ -48,6 +48,9 @@ int param_call_count = 0;
     struct {
         LLVMBasicBlockRef condBB, bodyBB, endWHILEBB;
     } while_blocks;
+    struct {
+        LLVMBasicBlockRef condBB, bodyBB, incBB, endFORBB;
+    } for_blocks;
 
     struct {
         LLVMValueRef values[10];
@@ -102,7 +105,8 @@ int param_call_count = 0;
 %type int_declaration_locals float_declaration_locals char_declaration_locals bool_declaration_locals
 
 %type <if_else_blocks> if_statement
-%type <while_blocks> while while_aux for for_aux
+%type <while_blocks> while while_aux
+%type <for_blocks> for for_aux
 
 /* give us more detailed errors */
 %define parse.error verbose
@@ -981,23 +985,30 @@ for
 
         // Posiciona no bloco condicional
         LLVMPositionBuilderAtEnd(builder, $2.condBB);
-    } expression DONE assignment_notfull RIGHTPAR {
+    } expression DONE {
         pushScope();
         if ($6.type != TYPE_BOOL) {
             fprintf(stderr, "Error: condition is not boolean at line %d.\n", yylineno);
         }
 
         // Condicional
-        LLVMBuildCondBr(builder, $6.llvm_value, $2.bodyBB, $2.endWHILEBB);
+        LLVMBuildCondBr(builder, $6.llvm_value, $2.bodyBB, $2.endFORBB);
 
         // Corpo do for
         LLVMPositionBuilderAtEnd(builder, $2.bodyBB);
-    } LEFTKEYS program_locals RIGHTKEYS {
+    } assignment_notfull {
+        // Vai para o incremento
+        LLVMBuildBr(builder, $2.incBB); 
+
+        // Posiciona o builder no bloco de incremento
+        LLVMPositionBuilderAtEnd(builder, $2.incBB);
+    }
+    RIGHTPAR LEFTKEYS program_locals RIGHTKEYS {
         // Volta para condicional
         LLVMBuildBr(builder, $2.condBB);
 
         // Posiciona no final do for
-        LLVMPositionBuilderAtEnd(builder, $2.endWHILEBB);
+        LLVMPositionBuilderAtEnd(builder, $2.endFORBB);
 
         popScope();
     }
@@ -1008,7 +1019,8 @@ for_aux
         // Cria os blocos condicional, corpo e final
         $$.condBB = LLVMAppendBasicBlockInContext(context, currentFunc, "for.cond");
         $$.bodyBB = LLVMAppendBasicBlockInContext(context, currentFunc, "for.body");
-        $$.endWHILEBB = LLVMAppendBasicBlockInContext(context, currentFunc, "for.end");
+        $$.incBB = LLVMAppendBasicBlockInContext(context, currentFunc, "for.inc");
+        $$.endFORBB = LLVMAppendBasicBlockInContext(context, currentFunc, "for.end");
     }
     ;
 
