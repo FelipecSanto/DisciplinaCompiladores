@@ -1,8 +1,8 @@
 int main(){
 
-    int a = 2;
+    int a = 3;
     int b = 3;
-    int c = a + b;
+    int c = a - b;
 
     if(a > 2){
         b = 5;

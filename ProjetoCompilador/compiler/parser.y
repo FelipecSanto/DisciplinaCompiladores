@@ -981,8 +981,7 @@ for
 
         // Posiciona no bloco condicional
         LLVMPositionBuilderAtEnd(builder, $2.condBB);
-    }
-    expression DONE assignment_notfull RIGHTPAR {
+    } expression DONE assignment_notfull RIGHTPAR {
         pushScope();
         if ($6.type != TYPE_BOOL) {
             fprintf(stderr, "Error: condition is not boolean at line %d.\n", yylineno);

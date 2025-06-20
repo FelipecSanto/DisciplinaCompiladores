@@ -10,23 +10,30 @@ LDFLAGS = `llvm-config --cflags --ldflags --libs core` -rdynamic
 SRC = src/LLVMUtils.c src/SymbolTable.c src/UtilsConditionals.c src/VarType.c
 PARSER = compiler/parser.y
 LEXER = compiler/lexer.l
-OBJDIR = objects
-PARSER_C = $(OBJDIR)/parser.tab.c
-PARSER_H = $(OBJDIR)/parser.tab.h
-LEXER_C = $(OBJDIR)/lexer.yy.c
 
-TARGET = $(OBJDIR)/ccompiler
+OBJDIR = objects
+CODEIR = $(OBJDIR)/codeIR
+FINALCODE = $(OBJDIR)/FinalCode
+
+PARSER_C = $(CODEIR)/parser.tab.c
+PARSER_H = $(CODEIR)/parser.tab.h
+LEXER_C = $(CODEIR)/lexer.yy.c
+
+TARGET = $(CODEIR)/ccompiler
+OUTPUT_LLVM = $(CODEIR)/output.ll
+OUTPUT_ASM = $(FINALCODE)/output.asm
+
 EXEMPLO = Exemplos/WhileFor.c
-OUTPUT_LLVM = output.ll
 
 # Regras principais
 all: $(OUTPUT_LLVM)
 	@echo "=================================="
 	@echo " Criando arquivo assembly "
 	@echo "=================================="
-	llc -march=riscv32 -mattr=+m,+a,+f,+d output.ll -o output.asm
+	@mkdir -p $(FINALCODE)
+	llc -march=riscv32 -mattr=+m,+a,+f,+d $(OUTPUT_LLVM) -o $(OUTPUT_ASM)
 
-$(OUTPUT_LLVM): $(OBJDIR) $(TARGET)
+$(OUTPUT_LLVM): | $(CODEIR) $(FINALCODE) $(TARGET)
 	@echo "=================================="
 	@echo " Criando arquivo LLVM "
 	@echo "=================================="
@@ -41,23 +48,29 @@ $(TARGET): $(PARSER_C) $(LEXER_C) $(SRC)
 	@echo "Compilação concluída!"
 	@echo "Executando o compilador..."
 
-$(PARSER_C) $(PARSER_H): $(PARSER) | $(OBJDIR)
+$(PARSER_C) $(PARSER_H): $(PARSER) | $(CODEIR)
 	@echo "=================================="
 	@echo "Gerando parser com Bison..."
 	@echo "=================================="
 	bison -d -o $(PARSER_C) $(PARSER) -Wcounterexamples
 
-$(LEXER_C): $(LEXER) | $(OBJDIR)
+$(LEXER_C): $(LEXER) | $(CODEIR)
 	@echo "=================================="
 	@echo "Gerando lexer com Flex..."
 	@echo "=================================="
 	flex -l -o $(LEXER_C) $(LEXER)
 
+$(CODEIR):
+	mkdir -p $(CODEIR)
+
+$(FINALCODE):
+	mkdir -p $(FINALCODE)
+
 clean:
 	@echo "=================================="
 	@echo "Limpando arquivos gerados..."
 	@echo "=================================="
-	rm -f $(PARSER_C) $(PARSER_H) $(LEXER_C) $(TARGET)
+	rm -rf $(OBJDIR)
 	@echo "=================================="
 	@echo "Limpeza concluída!"
 	@echo "=================================="
@@ -83,4 +96,10 @@ cast: all
 funcoes: EXEMPLO = Exemplos/Funcoes.c
 funcoes: all
 
-.PHONY: all clean condicional printscan declaracao vetor escopo cast funcoes
+simples: EXEMPLO = Exemplos/Simples.c
+simples: all
+
+for: EXEMPLO = Exemplos/WhileFor.c
+for: all
+
+.PHONY: all clean condicional printscan declaracao vetor escopo cast funcoes simples for

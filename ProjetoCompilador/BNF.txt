@@ -1,97 +1,209 @@
-<program> ::= 
-        | <comand> <program>
-        | <declaration> <program>
+<program_globals> ::= /* vazio */
+                   | <program_global> <program_global_list>
 
-<declaration> ::=
-          int id <int_declaration> ;
-        | float id = <float_declaration> ;
-        | char id = <char_declaration> ;
-        | bool id = <bool_declaration> ;
+<program_global_list> ::= /* vazio */
+                       | <program_global> <program_global_list>
 
-<int_declaration> :: =
-        | , id <int_declaration>
-        | , id = <expression> <int_declaration>
+<program_global> ::= <function>
+                  | <declaration_global>
+                  | error
 
-<float_declaration> :: =
-        | , id <float_declaration>
-        | , id = <expression> <float_declaration>
+<function> ::= <int_function>
+            | <float_function>
+            | <char_function>
+            | <bool_function>
+            | <void_function>
 
-<char_declaration> :: =
-        | , id <char_declaration>
-        | , id = <expression> <char_declaration>
+<int_function> ::= "int" ID "(" <parameters> ")" "{" <program_locals> "}"
 
-<bool_declaration> :: =
-        | , id <bool_declaration>
-        | , id = <expression> <bool_declaration>
+<float_function> ::= "float" ID "(" <parameters> ")" "{" <program_locals> "}"
 
-<command> ::=
-          <assignment>
-        | <if_then>
-        | <while>
-        | <printf>
-        | <scanf>
+<char_function> ::= "char" ID "(" <parameters> ")" "{" <program_locals> "}"
 
-<assignment> ::=
-        id = <expression> ;
+<bool_function> ::= "bool" ID "(" <parameters> ")" "{" <program_locals> "}"
 
-<if_then> ::=
-        if ( <expression> ) <if_then_aux> { <program> } <if_then_aux2> <else>
+<void_function> ::= "void" ID "(" <parameters> ")" "{" <program_locals> "}"
 
-<else> ::=
-        | else { <program> }
+<parameters> ::= /* vazio */
+              | <parameter> <parameter_list>
 
-<while> ::=
-        while ( <expression> ) { <program> }
+<parameter_list> ::= /* vazio */
+                 | "," <parameter> <parameter_list>
 
-<printf> ::=
-          printf ( id ) ;
-        | printf ( number ) ;
-        | printf ( string ) ;
+<parameter> ::= "int" ID
+             | "float" ID
+             | "char" ID
+             | "bool" ID
 
-<scanf> ::=
-        scanf ( id ) ;
+<declaration_global> ::= <int_declaration_globals>
+                      | <float_declaration_globals>
+                      | <char_declaration_globals>
+                      | <bool_declaration_globals>
 
-<expression> ::=
-          <soma_sub>
-        | <mult_div>
-        | ( <expression> )
-        | <comparison>
-        | <log_exp>
-        | <cast>
-        | <term>
+<int_declaration_globals> ::= "int" <int_declaration_global> <int_declaration_global_list> ";"
 
-<soma_sub> ::=
-          <expression> + <expression>
-        | <expression> - <expression>
+<int_declaration_global_list> ::= /* vazio */
+                              | "," <int_declaration_global> <int_declaration_global_list>
 
-<mult_div> ::=
-          <expression>  <expression>
-        | <expression> / <expression>
+<int_declaration_global> ::= ID
+                         | ID "=" <term_const>
+                         | <array_global>
 
-<comparison> ::=
-          <expression> < <expression>
-        | <expression> > <expression>
-        | <expression> <= <expression>
-        | <expression> >= <expression>
-        | <expression> == <expression>
-        | <expression> != <expression>
+<array_global> ::= ID "[" <term_const> "]"
+               | ID "[" <term_const> "]" "=" "{" <array_values_global> "}"
 
-<log_exp> ::=
-          <expression> and <expression>
-        | <expression> or <expression>
-        | not <expression>
+<array_values_global> ::= <term_const>
+                      | <array_values_global> "," <term_const>
 
-<cast> ::=
-          ( int ) ( <expression> )
-        | ( int ) <term>
-        | ( float ) ( <expression> )
-        | ( float ) <term>
-        | ( char ) ( <expression> )
-        | ( char ) <term>
-        | ( bool ) ( <expression> )
-        | ( bool ) <term>
+<float_declaration_globals> ::= "float" <float_declaration_global> <float_declaration_global_list> ";"
+<float_declaration_global_list> ::= /* vazio */
+                                 | "," <float_declaration_global> <float_declaration_global_list>
+<float_declaration_global> ::= ID
+                           | ID "=" <term_const>
 
-<term> ::=
-          number
-        | id
-        | caractere
+<char_declaration_globals> ::= "char" <char_declaration_global> <char_declaration_global_list> ";"
+<char_declaration_global_list> ::= /* vazio */
+                                | "," <char_declaration_global> <char_declaration_global_list>
+<char_declaration_global> ::= ID
+                          | ID "=" <term_const>
+
+<bool_declaration_globals> ::= "bool" <bool_declaration_global> <bool_declaration_global_list> ";"
+<bool_declaration_global_list> ::= /* vazio */
+                                | "," <bool_declaration_global> <bool_declaration_global_list>
+<bool_declaration_global> ::= ID
+                          | ID "=" <term_const>
+
+<program_locals> ::= /* vazio */
+                 | <program_local> <program_local_list>
+
+<program_local_list> ::= /* vazio */
+                     | <program_local> <program_local_list>
+
+<program_local> ::= <comand>
+                | <declaration_local>
+
+<declaration_local> ::= <int_declaration_locals>
+                    | <float_declaration_locals>
+                    | <char_declaration_locals>
+                    | <bool_declaration_locals>
+
+<int_declaration_locals> ::= "int" <int_declaration_local> <int_declaration_local_list> ";"
+<int_declaration_local_list> ::= /* vazio */
+                             | "," <int_declaration_local> <int_declaration_local_list>
+<int_declaration_local> ::= ID
+                        | ID "=" <expression>
+                        | <array_local>
+
+<array_local> ::= ID "[" <expression> "]"
+              | ID "[" <expression> "]" "=" "{" <array_values_local> "}"
+
+<array_values_local> ::= <expression>
+                     | <array_values_local> "," <expression>
+
+<float_declaration_locals> ::= "float" <float_declaration_local> <float_declaration_local_list> ";"
+<float_declaration_local_list> ::= /* vazio */
+                                | "," <float_declaration_local> <float_declaration_local_list>
+<float_declaration_local> ::= ID
+                          | ID "=" <expression>
+
+<char_declaration_locals> ::= "char" <char_declaration_local> <char_declaration_local_list> ";"
+<char_declaration_local_list> ::= /* vazio */
+                               | "," <char_declaration_local> <char_declaration_local_list>
+<char_declaration_local> ::= ID
+                         | ID "=" <expression>
+
+<bool_declaration_locals> ::= "bool" <bool_declaration_local> <bool_declaration_local_list> ";"
+<bool_declaration_local_list> ::= /* vazio */
+                               | "," <bool_declaration_local> <bool_declaration_local_list>
+<bool_declaration_local> ::= ID
+                         | ID "=" <expression>
+
+<comand> ::= <assignment>
+          | <if_statement>
+          | <while>
+          | <for>
+          | <printf>
+          | <scanf>
+          | <return>
+          | <call_function> ";"
+
+<assignment> ::= ID "=" <expression> ";"
+             | ID "[" <expression> "]" "=" <expression> ";"
+
+<if_statement> ::= "if" "(" <expression> ")" "{" <program_locals> "}" <else_if_chain>
+
+<else_if_chain> ::= /* vazio */
+                | "else" "{" <program_locals> "}"
+                | "elseif" "(" <expression> ")" "{" <program_locals> "}" <else_if_chain>
+
+<while> ::= "while" <while_aux> "(" <expression> ")" "{" <program_locals> "}"
+
+<while_aux> ::= /* bloco auxiliar para controle de fluxo, não afeta BNF principal */
+
+<for> ::= "for" <for_aux> "(" <declaration_local> <expression> ";" <assignment> ")" "{" <program_locals> "}"
+
+<for_aux> ::= /* bloco auxiliar para controle de fluxo, não afeta BNF principal */
+
+<printf> ::= "printf" "(" STRING <printf_args> ")" ";"
+
+<printf_args> ::= /* vazio */
+              | "," <expression> <printf_args>
+
+<scanf> ::= "scanf" "(" STRING <scanf_args> ")" ";"
+
+<scanf_args> ::= /* vazio */
+             | "," "&" ID <scanf_args>
+
+<return> ::= "return" <expression> ";"
+         | "return" ";"
+
+<expression> ::= <soma_sub>
+             | <mult_div>
+             | "(" <expression> ")"
+             | <comparison>
+             | <log_exp>
+             | <cast>
+             | <call_function>
+             | <term>
+
+<soma_sub> ::= <expression> "+" <expression>
+           | <expression> "-" <expression>
+
+<mult_div> ::= <expression> "*" <expression>
+           | <expression> "/" <expression>
+
+<comparison> ::= <expression> "<" <expression>
+             | <expression> ">" <expression>
+             | <expression> "<=" <expression>
+             | <expression> ">=" <expression>
+             | <expression> "==" <expression>
+             | <expression> "!=" <expression>
+
+<log_exp> ::= <expression> "&&" <expression>
+          | <expression> "||" <expression>
+          | "!" <expression>
+
+<cast> ::= "(" "int" ")" "(" <expression> ")"
+       | "(" "int" ")" <term>
+       | "(" "float" ")" "(" <expression> ")"
+       | "(" "float" ")" <term>
+       | "(" "char" ")" "(" <expression> ")"
+       | "(" "char" ")" <term>
+       | "(" "bool" ")" "(" <expression> ")"
+       | "(" "bool" ")" <term>
+
+<call_function> ::= ID "(" <call_parameters> ")"
+
+<call_parameters> ::= /* vazio */
+                  | <term> <call_parameter_list>
+
+<call_parameter_list> ::= /* vazio */
+                      | "," <term> <call_parameter_list>
+
+<term> ::= NUMBER
+       | ID
+       | ID "[" <expression> "]"
+       | CARACTERE
+
+<term_const> ::= NUMBER
+             | CARACTERE

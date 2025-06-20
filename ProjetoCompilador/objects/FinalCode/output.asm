@@ -1,7 +1,7 @@
-	.text
 	.attribute	4, 16
-	.attribute	5, "rv32i2p1_m2p0_a2p1_f2p2_d2p2_zicsr2p0"
+	.attribute	5, "rv32i2p1_m2p0_a2p1_f2p2_d2p2_zicsr2p0_zmmul1p0_zaamo1p0_zalrsc1p0"
 	.file	"parser"
+	.text
 	.globl	main                            # -- Begin function main
 	.p2align	2
 	.type	main,@function
@@ -19,8 +19,8 @@ main:                                   # @main
 	li	a0, 2
 	sw	a0, -12(s0)
 	li	a0, 3
-	sw	a0, -16(s0)
 	sw	zero, -20(s0)
+	sw	a0, -16(s0)
 	li	a0, 4
 .LBB0_1:                                # %for.cond
                                         # =>This Inner Loop Header: Depth=1
@@ -58,9 +58,13 @@ main:                                   # @main
 	sw	a1, -16(a0)
 	li	a0, 0
 	addi	sp, s0, -32
+	.cfi_def_cfa sp, 32
 	lw	ra, 28(sp)                      # 4-byte Folded Reload
 	lw	s0, 24(sp)                      # 4-byte Folded Reload
+	.cfi_restore ra
+	.cfi_restore s0
 	addi	sp, sp, 32
+	.cfi_def_cfa_offset 0
 	ret
 .Lfunc_end0:
 	.size	main, .Lfunc_end0-main

@@ -35,8 +35,8 @@
    especially those whose name start with YY_ or yy_.  They are
    private implementation details that can be changed or removed.  */
 
-#ifndef YY_YY_OBJECTS_PARSER_TAB_H_INCLUDED
-# define YY_YY_OBJECTS_PARSER_TAB_H_INCLUDED
+#ifndef YY_YY_OBJECTS_CODEIR_PARSER_TAB_H_INCLUDED
+# define YY_YY_OBJECTS_CODEIR_PARSER_TAB_H_INCLUDED
 /* Debug traces.  */
 #ifndef YYDEBUG
 # define YYDEBUG 0
@@ -65,34 +65,35 @@ extern int yydebug;
     SCANF = 266,                   /* SCANF  */
     ADDRESS = 267,                 /* ADDRESS  */
     WHILE = 268,                   /* WHILE  */
-    VOID = 269,                    /* VOID  */
-    RETURN = 270,                  /* RETURN  */
-    NUMBER = 271,                  /* NUMBER  */
-    ID = 272,                      /* ID  */
-    STRING = 273,                  /* STRING  */
-    CARACTERE = 274,               /* CARACTERE  */
-    RECEIVE = 275,                 /* RECEIVE  */
-    EQUAL = 276,                   /* EQUAL  */
-    NEQUAL = 277,                  /* NEQUAL  */
-    LESS = 278,                    /* LESS  */
-    GREAT = 279,                   /* GREAT  */
-    LEQUAL = 280,                  /* LEQUAL  */
-    GEQUAL = 281,                  /* GEQUAL  */
-    AND = 282,                     /* AND  */
-    OR = 283,                      /* OR  */
-    NOT = 284,                     /* NOT  */
-    PLUS = 285,                    /* PLUS  */
-    MIN = 286,                     /* MIN  */
-    MULT = 287,                    /* MULT  */
-    DIV = 288,                     /* DIV  */
-    LEFTPAR = 289,                 /* LEFTPAR  */
-    RIGHTPAR = 290,                /* RIGHTPAR  */
-    LEFTKEYS = 291,                /* LEFTKEYS  */
-    RIGHTKEYS = 292,               /* RIGHTKEYS  */
-    LEFTBRACKET = 293,             /* LEFTBRACKET  */
-    RIGHTBRACKET = 294,            /* RIGHTBRACKET  */
-    COMMA = 295,                   /* COMMA  */
-    DONE = 296                     /* DONE  */
+    FOR = 269,                     /* FOR  */
+    VOID = 270,                    /* VOID  */
+    RETURN = 271,                  /* RETURN  */
+    NUMBER = 272,                  /* NUMBER  */
+    ID = 273,                      /* ID  */
+    STRING = 274,                  /* STRING  */
+    CARACTERE = 275,               /* CARACTERE  */
+    RECEIVE = 276,                 /* RECEIVE  */
+    EQUAL = 277,                   /* EQUAL  */
+    NEQUAL = 278,                  /* NEQUAL  */
+    LESS = 279,                    /* LESS  */
+    GREAT = 280,                   /* GREAT  */
+    LEQUAL = 281,                  /* LEQUAL  */
+    GEQUAL = 282,                  /* GEQUAL  */
+    AND = 283,                     /* AND  */
+    OR = 284,                      /* OR  */
+    NOT = 285,                     /* NOT  */
+    PLUS = 286,                    /* PLUS  */
+    MIN = 287,                     /* MIN  */
+    MULT = 288,                    /* MULT  */
+    DIV = 289,                     /* DIV  */
+    LEFTPAR = 290,                 /* LEFTPAR  */
+    RIGHTPAR = 291,                /* RIGHTPAR  */
+    LEFTKEYS = 292,                /* LEFTKEYS  */
+    RIGHTKEYS = 293,               /* RIGHTKEYS  */
+    LEFTBRACKET = 294,             /* LEFTBRACKET  */
+    RIGHTBRACKET = 295,            /* RIGHTBRACKET  */
+    COMMA = 296,                   /* COMMA  */
+    DONE = 297                     /* DONE  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -101,7 +102,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 34 "compiler/parser.y"
+#line 35 "compiler/parser.y"
 
     struct {
         double value;
@@ -124,7 +125,7 @@ union YYSTYPE
         int count;
     } printf;
 
-#line 128 "objects/parser.tab.h"
+#line 129 "objects/codeIR/parser.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;
@@ -139,4 +140,4 @@ extern YYSTYPE yylval;
 int yyparse (void);
 
 
-#endif /* !YY_YY_OBJECTS_PARSER_TAB_H_INCLUDED  */
+#endif /* !YY_YY_OBJECTS_CODEIR_PARSER_TAB_H_INCLUDED  */
