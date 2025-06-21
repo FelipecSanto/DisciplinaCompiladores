@@ -34,6 +34,8 @@
 
 [fF][oO][rR]			    { return FOR; }
 
+[dD][oO]				    { return DO; }
+
 [vV][oO][iI][dD]			{ return VOID; }
 
 [rR][eE][tT][uU][rR][nN]	{ return RETURN; }

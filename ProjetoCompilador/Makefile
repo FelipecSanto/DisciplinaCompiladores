@@ -102,4 +102,10 @@ simples: all
 for: EXEMPLO = Exemplos/WhileFor.c
 for: all
 
-.PHONY: all clean condicional printscan declaracao vetor escopo cast funcoes simples for
+dowhile: EXEMPLO = Exemplos/DoWhile.c
+dowhile: all
+
+incremento: EXEMPLO = Exemplos/Incremento.c
+incremento: all
+
+.PHONY: all clean condicional printscan declaracao vetor escopo cast funcoes simples for dowhile incremento

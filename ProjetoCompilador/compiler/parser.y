@@ -62,7 +62,7 @@ int param_call_count = 0;
 %token IF ELSE ELSEIF
 %token INT CHAR FLOAT BOOL
 %token PRINTF SCANF ADDRESS
-%token WHILE FOR
+%token WHILE FOR DO
 %token VOID RETURN
 %token <number> NUMBER
 %token <id> ID STRING
@@ -83,7 +83,7 @@ int param_call_count = 0;
 %right NOT
 
 /* declare non-terminals */
-%type <number> expression soma_sub mult_div term comparison log_exp cast term_const call_function
+%type <number> expression soma_sub mult_div term comparison log_exp cast term_const call_function call_function_notfull
 
 %type program_global program_global_list program_globals declaration_global
 %type program_local program_local_list program_locals declaration_local
@@ -91,7 +91,7 @@ int param_call_count = 0;
 %type function parameters parameter parameter_list call_parameters call_parameter_list
 %type int_function float_function char_function bool_function void_function
 
-%type printf scanf assignment assignment_notfull return comand
+%type printf scanf assignment assignment_notfull increment return comand
 %type <printf> printf_args scanf_args
 
 %type int_declaration_global float_declaration_global char_declaration_global bool_declaration_global 
@@ -105,7 +105,7 @@ int param_call_count = 0;
 %type int_declaration_locals float_declaration_locals char_declaration_locals bool_declaration_locals
 
 %type <if_else_blocks> if_statement
-%type <while_blocks> while while_aux
+%type <while_blocks> while while_aux do_while do_while_aux
 %type <for_blocks> for for_aux
 
 /* give us more detailed errors */
@@ -596,7 +596,7 @@ int_declaration_local
                 LLVMBuildStore(builder, value, var);
             }
             else if ($3.type == TYPE_FLOAT) {
-                printf("Warning: casting float to int for variable '%s' at line %d.\n", $1, yylineno);
+                fprintf(stderr, "Warning: casting float to int for variable '%s' at line %d.\n", $1, yylineno);
                 value = LLVMBuildFPToSI(builder, value, llvm_type, "floattoint");
                 LLVMBuildStore(builder, value, var);
             } else {
@@ -751,15 +751,18 @@ array_values_local
 };
 
 
-comand: assignment {}
-      | if_statement {}
-      | while {}
-      | for {}
-      | printf {}
-      | scanf {}
-      | return {}
-      | call_function DONE {}
-      ;
+comand
+    : assignment {}
+    | increment {}
+    | if_statement {}
+    | while {}
+    | for {}
+    | do_while {}
+    | printf {}
+    | scanf {}
+    | return {}
+    | call_function {}
+    ;
 
 
 assignment
@@ -784,26 +787,18 @@ assignment_notfull
         if(symbol) {
             if (symbol->type == $3.type) {
                 LLVMBuildStore(builder, value, var);
+                insertSymbol($1, $3.value, symbol->type);
             }
             // Cast se necessário
             else if (symbol->type == TYPE_FLOAT && $3.type == TYPE_INT) {
                 value = LLVMBuildSIToFP(builder, value, llvm_type, "inttofloat");
                 LLVMBuildStore(builder, value, var);
+                insertSymbol($1, $3.value, symbol->type);
             }
             else if (symbol->type == TYPE_INT && $3.type == TYPE_FLOAT) {
-                printf("Warning: casting float to int for variable '%s' at line %d.\n", $1, yylineno);
+                fprintf(stderr, "Warning: casting float to int for variable '%s' at line %d.\n", $1, yylineno);
                 value = LLVMBuildFPToSI(builder, value, llvm_type, "floattoint");
                 LLVMBuildStore(builder, value, var);
-            }
-        }
-
-        // Atualiza a tabela de símbolos
-        if (symbol) {
-            if (symbol->type == $3.type) {
-                insertSymbol($1, $3.value, symbol->type);
-            } else if (symbol->type == TYPE_FLOAT && $3.type == TYPE_INT) {
-                insertSymbol($1, $3.value, symbol->type);
-            } else if (symbol->type == TYPE_INT && $3.type == TYPE_FLOAT) {
                 insertSymbol($1, (int)$3.value, symbol->type);
             } else {
                 fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
@@ -831,7 +826,7 @@ assignment_notfull
             LLVMBuildStore(builder, value, array_ptr);
             insertValueArraySymbol($1, $6.value, (int)$3.value);
         } else if ($6.type == TYPE_FLOAT) {
-            printf("Warning: casting float to int for array '%s' at line %d.\n", $1, yylineno);
+            fprintf(stderr, "Warning: casting float to int for variable '%s' at line %d.\n", $1, yylineno);
             value = LLVMBuildFPToSI(builder, value, llvm_type, "floattoint");
             LLVMBuildStore(builder, value, array_ptr);
             insertValueArraySymbol($1, (int)$6.value, (int)$3.value);
@@ -839,8 +834,275 @@ assignment_notfull
             fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
         }
     }
+    | increment {}
     ;
 
+
+increment
+    : ID PLUS RECEIVE expression {
+        Symbol* symbol = findSymbol($1);
+        if (!symbol) {
+            fprintf(stderr, "Error: undefined variable '%s' at line %d.\n", $1, yylineno);
+        }
+        else if(symbol->type == TYPE_INT || symbol->type == TYPE_FLOAT) {
+            LLVMValueRef var = getVarLLVM($1);
+            LLVMTypeRef llvm_type;
+            switch (symbol->type) {
+                case TYPE_INT:   llvm_type = LLVMInt32TypeInContext(context); break;
+                case TYPE_FLOAT: llvm_type = LLVMDoubleTypeInContext(context); break;
+                default:         llvm_type = LLVMInt32TypeInContext(context); break;
+            }
+
+            // Carrega o valor atual
+            LLVMValueRef current_value = LLVMBuildLoad2(builder, llvm_type, var, "current_value");
+
+            LLVMValueRef incremented_value;
+            
+            if(symbol->type == $4.type) {
+                // Atualiza a tabela de símbolos
+                insertSymbol($1, symbol->value + $4.value, symbol->type);
+                // Incrementa o valor
+                if (symbol->type == TYPE_INT) {
+                    incremented_value = LLVMBuildAdd(builder, current_value, $4.llvm_value, "incremented_value");
+                } else {
+                    incremented_value = LLVMBuildFAdd(builder, current_value, $4.llvm_value, "incremented_value");
+                }
+            }
+            else if(symbol->type == TYPE_INT && $4.type == TYPE_FLOAT) {
+                fprintf(stderr, "Warning: casting float to int for variable '%s' at line %d.\n", $1, yylineno);
+                LLVMValueRef float_to_int = LLVMBuildFPToSI(builder, $4.llvm_value, llvm_type, "floattoint");
+                incremented_value = LLVMBuildAdd(builder, current_value, float_to_int, "incremented_value");
+                // Atualiza a tabela de símbolos
+                insertSymbol($1, symbol->value + (int)$4.value, symbol->type);
+            } else if(symbol->type == TYPE_FLOAT && $4.type == TYPE_INT) {
+                LLVMValueRef int_to_float = LLVMBuildSIToFP(builder, $4.llvm_value, llvm_type, "inttofloat");
+                incremented_value = LLVMBuildFAdd(builder, current_value, int_to_float, "incremented_value");
+                // Atualiza a tabela de símbolos
+                insertSymbol($1, symbol->value + $4.value, symbol->type);
+            }
+
+            // Armazena o novo valor
+            LLVMBuildStore(builder, incremented_value, var);
+        } else {
+            fprintf(stderr, "Error: cannot increment variable '%s' of type %d at line %d.\n", $1, symbol->type, yylineno);
+        }
+    }
+    | ID MIN RECEIVE expression {
+        Symbol* symbol = findSymbol($1);
+        if (!symbol) {
+            fprintf(stderr, "Error: undefined variable '%s' at line %d.\n", $1, yylineno);
+        }
+        else if(symbol->type == TYPE_INT || symbol->type == TYPE_FLOAT) {
+            LLVMValueRef var = getVarLLVM($1);
+            LLVMTypeRef llvm_type;
+            switch (symbol->type) {
+                case TYPE_INT:   llvm_type = LLVMInt32TypeInContext(context); break;
+                case TYPE_FLOAT: llvm_type = LLVMDoubleTypeInContext(context); break;
+                default:         llvm_type = LLVMInt32TypeInContext(context); break;
+            }
+
+            // Carrega o valor atual
+            LLVMValueRef current_value = LLVMBuildLoad2(builder, llvm_type, var, "current_value");
+            
+            LLVMValueRef decremented_value;
+
+            if(symbol->type == $4.type) {
+                // Atualiza a tabela de símbolos
+                insertSymbol($1, symbol->value - $4.value, symbol->type);
+                // Decrementa o valor
+                if (symbol->type == TYPE_INT) {
+                    decremented_value = LLVMBuildSub(builder, current_value, $4.llvm_value, "decremented_value");
+                } else {
+                    decremented_value = LLVMBuildFSub(builder, current_value, $4.llvm_value, "decremented_value");
+                }
+            }
+            else if(symbol->type == TYPE_INT && $4.type == TYPE_FLOAT) {
+                fprintf(stderr, "Warning: casting float to int for variable '%s' at line %d.\n", $1, yylineno);
+                LLVMValueRef float_to_int = LLVMBuildFPToSI(builder, $4.llvm_value, llvm_type, "floattoint");
+                decremented_value = LLVMBuildSub(builder, current_value, float_to_int, "decremented_value");
+                insertSymbol($1, symbol->value - (int)$4.value, symbol->type);
+            } else if(symbol->type == TYPE_FLOAT && $4.type == TYPE_INT) {
+                LLVMValueRef int_to_float = LLVMBuildSIToFP(builder, $4.llvm_value, llvm_type, "inttofloat");
+                decremented_value = LLVMBuildFSub(builder, current_value, int_to_float, "decremented_value");
+                insertSymbol($1, symbol->value - $4.value, symbol->type);
+            }
+
+            // Armazena o novo valor
+            LLVMBuildStore(builder, decremented_value, var);
+        } else {
+            fprintf(stderr, "Error: cannot decrement variable '%s' of type %d at line %d.\n", $1, symbol->type, yylineno);
+        }
+    }
+    | ID MULT RECEIVE expression {
+        Symbol* symbol = findSymbol($1);
+        if (!symbol) {
+            fprintf(stderr, "Error: undefined variable '%s' at line %d.\n", $1, yylineno);
+        }
+        else if(symbol->type == TYPE_INT || symbol->type == TYPE_FLOAT) {
+            LLVMValueRef var = getVarLLVM($1);
+            LLVMTypeRef llvm_type;
+            switch (symbol->type) {
+                case TYPE_INT:   llvm_type = LLVMInt32TypeInContext(context); break;
+                case TYPE_FLOAT: llvm_type = LLVMDoubleTypeInContext(context); break;
+                default:         llvm_type = LLVMInt32TypeInContext(context); break;
+            }
+
+            // Carrega o valor atual
+            LLVMValueRef current_value = LLVMBuildLoad2(builder, llvm_type, var, "current_value");
+
+            LLVMValueRef multiplied_value;
+            
+            if(symbol->type == $4.type) {
+                // Atualiza a tabela de símbolos
+                insertSymbol($1, symbol->value * $4.value, symbol->type);
+                // Multiplica o valor
+                if (symbol->type == TYPE_INT) {
+                    multiplied_value = LLVMBuildMul(builder, current_value, $4.llvm_value, "multiplied_value");
+                } else {
+                    multiplied_value = LLVMBuildFMul(builder, current_value, $4.llvm_value, "multiplied_value");
+                }
+            }
+            else if(symbol->type == TYPE_INT && $4.type == TYPE_FLOAT) {
+                fprintf(stderr, "Warning: casting float to int for variable '%s' at line %d.\n", $1, yylineno);
+                LLVMValueRef float_to_int = LLVMBuildFPToSI(builder, $4.llvm_value, llvm_type, "floattoint");
+                multiplied_value = LLVMBuildMul(builder, current_value, float_to_int, "multiplied_value");
+                // Atualiza a tabela de símbolos
+                insertSymbol($1, symbol->value * (int)$4.value, symbol->type);
+            } else if(symbol->type == TYPE_FLOAT && $4.type == TYPE_INT) {
+                LLVMValueRef int_to_float = LLVMBuildSIToFP(builder, $4.llvm_value, llvm_type, "inttofloat");
+                multiplied_value = LLVMBuildFMul(builder, current_value, int_to_float, "multiplied_value");
+                // Atualiza a tabela de símbolos
+                insertSymbol($1, symbol->value * $4.value, symbol->type);
+            }
+
+            // Armazena o novo valor
+            LLVMBuildStore(builder, multiplied_value, var);
+        } else {
+            fprintf(stderr, "Error: cannot multiply variable '%s' of type %d at line %d.\n", $1, symbol->type, yylineno);
+        }
+    }
+    | ID DIV RECEIVE expression {
+        Symbol* symbol = findSymbol($1);
+        if (!symbol) {
+            fprintf(stderr, "Error: undefined variable '%s' at line %d.\n", $1, yylineno);
+        } else if ($4.value == 0.0) {
+            fprintf(stderr, "Error: division by zero for variable '%s' at line %d.\n", $1, yylineno);
+        } else if(symbol->type == TYPE_INT || symbol->type == TYPE_FLOAT) {
+            LLVMValueRef var = getVarLLVM($1);
+            LLVMTypeRef llvm_type;
+            switch (symbol->type) {
+                case TYPE_INT:   llvm_type = LLVMInt32TypeInContext(context); break;
+                case TYPE_FLOAT: llvm_type = LLVMDoubleTypeInContext(context); break;
+                default:         llvm_type = LLVMInt32TypeInContext(context); break;
+            }
+
+            // Carrega o valor atual
+            LLVMValueRef current_value = LLVMBuildLoad2(builder, llvm_type, var, "current_value");
+
+            LLVMValueRef divided_value;
+            
+            if(symbol->type == $4.type) {
+                // Atualiza a tabela de símbolos
+                insertSymbol($1, symbol->value / $4.value, symbol->type);
+                // Divide o valor
+                if (symbol->type == TYPE_INT) {
+                    divided_value = LLVMBuildUDiv(builder, current_value, $4.llvm_value, "divided_value");
+                } else {
+                    divided_value = LLVMBuildFDiv(builder, current_value, $4.llvm_value, "divided_value");
+                }
+            }
+            else if(symbol->type == TYPE_INT && $4.type == TYPE_FLOAT) {
+                fprintf(stderr, "Warning: casting float to int for variable '%s' at line %d.\n", $1, yylineno);
+                LLVMValueRef float_to_int = LLVMBuildFPToSI(builder, $4.llvm_value, llvm_type, "floattoint");
+                divided_value = LLVMBuildUDiv(builder, current_value, float_to_int, "divided_value");
+                // Atualiza a tabela de símbolos
+                insertSymbol($1, symbol->value / (int)$4.value, symbol->type);
+            } else if(symbol->type == TYPE_FLOAT && $4.type == TYPE_INT) {
+                LLVMValueRef int_to_float = LLVMBuildSIToFP(builder, $4.llvm_value, llvm_type, "inttofloat");
+                divided_value = LLVMBuildFDiv(builder, current_value, int_to_float, "divided_value");
+                // Atualiza a tabela de símbolos
+                insertSymbol($1, symbol->value / $4.value, symbol->type);
+            }
+
+            // Armazena o novo valor
+            LLVMBuildStore(builder, divided_value, var);
+        } else {
+            fprintf(stderr, "Error: cannot divide variable '%s' of type %d at line %d.\n", $1, symbol->type, yylineno);
+        }
+    }
+    | ID PLUS PLUS {
+        Symbol* symbol = findSymbol($1);
+        if (!symbol) {
+            fprintf(stderr, "Error: undefined variable '%s' at line %d.\n", $1, yylineno);
+        }
+        
+        if(symbol->type == TYPE_INT || symbol->type == TYPE_FLOAT) {
+            LLVMValueRef var = getVarLLVM($1);
+            LLVMTypeRef llvm_type;
+            switch (symbol->type) {
+                case TYPE_INT:   llvm_type = LLVMInt32TypeInContext(context); break;
+                case TYPE_FLOAT: llvm_type = LLVMDoubleTypeInContext(context); break;
+                default:         llvm_type = LLVMInt32TypeInContext(context); break;
+            }
+
+            // Carrega o valor atual
+            LLVMValueRef current_value = LLVMBuildLoad2(builder, llvm_type, var, "current_value");
+
+            LLVMValueRef incremented_value;
+
+            if (symbol->type == TYPE_INT) {
+                // Incrementa o valor
+                incremented_value = LLVMBuildAdd(builder, current_value, LLVMConstInt(llvm_type, 1, false), "incremented_value");
+            } else {
+                // Incrementa o valor
+                incremented_value = LLVMBuildFAdd(builder, current_value, LLVMConstReal(llvm_type, 1.0), "incremented_value");
+            }
+            // Armazena o novo valor
+            LLVMBuildStore(builder, incremented_value, var);
+            
+            // Atualiza a tabela de símbolos
+            insertSymbol($1, symbol->value + 1, symbol->type);
+        } else {
+            fprintf(stderr, "Error: cannot increment variable '%s' of type %d at line %d.\n", $1, symbol->type, yylineno);
+        }
+    }
+    | ID MIN MIN {
+        Symbol* symbol = findSymbol($1);
+        if (!symbol) {
+            fprintf(stderr, "Error: undefined variable '%s' at line %d.\n", $1, yylineno);
+        }
+        if(symbol->type == TYPE_INT || symbol->type == TYPE_FLOAT) {
+            LLVMValueRef var = getVarLLVM($1);
+            LLVMTypeRef llvm_type;
+            switch (symbol->type) {
+                case TYPE_INT:   llvm_type = LLVMInt32TypeInContext(context); break;
+                case TYPE_FLOAT: llvm_type = LLVMDoubleTypeInContext(context); break;
+                default:         llvm_type = LLVMInt32TypeInContext(context); break;
+            }
+
+            // Carrega o valor atual
+            LLVMValueRef current_value = LLVMBuildLoad2(builder, llvm_type, var, "current_value");
+
+            LLVMValueRef decremented_value;
+
+            if (symbol->type == TYPE_INT) {
+                // Decrementa o valor
+                decremented_value = LLVMBuildSub(builder, current_value, LLVMConstInt(llvm_type, 1, false), "decremented_value");
+            } else {
+                // Decrementa o valor
+                decremented_value = LLVMBuildFSub(builder, current_value, LLVMConstReal(llvm_type, 1.0), "decremented_value");
+            }
+
+            // Armazena o novo valor
+            LLVMBuildStore(builder, decremented_value, var);
+            
+            // Atualiza a tabela de símbolos
+            insertSymbol($1, symbol->value - 1, symbol->type);
+        } else {
+            fprintf(stderr, "Error: cannot decrement variable '%s' of type %d at line %d.\n", $1, symbol->type, yylineno);
+        }
+    }
+    ;
 
 
 if_statement
@@ -947,6 +1209,7 @@ while
             fprintf(stderr, "Error: condition is not boolean at line %d.\n", yylineno);
         }
 
+        // Gera branch condicional
         LLVMBuildCondBr(builder, $4.llvm_value, $2.bodyBB, $2.endWHILEBB);
 
         // Corpo do while
@@ -1021,6 +1284,44 @@ for_aux
         $$.bodyBB = LLVMAppendBasicBlockInContext(context, currentFunc, "for.body");
         $$.incBB = LLVMAppendBasicBlockInContext(context, currentFunc, "for.inc");
         $$.endFORBB = LLVMAppendBasicBlockInContext(context, currentFunc, "for.end");
+    }
+    ;
+
+do_while
+    : DO do_while_aux {
+        pushScope();
+
+        // Posiciona o builder no corpo do do-while
+        LLVMPositionBuilderAtEnd(builder, $2.bodyBB);
+    } LEFTKEYS program_locals RIGHTKEYS {
+        // Ao final do corpo, volta para a condição
+        LLVMBuildBr(builder, $2.condBB);
+
+        // Posiciona o builder no bloco de condição
+        LLVMPositionBuilderAtEnd(builder, $2.condBB);
+    } WHILE LEFTPAR expression RIGHTPAR DONE {
+        if ($10.type != TYPE_BOOL) {
+            fprintf(stderr, "Error: condition is not boolean at line %d.\n", yylineno);
+        }
+        // Gera branch condicional
+        LLVMBuildCondBr(builder, $10.llvm_value, $2.bodyBB, $2.endWHILEBB);
+
+        // Posiciona o builder no final do do-while
+        LLVMPositionBuilderAtEnd(builder, $2.endWHILEBB);
+
+        popScope();
+    }
+
+
+do_while_aux
+    : {
+        // Cria blocos para o corpo e condicional do do-while
+        $$.bodyBB = LLVMAppendBasicBlockInContext(context, currentFunc, "do.body");
+        $$.condBB = LLVMAppendBasicBlockInContext(context, currentFunc, "do.cond");
+        $$.endWHILEBB = LLVMAppendBasicBlockInContext(context, currentFunc, "do.end");
+
+        // Gera branch para o corpo do do-while
+        LLVMBuildBr(builder, $$.bodyBB);
     }
     ;
 
@@ -1123,7 +1424,7 @@ expression
     | comparison { $$.value = $1.value; $$.type = $1.type; $$.llvm_value = $1.llvm_value; }
     | log_exp { $$.value = $1.value; $$.type = $1.type; $$.llvm_value = $1.llvm_value; }
     | cast { $$.value = $1.value; $$.type = $1.type; $$.llvm_value = $1.llvm_value; }
-    | call_function { $$.value = $1.value; $$.type = $1.type; $$.llvm_value = $1.llvm_value; }
+    | call_function_notfull { $$.value = $1.value; $$.type = $1.type; $$.llvm_value = $1.llvm_value; }
     | term { $$.value = $1.value; $$.type = $1.type; $$.llvm_value = $1.llvm_value; }
     ;
 
@@ -1454,8 +1755,11 @@ cast
     }
     ;
 
-
 call_function
+    : call_function_notfull DONE {}
+
+
+call_function_notfull
     : ID LEFTPAR call_parameters RIGHTPAR {
         FunctionSymbol* func = findFunctionSymbol($1);
         if (func == NULL) {
