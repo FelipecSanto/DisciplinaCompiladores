@@ -1,0 +1,80 @@
+# Guia Didático do Projeto: Compilador Didático de C para RISC-V
+
+## Informações Gerais
+- **Disciplina:** Linguagens e Compiladores
+- **Período:** 1º Semestre de 2025
+- **Autores:** Felipe Costa Santos e Hyon Bok Lucas Galvão Mota
+
+---
+
+## Sobre o Projeto
+Este projeto apresenta um compilador didático desenvolvido de um subset C.
+A proposta é traduzir programas escritos em uma linguagem C simplificada para código de máquina RISC-V. 
+O foco é o aprendizado prático dos conceitos de compiladores, desde a análise léxica até a geração de código final.
+
+### Funcionalidades da Linguagem-Fonte
+- Variáveis e tipos de dados:
+    Primitivos: Int, float, bool e char
+    Compostos: Vetores
+- Operações aritméticas e lógicas:
+    Aritméticas: Soma(+), subtração(-), multiplicação(*) e divisão(/)
+    Relacionais: Igualdade(==), diferente(!=), menor(<), menor-igual(<=), maior(>) e maior-igual(>=)
+    Lógicas: AND(&&), OR(||) e NOT(!)
+    Atribuição(=) e composição de expressões
+- Estruturas de controle e fluxo:
+    Condicionais: if, else-if e else (aninhados ou não)
+    Laços: While, do-while e for
+- Funções:
+    Definição de funções
+    Passagem de parâmetros por valor
+    Retorno de valores
+
+---
+
+## Etapas do Compilador
+1. **Análise Léxica:** Identificação dos tokens do programa-fonte. (Utilizando Flex)
+2. **Análise Sintática:** Verificação da estrutura do código conforme a gramática (BNF). (Utilizando Bison)
+4. **Análise Semântica:** Checagem de tipos e declarações. (Utilizando Bison)
+5. **Geração de Código Intermediário:** Criação de representações intermediárias para facilitar a tradução. (Utilizando o programa criado)
+6. **Geração de Código RISC-V:** Produção do código de saída para a arquitetura alvo. (Utilizando llc)
+
+---
+
+## Estrutura do Diretório
+
+```
+Projeto/
+│
+├── BNF.txt                                     # Gramática formal da linguagem
+├── Leiame_FelipeCostaSantos_CtoRISCV.txt       # Guia introdutório
+├── Makefile                                    # Script para compilar o projeto
+├── programa.o                                  # Exemplo de arquivo objeto gerado
+├── compiler/                                   # Componentes do compilador
+│   ├── lexer_aux.c                             # Analisador léxico 
+│   └── parser_aux.c                            # Analisador sintático e semântico
+│
+├── Exemplos/                                   # Exemplos de código para testes
+│   └── ...
+│
+├── include/                                    # Referencia das bibliotecas
+│   └── ...
+│
+├── objects/                                    # Resultados da compilação
+│   ├── codeIR                                  # Código intermediário
+│   │   ├── ccompiler                           # Compilador
+│   │   ├── lexer.yy.c                          # Resultado lexer
+│   │   ├── output.ll                           # Saída em LLVM
+│   │   ├── parser.tab.c                        # Resultado parser
+│   │   └── parser.tab.h                        # Biblioteca auxiliar do parser
+│   │   
+│   └── FinalCode
+│       └── output.asm                          # Saída em assembly
+│
+├── src/                                        # Bibliotecas
+│   ├── LLVMUtils.c                             # LLVM
+│   ├── SymbolTable.c                           # Tabela de símbolos
+│   ├── UtilsConditionals.c                     # Condições (if,else-if)        
+│   └── VarType.c                               # Tipos
+```
+
+
