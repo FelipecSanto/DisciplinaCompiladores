@@ -1,5 +1,6 @@
 int main(){
 
+    // Código de testes simples para verificar o funcionamento do compilador
     int a = 3;
     int b = 3;
     int c = a - b;
