@@ -52,9 +52,12 @@ FunctionSymbol* findFunctionSymbol(const char* id) {
 void insertSymbol(const char* id, double value, VarType type) {
     if(currentScope) {
         Symbol* sym = findSymbol(id);
+        ArraySymbol* arr = findArraySymbol(id);
         if (sym != NULL) {
             sym->value = value;
             sym->type = type;
+        } else if (arr != NULL) {
+            fprintf(stderr, "Symbol %s is an array, cannot assign value\n", id);
         } else {
             unsigned int index = hash(id);
             sym = malloc(sizeof(Symbol));
@@ -71,8 +74,11 @@ void createArraySymbol(const char* id, double* values, int size) {
     if (currentScope) {
         unsigned int index = hash(id);
         ArraySymbol* arr = findArraySymbol(id);
+        Symbol* sym = findSymbol(id);
         if (arr != NULL) {
             fprintf(stderr, "Array %s already declared in this scope\n", id);
+        } else if (sym != NULL) {
+            fprintf(stderr, "Symbol %s is already declared as a variable, cannot create array with the same name\n", id);
         } else {
             arr = malloc(sizeof(ArraySymbol));
             arr->id = strdup(id);

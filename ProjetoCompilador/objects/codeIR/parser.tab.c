@@ -679,7 +679,7 @@ static const yytype_int16 yyrline[] =
     1504,  1508,  1530,  1555,  1577,  1608,  1630,  1652,  1674,  1696,
     1722,  1750,  1761,  1772,  1786,  1810,  1834,  1857,  1880,  1903,
     1926,  1953,  1983,  1987,  2032,  2033,  2041,  2042,  2050,  2060,
-    2087,  2131
+    2095,  2139
 };
 #endif
 
@@ -4451,10 +4451,18 @@ yyreduce:
 #line 2060 "compiler/parser.y"
          {
         Symbol* sym = findSymbol((yyvsp[0].id));
+        ArraySymbol* array_sym = findArraySymbol((yyvsp[0].id));
         if (!sym) {
-            fprintf(stderr, "Undeclared variable '%s' at line %d\n", (yyvsp[0].id), yylineno);
-            (yyval.number).value = -1;
-            (yyval.number).type = TYPE_UNKNOWN;
+            if (!array_sym) {
+                fprintf(stderr, "Undeclared variable '%s' at line %d\n", (yyvsp[0].id), yylineno);
+                (yyval.number).value = -1;
+                (yyval.number).type = TYPE_UNKNOWN;
+            } else {
+                // É um vetor, retorna ponteiro para o array
+                (yyval.number).value = -1;
+                (yyval.number).type = TYPE_POINTER;
+                (yyval.number).llvm_value = getVarLLVM((yyvsp[0].id)); // Ponteiro para o array
+            }
         } else {
             if (sym->value == -DBL_MAX) {
                 fprintf(stderr, "Uninitialized variable '%s' at line %d\n", (yyvsp[0].id), yylineno);
@@ -4476,11 +4484,11 @@ yyreduce:
             }
         }
     }
-#line 4480 "objects/codeIR/parser.tab.c"
+#line 4488 "objects/codeIR/parser.tab.c"
     break;
 
   case 190: /* term: ID LEFTBRACKET expression RIGHTBRACKET  */
-#line 2087 "compiler/parser.y"
+#line 2095 "compiler/parser.y"
                                              {
         ArraySymbol* array_sym = findArraySymbol((yyvsp[-3].id));
         if (!array_sym) {
@@ -4525,21 +4533,21 @@ yyreduce:
             }
         }
     }
-#line 4529 "objects/codeIR/parser.tab.c"
+#line 4537 "objects/codeIR/parser.tab.c"
     break;
 
   case 191: /* term: CARACTERE  */
-#line 2131 "compiler/parser.y"
+#line 2139 "compiler/parser.y"
                 {
         (yyval.number).value = (double) (yyvsp[0].caractere);
         (yyval.number).type = TYPE_CHAR;
         (yyval.number).llvm_value = LLVMConstInt(LLVMInt8TypeInContext(context), (yyvsp[0].caractere), 0);
 }
-#line 4539 "objects/codeIR/parser.tab.c"
+#line 4547 "objects/codeIR/parser.tab.c"
     break;
 
 
-#line 4543 "objects/codeIR/parser.tab.c"
+#line 4551 "objects/codeIR/parser.tab.c"
 
       default: break;
     }
@@ -4763,7 +4771,7 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 2138 "compiler/parser.y"
+#line 2146 "compiler/parser.y"
 
 
 int yywrap( ) {

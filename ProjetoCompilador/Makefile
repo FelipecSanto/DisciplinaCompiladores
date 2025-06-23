@@ -105,13 +105,13 @@ funcoes: all
 simples: EXEMPLO = Exemplos/Simples.c
 simples: all
 
-for: EXEMPLO = Exemplos/WhileFor.c
-for: all
-
-dowhile: EXEMPLO = Exemplos/DoWhile.c
-dowhile: all
+repeticao: EXEMPLO = Exemplos/WhileForDoWhile.c
+repeticao: all
 
 incremento: EXEMPLO = Exemplos/Incremento.c
 incremento: all
 
-.PHONY: all clean condicional printscan declaracao vetor escopo cast funcoes simples for dowhile incremento
+semantica: EXEMPLO = Exemplos/Semantica.c
+semantica: all
+
+.PHONY: all clean condicional printscan declaracao vetor escopo cast funcoes simples repeticao incremento semantica

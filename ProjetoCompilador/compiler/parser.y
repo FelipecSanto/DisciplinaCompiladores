@@ -2059,10 +2059,18 @@ term
     }
     | ID {
         Symbol* sym = findSymbol($1);
+        ArraySymbol* array_sym = findArraySymbol($1);
         if (!sym) {
-            fprintf(stderr, "Undeclared variable '%s' at line %d\n", $1, yylineno);
-            $$.value = -1;
-            $$.type = TYPE_UNKNOWN;
+            if (!array_sym) {
+                fprintf(stderr, "Undeclared variable '%s' at line %d\n", $1, yylineno);
+                $$.value = -1;
+                $$.type = TYPE_UNKNOWN;
+            } else {
+                // É um vetor, retorna ponteiro para o array
+                $$.value = -1;
+                $$.type = TYPE_POINTER;
+                $$.llvm_value = getVarLLVM($1); // Ponteiro para o array
+            }
         } else {
             if (sym->value == -DBL_MAX) {
                 fprintf(stderr, "Uninitialized variable '%s' at line %d\n", $1, yylineno);
