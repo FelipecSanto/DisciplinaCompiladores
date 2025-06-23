@@ -26,12 +26,18 @@ OUTPUT_ASM = $(FINALCODE)/output.asm
 EXEMPLO = Exemplos/WhileFor.c
 
 # Regras principais
-all: $(OUTPUT_LLVM)
+all: clean_always $(OUTPUT_LLVM)
 	@echo "=================================="
 	@echo " Criando arquivo assembly "
 	@echo "=================================="
 	@mkdir -p $(FINALCODE)
-	llc -march=riscv32 -mattr=+m,+a,+f,+d $(OUTPUT_LLVM) -o $(OUTPUT_ASM)
+	llc -O0 -march=riscv32 -mattr=+m,+a,+f,+d $(OUTPUT_LLVM) -o $(OUTPUT_ASM)
+
+clean_always:
+	@if [ -d "$(OBJDIR)" ]; then \
+	echo "Removendo diretório $(OBJDIR) antes do build..."; \
+	rm -rf $(OBJDIR); \
+	fi
 
 $(OUTPUT_LLVM): | $(CODEIR) $(FINALCODE) $(TARGET)
 	@echo "=================================="

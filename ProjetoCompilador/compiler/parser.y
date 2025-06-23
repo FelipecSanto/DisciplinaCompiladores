@@ -29,6 +29,8 @@ int param_count = 0;
 Param_call param_call[MAX_PARAMS];
 int param_call_count = 0;
 
+int haveRet = 0;
+int haveRetAll = 1;
 
 %}
 
@@ -187,8 +189,14 @@ int_function
             param_types[i] = 0;
         }
         param_count = 0;
-        
+
+        haveRet = 0;
     } RIGHTPAR LEFTKEYS program_locals RIGHTKEYS {
+        if(haveRet == 0) {
+            fprintf(stderr, "Warning: function '%s' does not have a return statement at line %d.\n", $2, yylineno);
+            LLVMValueRef ret_value = LLVMConstInt(LLVMInt32TypeInContext(context), 0, 0);
+            LLVMBuildRet(builder, ret_value); // Retorna 0 por padrão
+        }
         popScope();
     }
     ;
@@ -223,7 +231,13 @@ float_function
         }
         param_count = 0;
         
+        haveRet = 0;
     } RIGHTPAR LEFTKEYS program_locals RIGHTKEYS {
+        if(haveRet == 0) {
+            fprintf(stderr, "Warning: function '%s' does not have a return statement at line %d.\n", $2, yylineno);
+            LLVMValueRef ret_value = LLVMConstReal(LLVMDoubleTypeInContext(context), 0.0);
+            LLVMBuildRet(builder, ret_value); // Retorna 0.0 por padrão
+        }
         popScope();
     }
     ;
@@ -258,7 +272,13 @@ char_function
         }
         param_count = 0;
         
+        haveRet = 0;
     } RIGHTPAR LEFTKEYS program_locals RIGHTKEYS {
+        if(haveRet == 0) {
+            fprintf(stderr, "Warning: function '%s' does not have a return statement at line %d.\n", $2, yylineno);
+            LLVMValueRef ret_value = LLVMConstInt(LLVMInt8TypeInContext(context), 0, 0);
+            LLVMBuildRet(builder, ret_value); // Retorna 0 por padrão
+        }
         popScope();
     }
     ;
@@ -293,7 +313,13 @@ bool_function
         }
         param_count = 0;
         
+        haveRet = 0;
     } RIGHTPAR LEFTKEYS program_locals RIGHTKEYS {
+        if(haveRet == 0) {
+            fprintf(stderr, "Warning: function '%s' does not have a return statement at line %d.\n", $2, yylineno);
+            LLVMValueRef ret_value = LLVMConstInt(LLVMInt1TypeInContext(context), 0, 0);
+            LLVMBuildRet(builder, ret_value); // Retorna 0 por padrão
+        }
         popScope();
     }
     ;
@@ -327,6 +353,7 @@ void_function
         }
         param_count = 0;
     } RIGHTPAR LEFTKEYS program_locals RIGHTKEYS {
+        LLVMBuildRetVoid(builder);
         popScope();
     }
     ;
@@ -444,7 +471,14 @@ array_global
             for (int i = 0; i < size; i++) {
                 LLVMValueRef idx = LLVMConstInt(LLVMInt32TypeInContext(context), i, 0);
                 LLVMValueRef indices[2] = { LLVMConstInt(LLVMInt32TypeInContext(context), 0, 0), idx };
-                LLVMValueRef array_ptr = LLVMBuildGEP2(builder, LLVMInt32TypeInContext(context), var, indices, 2, "");
+                LLVMValueRef array_ptr = LLVMBuildGEP2(
+                    builder,
+                    LLVMArrayType(LLVMInt32TypeInContext(context), size),
+                    var,
+                    indices,
+                    2,
+                    ""
+                );
                 LLVMValueRef val = LLVMConstInt(LLVMInt32TypeInContext(context), (int)vals[i], 0);
                 LLVMBuildStore(builder, val, array_ptr);
             }
@@ -635,7 +669,14 @@ array_local
             for (int i = 0; i < size; i++) {
                 LLVMValueRef idx = LLVMConstInt(LLVMInt32TypeInContext(context), i, 0);
                 LLVMValueRef indices[2] = { LLVMConstInt(LLVMInt32TypeInContext(context), 0, 0), idx };
-                LLVMValueRef array_ptr = LLVMBuildGEP2(builder, LLVMInt32TypeInContext(context), var, indices, 2, "");
+                LLVMValueRef array_ptr = LLVMBuildGEP2(
+                    builder,
+                    LLVMArrayType(LLVMInt32TypeInContext(context), size),
+                    var,
+                    indices,
+                    2,
+                    ""
+                );
                 LLVMValueRef val = LLVMConstInt(LLVMInt32TypeInContext(context), (int)vals[i], 0);
                 LLVMBuildStore(builder, val, array_ptr);
             }
@@ -819,8 +860,15 @@ assignment_notfull
 
         // Gera o índice do array
         LLVMValueRef indices[2] = { LLVMConstInt(LLVMInt32TypeInContext(context), 0, false), index };
-        LLVMValueRef array_ptr = LLVMBuildGEP2(builder, LLVMInt32TypeInContext(context), var, indices, 2, "arrayptr");
-
+        LLVMValueRef array_ptr = LLVMBuildGEP2(
+            builder,
+            LLVMArrayType(LLVMInt32TypeInContext(context), symbol->size),
+            var,
+            indices,
+            2,
+            "arrayptr"
+        );
+        
         // Armazena o valor no array
         if ($6.type == TYPE_INT) {
             LLVMBuildStore(builder, value, array_ptr);
@@ -1126,9 +1174,17 @@ if_statement
         LLVMPositionBuilderAtEnd(builder, ifBB);
 
         pushScope();
+
+        haveRetAll = 1;
+
+        haveRet = 0;
     } LEFTKEYS program_locals RIGHTKEYS {
 
         popScope();
+
+        if(haveRet == 0) {
+            haveRetAll = 0;
+        }
 
         ConditionalContext* current = top_cond_context();
         LLVMBuildBr(builder, current->endBB);
@@ -1142,6 +1198,10 @@ if_statement
         LLVMBuildBr(builder, endBB);
 
         LLVMPositionBuilderAtEnd(builder, endBB);
+
+        if(haveRetAll == 1) {
+            LLVMBuildUnreachable(builder);
+        }
     }
     ;
 
@@ -1160,9 +1220,15 @@ else_if_chain
         ConditionalContext* current = top_cond_context();
         // Transforma o nextCondBB em bloco else
         LLVMPositionBuilderAtEnd(builder, current->nextCondBB);
+
+        haveRet = 0;
     } LEFTKEYS program_locals RIGHTKEYS {
 
         popScope();
+
+        if(haveRet == 0) {
+            haveRetAll = 0;
+        }
 
         ConditionalContext* current = top_cond_context();
         LLVMBuildBr(builder, current->endBB);
@@ -1188,9 +1254,15 @@ else_if_chain
         LLVMPositionBuilderAtEnd(builder, elseifBB);
 
         pushScope();
+
+        haveRet = 0;
     } LEFTKEYS program_locals RIGHTKEYS {
 
         popScope();
+
+        if(haveRet == 0) {
+            haveRetAll = 0;
+        }
 
         ConditionalContext* current = top_cond_context();
         LLVMBuildBr(builder, current->endBB);
@@ -1257,17 +1329,19 @@ for
         // Condicional
         LLVMBuildCondBr(builder, $6.llvm_value, $2.bodyBB, $2.endFORBB);
 
-        // Corpo do for
-        LLVMPositionBuilderAtEnd(builder, $2.bodyBB);
-    } assignment_notfull {
-        // Vai para o incremento
-        LLVMBuildBr(builder, $2.incBB); 
-
-        // Posiciona o builder no bloco de incremento
+        // Incremento do for
         LLVMPositionBuilderAtEnd(builder, $2.incBB);
+    } assignment_notfull {
+        // Posiciona o builder no bloco de corpo
+        LLVMPositionBuilderAtEnd(builder, $2.bodyBB);
     }
     RIGHTPAR LEFTKEYS program_locals RIGHTKEYS {
-        // Volta para condicional
+        // Ao final do corpo, volta para o incremento
+        LLVMBuildBr(builder, $2.incBB);
+
+        LLVMPositionBuilderAtEnd(builder, $2.incBB);
+
+        // Ao final do incremento, volta para a condição
         LLVMBuildBr(builder, $2.condBB);
 
         // Posiciona no final do for
@@ -1406,6 +1480,7 @@ return
         } else {
             fprintf(stderr, "Error: cannot return a value in a void function at line %d.\n", yylineno);
         }
+        haveRet = 1;
     }
     | RETURN DONE {
         if(functionList->returnType != TYPE_VOID) {
@@ -1413,6 +1488,7 @@ return
         } else {
             LLVMBuildRetVoid(builder);
         }
+        haveRet = 1;
 };
 
 
@@ -1711,47 +1787,195 @@ cast
         int temp = (int) $5.value;
         $$.value = (double) temp;
         $$.type = TYPE_INT;
-        $$.llvm_value = LLVMBuildFPToSI(builder, $5.llvm_value, LLVMInt32TypeInContext(context), "castint");
+        switch ($5.type) {
+            case TYPE_INT:
+                $$.llvm_value = $5.llvm_value; // Já é int
+                break;
+            case TYPE_FLOAT:
+                $$.llvm_value = LLVMBuildFPToSI(builder, $5.llvm_value, LLVMInt32TypeInContext(context), "castint");
+                break;
+            case TYPE_CHAR:
+                $$.llvm_value = LLVMBuildSExt(builder, $5.llvm_value, LLVMInt32TypeInContext(context), "castint");
+                break;
+            case TYPE_BOOL:
+                $$.llvm_value = LLVMBuildZExt(builder, $5.llvm_value, LLVMInt32TypeInContext(context), "castint");
+                break;
+            default:
+                fprintf(stderr, "Error: cannot cast type %s to int at line %d.\n", typeToString($5.type), yylineno);
+                $$.value = -1;
+                $$.type = TYPE_UNKNOWN;
+                $$.llvm_value = NULL;
+        }
     }
     | LEFTPAR INT RIGHTPAR term {
         int temp = (int) $4.value;
         $$.value = (double) temp;
         $$.type = TYPE_INT;
-        $$.llvm_value = LLVMBuildFPToSI(builder, $4.llvm_value, LLVMInt32TypeInContext(context), "castint");
+        switch ($4.type) {
+            case TYPE_INT:
+                $$.llvm_value = $4.llvm_value; // Já é int
+                break;
+            case TYPE_FLOAT:
+                $$.llvm_value = LLVMBuildFPToSI(builder, $4.llvm_value, LLVMInt32TypeInContext(context), "castint");
+                break;
+            case TYPE_CHAR:
+                $$.llvm_value = LLVMBuildSExt(builder, $4.llvm_value, LLVMInt32TypeInContext(context), "castint");
+                break;
+            case TYPE_BOOL:
+                $$.llvm_value = LLVMBuildZExt(builder, $4.llvm_value, LLVMInt32TypeInContext(context), "castint");
+                break;
+            default:
+                fprintf(stderr, "Error: cannot cast type %s to int at line %d.\n", typeToString($4.type), yylineno);
+                $$.value = -1;
+                $$.type = TYPE_UNKNOWN;
+                $$.llvm_value = NULL;
+        }
     }
     | LEFTPAR FLOAT RIGHTPAR LEFTPAR expression RIGHTPAR {
         $$.value = $5.value;
         $$.type = TYPE_FLOAT;
-        $$.llvm_value = LLVMBuildSIToFP(builder, $5.llvm_value, LLVMDoubleTypeInContext(context), "castfloat");
+        switch ($5.type) {
+            case TYPE_INT:
+                $$.llvm_value = LLVMBuildSIToFP(builder, $5.llvm_value, LLVMDoubleTypeInContext(context), "castfloat");
+                break;
+            case TYPE_FLOAT:
+                $$.llvm_value = $5.llvm_value; // Já é float
+                break;
+            case TYPE_CHAR:
+                $$.llvm_value = LLVMBuildSIToFP(builder, $5.llvm_value, LLVMDoubleTypeInContext(context), "castfloat");
+                break;
+            case TYPE_BOOL:
+                $$.llvm_value = LLVMBuildSIToFP(builder, $5.llvm_value, LLVMDoubleTypeInContext(context), "castfloat");
+                break;
+            default:
+                fprintf(stderr, "Error: cannot cast type %s to float at line %d.\n", typeToString($5.type), yylineno);
+                $$.value = -1;
+                $$.type = TYPE_UNKNOWN;
+                $$.llvm_value = NULL;
+        }
     }
     | LEFTPAR FLOAT RIGHTPAR term {
         $$.value = $4.value;
         $$.type = TYPE_FLOAT;
-        $$.llvm_value = LLVMBuildSIToFP(builder, $4.llvm_value, LLVMDoubleTypeInContext(context), "castfloat");
+        switch ($4.type) {
+            case TYPE_INT:
+                $$.llvm_value = LLVMBuildSIToFP(builder, $4.llvm_value, LLVMDoubleTypeInContext(context), "castfloat");
+                break;
+            case TYPE_FLOAT:
+                $$.llvm_value = $4.llvm_value; // Já é float
+                break;
+            case TYPE_CHAR:
+                $$.llvm_value = LLVMBuildSIToFP(builder, $4.llvm_value, LLVMDoubleTypeInContext(context), "castfloat");
+                break;
+            case TYPE_BOOL:
+                $$.llvm_value = LLVMBuildSIToFP(builder, $4.llvm_value, LLVMDoubleTypeInContext(context), "castfloat");
+                break;
+            default:
+                fprintf(stderr, "Error: cannot cast type %s to float at line %d.\n", typeToString($4.type), yylineno);
+                $$.value = -1;
+                $$.type = TYPE_UNKNOWN;
+                $$.llvm_value = NULL;
+        }
     }
     | LEFTPAR CHAR RIGHTPAR LEFTPAR expression RIGHTPAR {
         $$.value = (double) ((char) $5.value);
         $$.type = TYPE_CHAR;
-        $$.llvm_value = LLVMBuildTrunc(builder, $5.llvm_value, LLVMInt8TypeInContext(context), "castchar");
+        switch ($5.type) {
+            case TYPE_INT:
+                $$.llvm_value = LLVMBuildTrunc(builder, $5.llvm_value, LLVMInt8TypeInContext(context), "castchar");
+                break;
+            case TYPE_FLOAT:
+                $$.llvm_value = LLVMBuildFPToSI(builder, $5.llvm_value, LLVMInt8TypeInContext(context), "castchar");
+                break;
+            case TYPE_CHAR:
+                $$.llvm_value = $5.llvm_value; // Já é char
+                break;
+            case TYPE_BOOL:
+                $$.llvm_value = LLVMBuildZExt(builder, $5.llvm_value, LLVMInt8TypeInContext(context), "castbool");
+                break;
+            default:
+                fprintf(stderr, "Error: cannot cast type %s to char at line %d.\n", typeToString($5.type), yylineno);
+                $$.value = -1;
+                $$.type = TYPE_UNKNOWN;
+                $$.llvm_value = NULL;
+        }
     }
     | LEFTPAR CHAR RIGHTPAR term {
         $$.value = (double) ((char) $4.value);
         $$.type = TYPE_CHAR;
-        $$.llvm_value = LLVMBuildTrunc(builder, $4.llvm_value, LLVMInt8TypeInContext(context), "castchar");
+        switch ($4.type) {
+            case TYPE_INT:
+                $$.llvm_value = LLVMBuildTrunc(builder, $4.llvm_value, LLVMInt8TypeInContext(context), "castchar");
+                break;
+            case TYPE_FLOAT:
+                $$.llvm_value = LLVMBuildFPToSI(builder, $4.llvm_value, LLVMInt8TypeInContext(context), "castchar");
+                break;
+            case TYPE_CHAR:
+                $$.llvm_value = $4.llvm_value; // Já é char
+                break;
+            case TYPE_BOOL:
+                $$.llvm_value = LLVMBuildZExt(builder, $4.llvm_value, LLVMInt8TypeInContext(context), "castbool");
+                break;
+            default:
+                fprintf(stderr, "Error: cannot cast type %s to char at line %d.\n", typeToString($4.type), yylineno);
+                $$.value = -1;
+                $$.type = TYPE_UNKNOWN;
+                $$.llvm_value = NULL;
+        }
     }
     | LEFTPAR BOOL RIGHTPAR LEFTPAR expression RIGHTPAR {
         $$.value = ($5.value != 0.0) ? 1.0 : 0.0;
         $$.type = TYPE_BOOL;
-        // Compara com zero para gerar i1
-        LLVMValueRef zero = LLVMConstInt(LLVMTypeOf($5.llvm_value), 0, 0);
-        $$.llvm_value = LLVMBuildICmp(builder, LLVMIntNE, $5.llvm_value, zero, "castbool");
+        LLVMValueRef zero;
+        switch ($5.type) {
+            case TYPE_INT:
+                zero = LLVMConstInt(LLVMInt32TypeInContext(context), 0, 0);
+                $$.llvm_value = LLVMBuildICmp(builder, LLVMIntNE, $5.llvm_value, zero, "castbool");
+                break;
+            case TYPE_FLOAT:
+                zero = LLVMConstReal(LLVMDoubleTypeInContext(context), 0.0);
+                $$.llvm_value = LLVMBuildFCmp(builder, LLVMRealUNE, $5.llvm_value, zero, "castbool");
+                break;
+            case TYPE_CHAR:
+                zero = LLVMConstInt(LLVMInt8TypeInContext(context), 0, 0);
+                $$.llvm_value = LLVMBuildICmp(builder, LLVMIntNE, $5.llvm_value, zero, "castbool");
+                break;
+            case TYPE_BOOL:
+                $$.llvm_value = $5.llvm_value; // Já é bool
+                break;
+            default:
+                fprintf(stderr, "Error: cannot cast type %s to bool at line %d.\n", typeToString($5.type), yylineno);
+                $$.value = -1;
+                $$.type = TYPE_UNKNOWN;
+                $$.llvm_value = NULL;
+        }
     }
     | LEFTPAR BOOL RIGHTPAR term {
         $$.value = ($4.value != 0.0) ? 1.0 : 0.0;
         $$.type = TYPE_BOOL;
-        // Compara com zero para gerar i1
-        LLVMValueRef zero = LLVMConstInt(LLVMTypeOf($4.llvm_value), 0, 0);
-        $$.llvm_value = LLVMBuildICmp(builder, LLVMIntNE, $4.llvm_value, zero, "castbool");
+        LLVMValueRef zero;
+        switch ($4.type) {
+            case TYPE_INT:
+                zero = LLVMConstInt(LLVMInt32TypeInContext(context), 0, 0);
+                $$.llvm_value = LLVMBuildICmp(builder, LLVMIntNE, $4.llvm_value, zero, "castbool");
+                break;
+            case TYPE_FLOAT:
+                zero = LLVMConstReal(LLVMDoubleTypeInContext(context), 0.0);
+                $$.llvm_value = LLVMBuildFCmp(builder, LLVMRealUNE, $4.llvm_value, zero, "castbool");
+                break;
+            case TYPE_CHAR:
+                zero = LLVMConstInt(LLVMInt8TypeInContext(context), 0, 0);
+                $$.llvm_value = LLVMBuildICmp(builder, LLVMIntNE, $4.llvm_value, zero, "castbool");
+                break;
+            case TYPE_BOOL:
+                $$.llvm_value = $4.llvm_value; // Já é bool
+                break;
+            default:
+                fprintf(stderr, "Error: cannot cast type %s to bool at line %d.\n", typeToString($4.type), yylineno);
+                $$.value = -1;
+                $$.type = TYPE_UNKNOWN;
+                $$.llvm_value = NULL;
+        }
     }
     ;
 
@@ -1884,9 +2108,21 @@ term
                     } else {
                         $$.value = array_sym->values[(int)$3.value];
                         $$.type = TYPE_INT;
-                        LLVMValueRef var = getArrayVarLLVM($1, (int)$3.value);
+                        LLVMValueRef var = getVarLLVM($1); // ponteiro para o array
+                        LLVMValueRef idxs[2] = {
+                            LLVMConstInt(LLVMInt32TypeInContext(context), 0, 0),
+                            $3.llvm_value // índice dinâmico
+                        };
+                        LLVMValueRef elem_ptr = LLVMBuildGEP2(
+                            builder,
+                            LLVMArrayType(LLVMInt32TypeInContext(context), array_sym->size),
+                            var,
+                            idxs,
+                            2,
+                            "arrayelem"
+                        );
                         LLVMTypeRef llvm_type = LLVMInt32TypeInContext(context);
-                        $$.llvm_value = LLVMBuildLoad2(builder, llvm_type, var, "loadtmp");
+                        $$.llvm_value = LLVMBuildLoad2(builder, llvm_type, elem_ptr, "loadtmp");
                     }
                 }
             }
@@ -1987,6 +2223,33 @@ int main() {
     currentFunc = NULL; // Inicializa o ponteiro da função atual
 
     yyparse( );
+
+    // Adiciona declare void @exit(i32)
+    LLVMTypeRef exit_arg_types[] = { LLVMInt32TypeInContext(context) };
+    LLVMTypeRef exit_type = LLVMFunctionType(LLVMVoidTypeInContext(context), exit_arg_types, 1, 0);
+    LLVMAddFunction(module, "exit", exit_type);
+
+    // Cria a função _start
+    LLVMTypeRef start_type = LLVMFunctionType(LLVMVoidTypeInContext(context), NULL, 0, 0);
+    LLVMValueRef start_func = LLVMAddFunction(module, "_start", start_type);
+    LLVMBasicBlockRef entry = LLVMAppendBasicBlockInContext(context, start_func, "entry");
+    LLVMPositionBuilderAtEnd(builder, entry);
+
+    // Chama main()
+    LLVMValueRef main_func = LLVMGetNamedFunction(module, "main");
+    LLVMTypeRef main_type = LLVMFunctionType(LLVMInt32TypeInContext(context), NULL, 0, 0);
+    if (main_func) {
+        LLVMValueRef *args = NULL; // Ponteiro nulo para argumentos
+        LLVMBuildCall2(builder, main_type, main_func, args, 0, "");
+    }
+
+    // Chama exit(0)
+    LLVMValueRef zero = LLVMConstInt(LLVMInt32TypeInContext(context), 0, 0);
+    LLVMValueRef exit_func = LLVMGetNamedFunction(module, "exit");
+    LLVMValueRef exit_args[] = { zero };
+    LLVMBuildCall2(builder, exit_type, exit_func, exit_args, 1, "");
+
+    LLVMBuildUnreachable(builder);
 
     // Imprime IR
     char *irstr = LLVMPrintModuleToString(module);

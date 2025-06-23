@@ -45,41 +45,6 @@ int main() {
         c = c - 1;
     }
 
-    int a = 5;
-    int b = 8;
-
-    if (a > 3) {
-        a = 1;
-
-        if (a > 1) {
-            a = a + 2;
-        } else if (a == 1) {
-            a = a + 10;
-        } else {
-            a = a - 1;
-        }
-    }
-    else if (a > 10) {
-        a = 5;
-
-        if (b < 10) {
-            b = b * 2;
-        } else {
-            b = b / 2;
-        }
-    }
-    else {
-        a = 23;
-
-        if (a == 23) {
-            b = 100;
-        } else if (a == 0) {
-            b = 0;
-        } else {
-            b = -1;
-        }
-    }
-
     // if aninhado dentro de elseif
     if (a > 0) {
         c = 10;
@@ -94,4 +59,5 @@ int main() {
     a = 10;
     b = 20;
     c = 30;
+    return 0;
 }

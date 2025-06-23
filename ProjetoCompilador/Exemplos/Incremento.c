@@ -32,9 +32,5 @@ int main() {
     c *= 2;
     c /= 5;
 
-    printf("a = %d\n", a);
-    printf("b = %f\n", b);
-    printf("c = %d\n", c);
-
     return 0;
 }

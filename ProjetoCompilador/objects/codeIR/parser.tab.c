@@ -99,9 +99,11 @@ int param_count = 0;
 Param_call param_call[MAX_PARAMS];
 int param_call_count = 0;
 
+int haveRet = 0;
+int haveRetAll = 1;
 
 
-#line 105 "objects/codeIR/parser.tab.c"
+#line 107 "objects/codeIR/parser.tab.c"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -658,26 +660,26 @@ static const yytype_int8 yytranslate[] =
 /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int16 yyrline[] =
 {
-       0,   119,   119,   120,   124,   125,   129,   130,   131,   136,
-     137,   141,   142,   146,   147,   152,   153,   154,   155,   156,
-     162,   164,   162,   197,   199,   197,   232,   234,   232,   267,
-     269,   267,   303,   305,   303,   336,   337,   340,   341,   345,
-     355,   365,   375,   389,   390,   391,   392,   396,   399,   400,
-     403,   410,   417,   420,   434,   461,   464,   465,   468,   475,
-     485,   488,   489,   492,   499,   509,   512,   513,   516,   523,
-     534,   542,   551,   561,   569,   570,   571,   572,   576,   579,
-     580,   583,   587,   607,   611,   625,   650,   653,   654,   657,
-     661,   683,   686,   687,   690,   694,   711,   714,   715,   718,
-     722,   739,   747,   755,   756,   757,   758,   759,   760,   761,
-     762,   763,   764,   769,   773,   810,   837,   842,   890,   936,
-     984,  1033,  1069,  1109,  1129,  1109,  1149,  1153,  1156,  1156,
-    1170,  1191,  1170,  1206,  1206,  1229,  1245,  1251,  1262,  1245,
-    1281,  1291,  1296,  1291,  1317,  1330,  1351,  1352,  1362,  1383,
-    1384,  1399,  1410,  1421,  1422,  1423,  1424,  1425,  1426,  1427,
-    1428,  1432,  1454,  1479,  1501,  1532,  1554,  1576,  1598,  1620,
-    1646,  1674,  1685,  1696,  1710,  1716,  1722,  1727,  1732,  1737,
-    1742,  1749,  1759,  1763,  1808,  1809,  1817,  1818,  1826,  1836,
-    1863,  1895
+       0,   121,   121,   122,   126,   127,   131,   132,   133,   138,
+     139,   143,   144,   148,   149,   154,   155,   156,   157,   158,
+     164,   166,   164,   205,   207,   205,   246,   248,   246,   287,
+     289,   287,   329,   331,   329,   363,   364,   367,   368,   372,
+     382,   392,   402,   416,   417,   418,   419,   423,   426,   427,
+     430,   437,   444,   447,   461,   495,   498,   499,   502,   509,
+     519,   522,   523,   526,   533,   543,   546,   547,   550,   557,
+     568,   576,   585,   595,   603,   604,   605,   606,   610,   613,
+     614,   617,   621,   641,   645,   659,   691,   694,   695,   698,
+     702,   724,   727,   728,   731,   735,   752,   755,   756,   759,
+     763,   780,   788,   796,   797,   798,   799,   800,   801,   802,
+     803,   804,   805,   810,   814,   851,   885,   890,   938,   984,
+    1032,  1081,  1117,  1157,  1181,  1157,  1209,  1213,  1216,  1216,
+    1236,  1259,  1236,  1278,  1278,  1301,  1317,  1323,  1334,  1317,
+    1355,  1365,  1370,  1365,  1391,  1404,  1425,  1426,  1436,  1457,
+    1458,  1473,  1485,  1497,  1498,  1499,  1500,  1501,  1502,  1503,
+    1504,  1508,  1530,  1555,  1577,  1608,  1630,  1652,  1674,  1696,
+    1722,  1750,  1761,  1772,  1786,  1810,  1834,  1857,  1880,  1903,
+    1926,  1953,  1983,  1987,  2032,  2033,  2041,  2042,  2050,  2060,
+    2087,  2131
 };
 #endif
 
@@ -1823,123 +1825,123 @@ yyreduce:
   switch (yyn)
     {
   case 2: /* program_globals: %empty  */
-#line 119 "compiler/parser.y"
+#line 121 "compiler/parser.y"
                   {}
-#line 1829 "objects/codeIR/parser.tab.c"
+#line 1831 "objects/codeIR/parser.tab.c"
     break;
 
   case 3: /* program_globals: program_global program_global_list  */
-#line 120 "compiler/parser.y"
+#line 122 "compiler/parser.y"
                                          {}
-#line 1835 "objects/codeIR/parser.tab.c"
+#line 1837 "objects/codeIR/parser.tab.c"
     break;
 
   case 4: /* program_global_list: %empty  */
-#line 124 "compiler/parser.y"
+#line 126 "compiler/parser.y"
                   {}
-#line 1841 "objects/codeIR/parser.tab.c"
+#line 1843 "objects/codeIR/parser.tab.c"
     break;
 
   case 5: /* program_global_list: program_global program_global_list  */
-#line 125 "compiler/parser.y"
+#line 127 "compiler/parser.y"
                                          {}
-#line 1847 "objects/codeIR/parser.tab.c"
+#line 1849 "objects/codeIR/parser.tab.c"
     break;
 
   case 6: /* program_global: function  */
-#line 129 "compiler/parser.y"
+#line 131 "compiler/parser.y"
                {}
-#line 1853 "objects/codeIR/parser.tab.c"
+#line 1855 "objects/codeIR/parser.tab.c"
     break;
 
   case 7: /* program_global: declaration_global  */
-#line 130 "compiler/parser.y"
+#line 132 "compiler/parser.y"
                          {}
-#line 1859 "objects/codeIR/parser.tab.c"
+#line 1861 "objects/codeIR/parser.tab.c"
     break;
 
   case 8: /* program_global: error  */
-#line 131 "compiler/parser.y"
+#line 133 "compiler/parser.y"
             { yyerrok; yyclearin; }
-#line 1865 "objects/codeIR/parser.tab.c"
+#line 1867 "objects/codeIR/parser.tab.c"
     break;
 
   case 9: /* program_locals: %empty  */
-#line 136 "compiler/parser.y"
+#line 138 "compiler/parser.y"
                   {}
-#line 1871 "objects/codeIR/parser.tab.c"
+#line 1873 "objects/codeIR/parser.tab.c"
     break;
 
   case 10: /* program_locals: program_local program_local_list  */
-#line 137 "compiler/parser.y"
+#line 139 "compiler/parser.y"
                                        {}
-#line 1877 "objects/codeIR/parser.tab.c"
+#line 1879 "objects/codeIR/parser.tab.c"
     break;
 
   case 11: /* program_local_list: %empty  */
-#line 141 "compiler/parser.y"
+#line 143 "compiler/parser.y"
                   {}
-#line 1883 "objects/codeIR/parser.tab.c"
+#line 1885 "objects/codeIR/parser.tab.c"
     break;
 
   case 12: /* program_local_list: program_local program_local_list  */
-#line 142 "compiler/parser.y"
+#line 144 "compiler/parser.y"
                                        {}
-#line 1889 "objects/codeIR/parser.tab.c"
+#line 1891 "objects/codeIR/parser.tab.c"
     break;
 
   case 13: /* program_local: comand  */
-#line 146 "compiler/parser.y"
+#line 148 "compiler/parser.y"
              {}
-#line 1895 "objects/codeIR/parser.tab.c"
+#line 1897 "objects/codeIR/parser.tab.c"
     break;
 
   case 14: /* program_local: declaration_local  */
-#line 147 "compiler/parser.y"
+#line 149 "compiler/parser.y"
                         {}
-#line 1901 "objects/codeIR/parser.tab.c"
+#line 1903 "objects/codeIR/parser.tab.c"
     break;
 
   case 15: /* function: int_function  */
-#line 152 "compiler/parser.y"
+#line 154 "compiler/parser.y"
                    {}
-#line 1907 "objects/codeIR/parser.tab.c"
+#line 1909 "objects/codeIR/parser.tab.c"
     break;
 
   case 16: /* function: float_function  */
-#line 153 "compiler/parser.y"
+#line 155 "compiler/parser.y"
                      {}
-#line 1913 "objects/codeIR/parser.tab.c"
+#line 1915 "objects/codeIR/parser.tab.c"
     break;
 
   case 17: /* function: char_function  */
-#line 154 "compiler/parser.y"
+#line 156 "compiler/parser.y"
                     {}
-#line 1919 "objects/codeIR/parser.tab.c"
+#line 1921 "objects/codeIR/parser.tab.c"
     break;
 
   case 18: /* function: bool_function  */
-#line 155 "compiler/parser.y"
+#line 157 "compiler/parser.y"
                     {}
-#line 1925 "objects/codeIR/parser.tab.c"
+#line 1927 "objects/codeIR/parser.tab.c"
     break;
 
   case 19: /* function: void_function  */
-#line 156 "compiler/parser.y"
+#line 158 "compiler/parser.y"
                     {}
-#line 1931 "objects/codeIR/parser.tab.c"
+#line 1933 "objects/codeIR/parser.tab.c"
     break;
 
   case 20: /* $@1: %empty  */
-#line 162 "compiler/parser.y"
+#line 164 "compiler/parser.y"
                      {
         pushScope();
     }
-#line 1939 "objects/codeIR/parser.tab.c"
+#line 1941 "objects/codeIR/parser.tab.c"
     break;
 
   case 21: /* $@2: %empty  */
-#line 164 "compiler/parser.y"
+#line 166 "compiler/parser.y"
                  {
         
         LLVMTypeRef func_type = LLVMFunctionType(
@@ -1966,29 +1968,35 @@ yyreduce:
             param_types[i] = 0;
         }
         param_count = 0;
-        
+
+        haveRet = 0;
     }
-#line 1972 "objects/codeIR/parser.tab.c"
+#line 1975 "objects/codeIR/parser.tab.c"
     break;
 
   case 22: /* int_function: INT ID LEFTPAR $@1 parameters $@2 RIGHTPAR LEFTKEYS program_locals RIGHTKEYS  */
-#line 191 "compiler/parser.y"
+#line 194 "compiler/parser.y"
                                                  {
+        if(haveRet == 0) {
+            fprintf(stderr, "Warning: function '%s' does not have a return statement at line %d.\n", (yyvsp[-8].id), yylineno);
+            LLVMValueRef ret_value = LLVMConstInt(LLVMInt32TypeInContext(context), 0, 0);
+            LLVMBuildRet(builder, ret_value); // Retorna 0 por padrão
+        }
         popScope();
     }
-#line 1980 "objects/codeIR/parser.tab.c"
-    break;
-
-  case 23: /* $@3: %empty  */
-#line 197 "compiler/parser.y"
-                       {
-            pushScope();
-        }
 #line 1988 "objects/codeIR/parser.tab.c"
     break;
 
+  case 23: /* $@3: %empty  */
+#line 205 "compiler/parser.y"
+                       {
+            pushScope();
+        }
+#line 1996 "objects/codeIR/parser.tab.c"
+    break;
+
   case 24: /* $@4: %empty  */
-#line 199 "compiler/parser.y"
+#line 207 "compiler/parser.y"
                      {
 
         LLVMTypeRef func_type = LLVMFunctionType(
@@ -2016,28 +2024,34 @@ yyreduce:
         }
         param_count = 0;
         
+        haveRet = 0;
     }
-#line 2021 "objects/codeIR/parser.tab.c"
+#line 2030 "objects/codeIR/parser.tab.c"
     break;
 
   case 25: /* float_function: FLOAT ID LEFTPAR $@3 parameters $@4 RIGHTPAR LEFTKEYS program_locals RIGHTKEYS  */
-#line 226 "compiler/parser.y"
+#line 235 "compiler/parser.y"
                                                  {
+        if(haveRet == 0) {
+            fprintf(stderr, "Warning: function '%s' does not have a return statement at line %d.\n", (yyvsp[-8].id), yylineno);
+            LLVMValueRef ret_value = LLVMConstReal(LLVMDoubleTypeInContext(context), 0.0);
+            LLVMBuildRet(builder, ret_value); // Retorna 0.0 por padrão
+        }
         popScope();
     }
-#line 2029 "objects/codeIR/parser.tab.c"
+#line 2043 "objects/codeIR/parser.tab.c"
     break;
 
   case 26: /* $@5: %empty  */
-#line 232 "compiler/parser.y"
+#line 246 "compiler/parser.y"
                       {
         pushScope();
     }
-#line 2037 "objects/codeIR/parser.tab.c"
+#line 2051 "objects/codeIR/parser.tab.c"
     break;
 
   case 27: /* $@6: %empty  */
-#line 234 "compiler/parser.y"
+#line 248 "compiler/parser.y"
                  {
 
         LLVMTypeRef func_type = LLVMFunctionType(
@@ -2065,28 +2079,34 @@ yyreduce:
         }
         param_count = 0;
         
+        haveRet = 0;
     }
-#line 2070 "objects/codeIR/parser.tab.c"
+#line 2085 "objects/codeIR/parser.tab.c"
     break;
 
   case 28: /* char_function: CHAR ID LEFTPAR $@5 parameters $@6 RIGHTPAR LEFTKEYS program_locals RIGHTKEYS  */
-#line 261 "compiler/parser.y"
+#line 276 "compiler/parser.y"
                                                  {
+        if(haveRet == 0) {
+            fprintf(stderr, "Warning: function '%s' does not have a return statement at line %d.\n", (yyvsp[-8].id), yylineno);
+            LLVMValueRef ret_value = LLVMConstInt(LLVMInt8TypeInContext(context), 0, 0);
+            LLVMBuildRet(builder, ret_value); // Retorna 0 por padrão
+        }
         popScope();
     }
-#line 2078 "objects/codeIR/parser.tab.c"
+#line 2098 "objects/codeIR/parser.tab.c"
     break;
 
   case 29: /* $@7: %empty  */
-#line 267 "compiler/parser.y"
+#line 287 "compiler/parser.y"
                       {
         pushScope();
     }
-#line 2086 "objects/codeIR/parser.tab.c"
+#line 2106 "objects/codeIR/parser.tab.c"
     break;
 
   case 30: /* $@8: %empty  */
-#line 269 "compiler/parser.y"
+#line 289 "compiler/parser.y"
                  {
 
         LLVMTypeRef func_type = LLVMFunctionType(
@@ -2114,28 +2134,34 @@ yyreduce:
         }
         param_count = 0;
         
+        haveRet = 0;
     }
-#line 2119 "objects/codeIR/parser.tab.c"
+#line 2140 "objects/codeIR/parser.tab.c"
     break;
 
   case 31: /* bool_function: BOOL ID LEFTPAR $@7 parameters $@8 RIGHTPAR LEFTKEYS program_locals RIGHTKEYS  */
-#line 296 "compiler/parser.y"
+#line 317 "compiler/parser.y"
                                                  {
+        if(haveRet == 0) {
+            fprintf(stderr, "Warning: function '%s' does not have a return statement at line %d.\n", (yyvsp[-8].id), yylineno);
+            LLVMValueRef ret_value = LLVMConstInt(LLVMInt1TypeInContext(context), 0, 0);
+            LLVMBuildRet(builder, ret_value); // Retorna 0 por padrão
+        }
         popScope();
     }
-#line 2127 "objects/codeIR/parser.tab.c"
+#line 2153 "objects/codeIR/parser.tab.c"
     break;
 
   case 32: /* $@9: %empty  */
-#line 303 "compiler/parser.y"
+#line 329 "compiler/parser.y"
                       {
             pushScope();
     }
-#line 2135 "objects/codeIR/parser.tab.c"
+#line 2161 "objects/codeIR/parser.tab.c"
     break;
 
   case 33: /* $@10: %empty  */
-#line 305 "compiler/parser.y"
+#line 331 "compiler/parser.y"
                  {
         LLVMTypeRef func_type = LLVMFunctionType(
             LLVMVoidTypeInContext(context), // tipo de retorno void
@@ -2161,31 +2187,32 @@ yyreduce:
         }
         param_count = 0;
     }
-#line 2165 "objects/codeIR/parser.tab.c"
+#line 2191 "objects/codeIR/parser.tab.c"
     break;
 
   case 34: /* void_function: VOID ID LEFTPAR $@9 parameters $@10 RIGHTPAR LEFTKEYS program_locals RIGHTKEYS  */
-#line 329 "compiler/parser.y"
+#line 355 "compiler/parser.y"
                                                  {
+        LLVMBuildRetVoid(builder);
         popScope();
     }
-#line 2173 "objects/codeIR/parser.tab.c"
+#line 2200 "objects/codeIR/parser.tab.c"
     break;
 
   case 36: /* parameters: parameter parameter_list  */
-#line 337 "compiler/parser.y"
+#line 364 "compiler/parser.y"
                                {}
-#line 2179 "objects/codeIR/parser.tab.c"
+#line 2206 "objects/codeIR/parser.tab.c"
     break;
 
   case 38: /* parameter_list: COMMA parameter parameter_list  */
-#line 341 "compiler/parser.y"
+#line 368 "compiler/parser.y"
                                      {}
-#line 2185 "objects/codeIR/parser.tab.c"
+#line 2212 "objects/codeIR/parser.tab.c"
     break;
 
   case 39: /* parameter: INT ID  */
-#line 345 "compiler/parser.y"
+#line 372 "compiler/parser.y"
              {
         if (param_count >= MAX_PARAMS) {
             fprintf(stderr, "Error: too many parameters at line %d.\n", yylineno);
@@ -2196,11 +2223,11 @@ yyreduce:
             insertSymbol((yyvsp[0].id), 0.0, TYPE_INT);
         }
     }
-#line 2200 "objects/codeIR/parser.tab.c"
+#line 2227 "objects/codeIR/parser.tab.c"
     break;
 
   case 40: /* parameter: FLOAT ID  */
-#line 355 "compiler/parser.y"
+#line 382 "compiler/parser.y"
                {
         if (param_count >= MAX_PARAMS) {
             fprintf(stderr, "Error: too many parameters at line %d.\n", yylineno);
@@ -2211,11 +2238,11 @@ yyreduce:
             insertSymbol((yyvsp[0].id), 0.0, TYPE_FLOAT);
         }
     }
-#line 2215 "objects/codeIR/parser.tab.c"
+#line 2242 "objects/codeIR/parser.tab.c"
     break;
 
   case 41: /* parameter: CHAR ID  */
-#line 365 "compiler/parser.y"
+#line 392 "compiler/parser.y"
               {
         if (param_count >= MAX_PARAMS) {
             fprintf(stderr, "Error: too many parameters at line %d.\n", yylineno);
@@ -2226,11 +2253,11 @@ yyreduce:
             insertSymbol((yyvsp[0].id), 0.0, TYPE_CHAR);
         }
     }
-#line 2230 "objects/codeIR/parser.tab.c"
+#line 2257 "objects/codeIR/parser.tab.c"
     break;
 
   case 42: /* parameter: BOOL ID  */
-#line 375 "compiler/parser.y"
+#line 402 "compiler/parser.y"
               {
         if (param_count >= MAX_PARAMS) {
             fprintf(stderr, "Error: too many parameters at line %d.\n", yylineno);
@@ -2241,41 +2268,41 @@ yyreduce:
             insertSymbol((yyvsp[0].id), 0.0, TYPE_BOOL);
         }
 }
-#line 2245 "objects/codeIR/parser.tab.c"
+#line 2272 "objects/codeIR/parser.tab.c"
     break;
 
   case 43: /* declaration_global: int_declaration_globals  */
-#line 389 "compiler/parser.y"
+#line 416 "compiler/parser.y"
                               {}
-#line 2251 "objects/codeIR/parser.tab.c"
+#line 2278 "objects/codeIR/parser.tab.c"
     break;
 
   case 44: /* declaration_global: float_declaration_globals  */
-#line 390 "compiler/parser.y"
+#line 417 "compiler/parser.y"
                                 {}
-#line 2257 "objects/codeIR/parser.tab.c"
+#line 2284 "objects/codeIR/parser.tab.c"
     break;
 
   case 45: /* declaration_global: char_declaration_globals  */
-#line 391 "compiler/parser.y"
+#line 418 "compiler/parser.y"
                                {}
-#line 2263 "objects/codeIR/parser.tab.c"
+#line 2290 "objects/codeIR/parser.tab.c"
     break;
 
   case 46: /* declaration_global: bool_declaration_globals  */
-#line 392 "compiler/parser.y"
+#line 419 "compiler/parser.y"
                                {}
-#line 2269 "objects/codeIR/parser.tab.c"
+#line 2296 "objects/codeIR/parser.tab.c"
     break;
 
   case 47: /* int_declaration_globals: INT int_declaration_global int_declaration_global_list DONE  */
-#line 396 "compiler/parser.y"
+#line 423 "compiler/parser.y"
                                                                   {}
-#line 2275 "objects/codeIR/parser.tab.c"
+#line 2302 "objects/codeIR/parser.tab.c"
     break;
 
   case 50: /* int_declaration_global: ID  */
-#line 403 "compiler/parser.y"
+#line 430 "compiler/parser.y"
          {
         insertSymbol((yyvsp[0].id), -DBL_MAX, TYPE_INT);
         LLVMTypeRef type = LLVMInt32TypeInContext(context);
@@ -2283,11 +2310,11 @@ yyreduce:
         LLVMSetInitializer(global, LLVMConstInt(type, 0, 0)); // valor padrão
         setVarLLVM((yyvsp[0].id), global); // Função que associa o nome ao LLVMValueRef global
     }
-#line 2287 "objects/codeIR/parser.tab.c"
+#line 2314 "objects/codeIR/parser.tab.c"
     break;
 
   case 51: /* int_declaration_global: ID RECEIVE term_const  */
-#line 410 "compiler/parser.y"
+#line 437 "compiler/parser.y"
                             {
         insertSymbol((yyvsp[-2].id), (yyvsp[0].number).value, TYPE_INT);
         LLVMTypeRef type = LLVMInt32TypeInContext(context);
@@ -2295,17 +2322,17 @@ yyreduce:
         LLVMSetInitializer(global, (yyvsp[0].number).llvm_value);
         setVarLLVM((yyvsp[-2].id), global);
     }
-#line 2299 "objects/codeIR/parser.tab.c"
+#line 2326 "objects/codeIR/parser.tab.c"
     break;
 
   case 52: /* int_declaration_global: array_global  */
-#line 417 "compiler/parser.y"
+#line 444 "compiler/parser.y"
                    {}
-#line 2305 "objects/codeIR/parser.tab.c"
+#line 2332 "objects/codeIR/parser.tab.c"
     break;
 
   case 53: /* array_global: ID LEFTBRACKET term_const RIGHTBRACKET  */
-#line 420 "compiler/parser.y"
+#line 447 "compiler/parser.y"
                                              {
         // Declaração de vetor
         int size = (int)(yyvsp[-1].number).value;
@@ -2320,11 +2347,11 @@ yyreduce:
             allocaArrayVars((yyvsp[-3].id), TYPE_INT, size);
         }
     }
-#line 2324 "objects/codeIR/parser.tab.c"
+#line 2351 "objects/codeIR/parser.tab.c"
     break;
 
   case 54: /* array_global: ID LEFTBRACKET term_const RIGHTBRACKET RECEIVE LEFTKEYS array_values_global RIGHTKEYS  */
-#line 434 "compiler/parser.y"
+#line 461 "compiler/parser.y"
                                                                                             {
         int size = (int)(yyvsp[-5].number).value;
         if (size <= 0) {
@@ -2338,7 +2365,14 @@ yyreduce:
             for (int i = 0; i < size; i++) {
                 LLVMValueRef idx = LLVMConstInt(LLVMInt32TypeInContext(context), i, 0);
                 LLVMValueRef indices[2] = { LLVMConstInt(LLVMInt32TypeInContext(context), 0, 0), idx };
-                LLVMValueRef array_ptr = LLVMBuildGEP2(builder, LLVMInt32TypeInContext(context), var, indices, 2, "");
+                LLVMValueRef array_ptr = LLVMBuildGEP2(
+                    builder,
+                    LLVMArrayType(LLVMInt32TypeInContext(context), size),
+                    var,
+                    indices,
+                    2,
+                    ""
+                );
                 LLVMValueRef val = LLVMConstInt(LLVMInt32TypeInContext(context), (int)vals[i], 0);
                 LLVMBuildStore(builder, val, array_ptr);
             }
@@ -2347,17 +2381,17 @@ yyreduce:
         vals = NULL; // Libera o array de valores
         array_value_count = 0;
     }
-#line 2351 "objects/codeIR/parser.tab.c"
+#line 2385 "objects/codeIR/parser.tab.c"
     break;
 
   case 55: /* float_declaration_globals: FLOAT float_declaration_global float_declaration_global_list DONE  */
-#line 461 "compiler/parser.y"
+#line 495 "compiler/parser.y"
                                                                         {}
-#line 2357 "objects/codeIR/parser.tab.c"
+#line 2391 "objects/codeIR/parser.tab.c"
     break;
 
   case 58: /* float_declaration_global: ID  */
-#line 468 "compiler/parser.y"
+#line 502 "compiler/parser.y"
          {
         insertSymbol((yyvsp[0].id), -DBL_MAX, TYPE_FLOAT);
         LLVMTypeRef type = LLVMDoubleTypeInContext(context);
@@ -2365,11 +2399,11 @@ yyreduce:
         LLVMSetInitializer(global, LLVMConstReal(type, 0.0)); // valor padrão
         setVarLLVM((yyvsp[0].id), global); // Função que associa o nome ao LLVMValueRef global
     }
-#line 2369 "objects/codeIR/parser.tab.c"
+#line 2403 "objects/codeIR/parser.tab.c"
     break;
 
   case 59: /* float_declaration_global: ID RECEIVE term_const  */
-#line 475 "compiler/parser.y"
+#line 509 "compiler/parser.y"
                             {
         insertSymbol((yyvsp[-2].id), (yyvsp[0].number).value, TYPE_FLOAT);
         LLVMTypeRef type = LLVMDoubleTypeInContext(context);
@@ -2377,29 +2411,29 @@ yyreduce:
         LLVMSetInitializer(global, (yyvsp[0].number).llvm_value);
         setVarLLVM((yyvsp[-2].id), global);
     }
-#line 2381 "objects/codeIR/parser.tab.c"
+#line 2415 "objects/codeIR/parser.tab.c"
     break;
 
   case 60: /* char_declaration_globals: CHAR char_declaration_global char_declaration_global_list DONE  */
-#line 485 "compiler/parser.y"
+#line 519 "compiler/parser.y"
                                                                      {}
-#line 2387 "objects/codeIR/parser.tab.c"
+#line 2421 "objects/codeIR/parser.tab.c"
     break;
 
   case 61: /* char_declaration_global_list: %empty  */
-#line 488 "compiler/parser.y"
+#line 522 "compiler/parser.y"
                   {}
-#line 2393 "objects/codeIR/parser.tab.c"
+#line 2427 "objects/codeIR/parser.tab.c"
     break;
 
   case 62: /* char_declaration_global_list: COMMA char_declaration_global char_declaration_global_list  */
-#line 489 "compiler/parser.y"
+#line 523 "compiler/parser.y"
                                                                  {}
-#line 2399 "objects/codeIR/parser.tab.c"
+#line 2433 "objects/codeIR/parser.tab.c"
     break;
 
   case 63: /* char_declaration_global: ID  */
-#line 492 "compiler/parser.y"
+#line 526 "compiler/parser.y"
          {
         insertSymbol((yyvsp[0].id), -DBL_MAX, TYPE_CHAR);
         LLVMTypeRef type = LLVMInt8TypeInContext(context);
@@ -2407,11 +2441,11 @@ yyreduce:
         LLVMSetInitializer(global, LLVMConstInt(type, 0, 0)); // valor padrão
         setVarLLVM((yyvsp[0].id), global); // Função que associa o nome ao LLVMValueRef global
     }
-#line 2411 "objects/codeIR/parser.tab.c"
+#line 2445 "objects/codeIR/parser.tab.c"
     break;
 
   case 64: /* char_declaration_global: ID RECEIVE term_const  */
-#line 499 "compiler/parser.y"
+#line 533 "compiler/parser.y"
                             {
         insertSymbol((yyvsp[-2].id), (yyvsp[0].number).value, TYPE_CHAR);
         LLVMTypeRef type = LLVMInt8TypeInContext(context);
@@ -2419,29 +2453,29 @@ yyreduce:
         LLVMSetInitializer(global, (yyvsp[0].number).llvm_value);
         setVarLLVM((yyvsp[-2].id), global);
     }
-#line 2423 "objects/codeIR/parser.tab.c"
+#line 2457 "objects/codeIR/parser.tab.c"
     break;
 
   case 65: /* bool_declaration_globals: BOOL bool_declaration_global bool_declaration_global_list DONE  */
-#line 509 "compiler/parser.y"
+#line 543 "compiler/parser.y"
                                                                      {}
-#line 2429 "objects/codeIR/parser.tab.c"
+#line 2463 "objects/codeIR/parser.tab.c"
     break;
 
   case 66: /* bool_declaration_global_list: %empty  */
-#line 512 "compiler/parser.y"
+#line 546 "compiler/parser.y"
                   {}
-#line 2435 "objects/codeIR/parser.tab.c"
+#line 2469 "objects/codeIR/parser.tab.c"
     break;
 
   case 67: /* bool_declaration_global_list: COMMA bool_declaration_global bool_declaration_global_list  */
-#line 513 "compiler/parser.y"
+#line 547 "compiler/parser.y"
                                                                  {}
-#line 2441 "objects/codeIR/parser.tab.c"
+#line 2475 "objects/codeIR/parser.tab.c"
     break;
 
   case 68: /* bool_declaration_global: ID  */
-#line 516 "compiler/parser.y"
+#line 550 "compiler/parser.y"
          {
         insertSymbol((yyvsp[0].id), -DBL_MAX, TYPE_BOOL);
         LLVMTypeRef type = LLVMInt1TypeInContext(context);
@@ -2449,11 +2483,11 @@ yyreduce:
         LLVMSetInitializer(global, LLVMConstInt(type, 0, 0)); // valor padrão
         setVarLLVM((yyvsp[0].id), global); // Função que associa o nome ao LLVMValueRef global
     }
-#line 2453 "objects/codeIR/parser.tab.c"
+#line 2487 "objects/codeIR/parser.tab.c"
     break;
 
   case 69: /* bool_declaration_global: ID RECEIVE term_const  */
-#line 523 "compiler/parser.y"
+#line 557 "compiler/parser.y"
                             {
         insertSymbol((yyvsp[-2].id), (yyvsp[0].number).value, TYPE_BOOL);
         LLVMTypeRef type = LLVMInt1TypeInContext(context);
@@ -2461,11 +2495,11 @@ yyreduce:
         LLVMSetInitializer(global, (yyvsp[0].number).llvm_value);
         setVarLLVM((yyvsp[-2].id), global);
     }
-#line 2465 "objects/codeIR/parser.tab.c"
+#line 2499 "objects/codeIR/parser.tab.c"
     break;
 
   case 70: /* array_values_global: term_const  */
-#line 534 "compiler/parser.y"
+#line 568 "compiler/parser.y"
                  {
         if(vals) {
             free(vals);
@@ -2474,21 +2508,21 @@ yyreduce:
         vals[0] = (yyvsp[0].number).value;
         array_value_count = 1;
     }
-#line 2478 "objects/codeIR/parser.tab.c"
+#line 2512 "objects/codeIR/parser.tab.c"
     break;
 
   case 71: /* array_values_global: array_values_global COMMA term_const  */
-#line 542 "compiler/parser.y"
+#line 576 "compiler/parser.y"
                                            {
         vals = realloc(vals, sizeof(double) * (array_value_count + 1));
         vals[array_value_count] = (yyvsp[0].number).value;
         array_value_count++;
     }
-#line 2488 "objects/codeIR/parser.tab.c"
+#line 2522 "objects/codeIR/parser.tab.c"
     break;
 
   case 72: /* term_const: NUMBER  */
-#line 551 "compiler/parser.y"
+#line 585 "compiler/parser.y"
              {
         (yyval.number).value = (yyvsp[0].number).value; 
         (yyval.number).type = (yyvsp[0].number).type; 
@@ -2499,72 +2533,72 @@ yyreduce:
             default:         (yyval.number).llvm_value = LLVMConstReal(LLVMDoubleTypeInContext(context), (yyvsp[0].number).value); break;
         }
     }
-#line 2503 "objects/codeIR/parser.tab.c"
+#line 2537 "objects/codeIR/parser.tab.c"
     break;
 
   case 73: /* term_const: CARACTERE  */
-#line 561 "compiler/parser.y"
+#line 595 "compiler/parser.y"
                 {
         (yyval.number).value = (double) (yyvsp[0].caractere);
         (yyval.number).type = TYPE_CHAR;
         (yyval.number).llvm_value = LLVMConstInt(LLVMInt8TypeInContext(context), (yyvsp[0].caractere), 0);
 }
-#line 2513 "objects/codeIR/parser.tab.c"
+#line 2547 "objects/codeIR/parser.tab.c"
     break;
 
   case 74: /* declaration_local: int_declaration_locals  */
-#line 569 "compiler/parser.y"
+#line 603 "compiler/parser.y"
                              {}
-#line 2519 "objects/codeIR/parser.tab.c"
+#line 2553 "objects/codeIR/parser.tab.c"
     break;
 
   case 75: /* declaration_local: float_declaration_locals  */
-#line 570 "compiler/parser.y"
+#line 604 "compiler/parser.y"
                                {}
-#line 2525 "objects/codeIR/parser.tab.c"
+#line 2559 "objects/codeIR/parser.tab.c"
     break;
 
   case 76: /* declaration_local: char_declaration_locals  */
-#line 571 "compiler/parser.y"
+#line 605 "compiler/parser.y"
                               {}
-#line 2531 "objects/codeIR/parser.tab.c"
+#line 2565 "objects/codeIR/parser.tab.c"
     break;
 
   case 77: /* declaration_local: bool_declaration_locals  */
-#line 572 "compiler/parser.y"
+#line 606 "compiler/parser.y"
                               {}
-#line 2537 "objects/codeIR/parser.tab.c"
+#line 2571 "objects/codeIR/parser.tab.c"
     break;
 
   case 78: /* int_declaration_locals: INT int_declaration_local int_declaration_local_list DONE  */
-#line 576 "compiler/parser.y"
+#line 610 "compiler/parser.y"
                                                                 {}
-#line 2543 "objects/codeIR/parser.tab.c"
+#line 2577 "objects/codeIR/parser.tab.c"
     break;
 
   case 79: /* int_declaration_local_list: %empty  */
-#line 579 "compiler/parser.y"
+#line 613 "compiler/parser.y"
                   {}
-#line 2549 "objects/codeIR/parser.tab.c"
+#line 2583 "objects/codeIR/parser.tab.c"
     break;
 
   case 80: /* int_declaration_local_list: COMMA int_declaration_local int_declaration_local_list  */
-#line 580 "compiler/parser.y"
+#line 614 "compiler/parser.y"
                                                              {}
-#line 2555 "objects/codeIR/parser.tab.c"
+#line 2589 "objects/codeIR/parser.tab.c"
     break;
 
   case 81: /* int_declaration_local: ID  */
-#line 583 "compiler/parser.y"
+#line 617 "compiler/parser.y"
          {
         insertSymbol((yyvsp[0].id), -DBL_MAX, TYPE_INT);
         allocaVars((yyvsp[0].id), TYPE_INT);
     }
-#line 2564 "objects/codeIR/parser.tab.c"
+#line 2598 "objects/codeIR/parser.tab.c"
     break;
 
   case 82: /* int_declaration_local: ID RECEIVE expression  */
-#line 587 "compiler/parser.y"
+#line 621 "compiler/parser.y"
                             {
         insertSymbol((yyvsp[-2].id), (yyvsp[0].number).value, TYPE_INT);
         allocaVars((yyvsp[-2].id), TYPE_INT);
@@ -2585,11 +2619,11 @@ yyreduce:
             }
         }
     }
-#line 2589 "objects/codeIR/parser.tab.c"
+#line 2623 "objects/codeIR/parser.tab.c"
     break;
 
   case 84: /* array_local: ID LEFTBRACKET expression RIGHTBRACKET  */
-#line 611 "compiler/parser.y"
+#line 645 "compiler/parser.y"
                                              {
         // Declaração de vetor
         int size = (int)(yyvsp[-1].number).value;
@@ -2604,11 +2638,11 @@ yyreduce:
             allocaArrayVars((yyvsp[-3].id), TYPE_INT, size);
         }
     }
-#line 2608 "objects/codeIR/parser.tab.c"
+#line 2642 "objects/codeIR/parser.tab.c"
     break;
 
   case 85: /* array_local: ID LEFTBRACKET expression RIGHTBRACKET RECEIVE LEFTKEYS array_values_local RIGHTKEYS  */
-#line 625 "compiler/parser.y"
+#line 659 "compiler/parser.y"
                                                                                            {
         int size = (int)(yyvsp[-5].number).value;
         if (size <= 0) {
@@ -2622,7 +2656,14 @@ yyreduce:
             for (int i = 0; i < size; i++) {
                 LLVMValueRef idx = LLVMConstInt(LLVMInt32TypeInContext(context), i, 0);
                 LLVMValueRef indices[2] = { LLVMConstInt(LLVMInt32TypeInContext(context), 0, 0), idx };
-                LLVMValueRef array_ptr = LLVMBuildGEP2(builder, LLVMInt32TypeInContext(context), var, indices, 2, "");
+                LLVMValueRef array_ptr = LLVMBuildGEP2(
+                    builder,
+                    LLVMArrayType(LLVMInt32TypeInContext(context), size),
+                    var,
+                    indices,
+                    2,
+                    ""
+                );
                 LLVMValueRef val = LLVMConstInt(LLVMInt32TypeInContext(context), (int)vals[i], 0);
                 LLVMBuildStore(builder, val, array_ptr);
             }
@@ -2631,38 +2672,38 @@ yyreduce:
         vals = NULL; // Libera o array de valores
         array_value_count = 0;
     }
-#line 2635 "objects/codeIR/parser.tab.c"
+#line 2676 "objects/codeIR/parser.tab.c"
     break;
 
   case 86: /* float_declaration_locals: FLOAT float_declaration_local float_declaration_local_list DONE  */
-#line 650 "compiler/parser.y"
+#line 691 "compiler/parser.y"
                                                                       {}
-#line 2641 "objects/codeIR/parser.tab.c"
+#line 2682 "objects/codeIR/parser.tab.c"
     break;
 
   case 87: /* float_declaration_local_list: %empty  */
-#line 653 "compiler/parser.y"
+#line 694 "compiler/parser.y"
                   {}
-#line 2647 "objects/codeIR/parser.tab.c"
+#line 2688 "objects/codeIR/parser.tab.c"
     break;
 
   case 88: /* float_declaration_local_list: COMMA float_declaration_local float_declaration_local_list  */
-#line 654 "compiler/parser.y"
+#line 695 "compiler/parser.y"
                                                                  {}
-#line 2653 "objects/codeIR/parser.tab.c"
+#line 2694 "objects/codeIR/parser.tab.c"
     break;
 
   case 89: /* float_declaration_local: ID  */
-#line 657 "compiler/parser.y"
+#line 698 "compiler/parser.y"
          {
         insertSymbol((yyvsp[0].id), -DBL_MAX, TYPE_FLOAT);
         allocaVars((yyvsp[0].id), TYPE_FLOAT);
     }
-#line 2662 "objects/codeIR/parser.tab.c"
+#line 2703 "objects/codeIR/parser.tab.c"
     break;
 
   case 90: /* float_declaration_local: ID RECEIVE expression  */
-#line 661 "compiler/parser.y"
+#line 702 "compiler/parser.y"
                             {
         insertSymbol((yyvsp[-2].id), (yyvsp[0].number).value, TYPE_FLOAT);
         allocaVars((yyvsp[-2].id), TYPE_FLOAT);
@@ -2682,38 +2723,38 @@ yyreduce:
             }
         }
     }
-#line 2686 "objects/codeIR/parser.tab.c"
+#line 2727 "objects/codeIR/parser.tab.c"
     break;
 
   case 91: /* char_declaration_locals: CHAR char_declaration_local char_declaration_local_list DONE  */
-#line 683 "compiler/parser.y"
+#line 724 "compiler/parser.y"
                                                                    {}
-#line 2692 "objects/codeIR/parser.tab.c"
+#line 2733 "objects/codeIR/parser.tab.c"
     break;
 
   case 92: /* char_declaration_local_list: %empty  */
-#line 686 "compiler/parser.y"
+#line 727 "compiler/parser.y"
                   {}
-#line 2698 "objects/codeIR/parser.tab.c"
+#line 2739 "objects/codeIR/parser.tab.c"
     break;
 
   case 93: /* char_declaration_local_list: COMMA char_declaration_local char_declaration_local_list  */
-#line 687 "compiler/parser.y"
+#line 728 "compiler/parser.y"
                                                                {}
-#line 2704 "objects/codeIR/parser.tab.c"
+#line 2745 "objects/codeIR/parser.tab.c"
     break;
 
   case 94: /* char_declaration_local: ID  */
-#line 690 "compiler/parser.y"
+#line 731 "compiler/parser.y"
          {
         insertSymbol((yyvsp[0].id), -DBL_MAX, TYPE_CHAR);
         allocaVars((yyvsp[0].id), TYPE_CHAR);
     }
-#line 2713 "objects/codeIR/parser.tab.c"
+#line 2754 "objects/codeIR/parser.tab.c"
     break;
 
   case 95: /* char_declaration_local: ID RECEIVE expression  */
-#line 694 "compiler/parser.y"
+#line 735 "compiler/parser.y"
                             {
         insertSymbol((yyvsp[-2].id), (yyvsp[0].number).value, TYPE_CHAR);
         allocaVars((yyvsp[-2].id), TYPE_CHAR);
@@ -2728,38 +2769,38 @@ yyreduce:
             }
         }
     }
-#line 2732 "objects/codeIR/parser.tab.c"
+#line 2773 "objects/codeIR/parser.tab.c"
     break;
 
   case 96: /* bool_declaration_locals: BOOL bool_declaration_local bool_declaration_local_list DONE  */
-#line 711 "compiler/parser.y"
+#line 752 "compiler/parser.y"
                                                                    {}
-#line 2738 "objects/codeIR/parser.tab.c"
+#line 2779 "objects/codeIR/parser.tab.c"
     break;
 
   case 97: /* bool_declaration_local_list: %empty  */
-#line 714 "compiler/parser.y"
+#line 755 "compiler/parser.y"
                   {}
-#line 2744 "objects/codeIR/parser.tab.c"
+#line 2785 "objects/codeIR/parser.tab.c"
     break;
 
   case 98: /* bool_declaration_local_list: COMMA bool_declaration_local bool_declaration_local_list  */
-#line 715 "compiler/parser.y"
+#line 756 "compiler/parser.y"
                                                                {}
-#line 2750 "objects/codeIR/parser.tab.c"
+#line 2791 "objects/codeIR/parser.tab.c"
     break;
 
   case 99: /* bool_declaration_local: ID  */
-#line 718 "compiler/parser.y"
+#line 759 "compiler/parser.y"
          {
         insertSymbol((yyvsp[0].id), -DBL_MAX, TYPE_BOOL);
         allocaVars((yyvsp[0].id), TYPE_BOOL);
     }
-#line 2759 "objects/codeIR/parser.tab.c"
+#line 2800 "objects/codeIR/parser.tab.c"
     break;
 
   case 100: /* bool_declaration_local: ID RECEIVE expression  */
-#line 722 "compiler/parser.y"
+#line 763 "compiler/parser.y"
                             {
         insertSymbol((yyvsp[-2].id), (yyvsp[0].number).value, TYPE_BOOL);
         allocaVars((yyvsp[-2].id), TYPE_BOOL);
@@ -2774,11 +2815,11 @@ yyreduce:
             }
         }
     }
-#line 2778 "objects/codeIR/parser.tab.c"
+#line 2819 "objects/codeIR/parser.tab.c"
     break;
 
   case 101: /* array_values_local: expression  */
-#line 739 "compiler/parser.y"
+#line 780 "compiler/parser.y"
                  {
         if(vals) {
             free(vals);
@@ -2787,81 +2828,81 @@ yyreduce:
         vals[0] = (yyvsp[0].number).value;
         array_value_count = 1;
     }
-#line 2791 "objects/codeIR/parser.tab.c"
+#line 2832 "objects/codeIR/parser.tab.c"
     break;
 
   case 102: /* array_values_local: array_values_local COMMA expression  */
-#line 747 "compiler/parser.y"
+#line 788 "compiler/parser.y"
                                           {
         vals = realloc(vals, sizeof(double) * (array_value_count + 1));
         vals[array_value_count] = (yyvsp[0].number).value;
         array_value_count++;
 }
-#line 2801 "objects/codeIR/parser.tab.c"
+#line 2842 "objects/codeIR/parser.tab.c"
     break;
 
   case 103: /* comand: assignment  */
-#line 755 "compiler/parser.y"
+#line 796 "compiler/parser.y"
                  {}
-#line 2807 "objects/codeIR/parser.tab.c"
+#line 2848 "objects/codeIR/parser.tab.c"
     break;
 
   case 104: /* comand: increment  */
-#line 756 "compiler/parser.y"
+#line 797 "compiler/parser.y"
                 {}
-#line 2813 "objects/codeIR/parser.tab.c"
+#line 2854 "objects/codeIR/parser.tab.c"
     break;
 
   case 105: /* comand: if_statement  */
-#line 757 "compiler/parser.y"
+#line 798 "compiler/parser.y"
                    {}
-#line 2819 "objects/codeIR/parser.tab.c"
+#line 2860 "objects/codeIR/parser.tab.c"
     break;
 
   case 106: /* comand: while  */
-#line 758 "compiler/parser.y"
+#line 799 "compiler/parser.y"
             {}
-#line 2825 "objects/codeIR/parser.tab.c"
+#line 2866 "objects/codeIR/parser.tab.c"
     break;
 
   case 107: /* comand: for  */
-#line 759 "compiler/parser.y"
+#line 800 "compiler/parser.y"
           {}
-#line 2831 "objects/codeIR/parser.tab.c"
+#line 2872 "objects/codeIR/parser.tab.c"
     break;
 
   case 108: /* comand: do_while  */
-#line 760 "compiler/parser.y"
+#line 801 "compiler/parser.y"
                {}
-#line 2837 "objects/codeIR/parser.tab.c"
+#line 2878 "objects/codeIR/parser.tab.c"
     break;
 
   case 109: /* comand: printf  */
-#line 761 "compiler/parser.y"
+#line 802 "compiler/parser.y"
              {}
-#line 2843 "objects/codeIR/parser.tab.c"
+#line 2884 "objects/codeIR/parser.tab.c"
     break;
 
   case 110: /* comand: scanf  */
-#line 762 "compiler/parser.y"
+#line 803 "compiler/parser.y"
             {}
-#line 2849 "objects/codeIR/parser.tab.c"
+#line 2890 "objects/codeIR/parser.tab.c"
     break;
 
   case 111: /* comand: return  */
-#line 763 "compiler/parser.y"
+#line 804 "compiler/parser.y"
              {}
-#line 2855 "objects/codeIR/parser.tab.c"
+#line 2896 "objects/codeIR/parser.tab.c"
     break;
 
   case 112: /* comand: call_function  */
-#line 764 "compiler/parser.y"
+#line 805 "compiler/parser.y"
                     {}
-#line 2861 "objects/codeIR/parser.tab.c"
+#line 2902 "objects/codeIR/parser.tab.c"
     break;
 
   case 114: /* assignment_notfull: ID RECEIVE expression  */
-#line 773 "compiler/parser.y"
+#line 814 "compiler/parser.y"
                             {
         Symbol* symbol = findSymbol((yyvsp[-2].id));
         LLVMValueRef var = getVarLLVM((yyvsp[-2].id));
@@ -2899,11 +2940,11 @@ yyreduce:
             fprintf(stderr, "Error: undefined variable '%s' at line %d.\n", (yyvsp[-2].id), yylineno);
         }
     }
-#line 2903 "objects/codeIR/parser.tab.c"
+#line 2944 "objects/codeIR/parser.tab.c"
     break;
 
   case 115: /* assignment_notfull: ID LEFTBRACKET expression RIGHTBRACKET RECEIVE expression  */
-#line 810 "compiler/parser.y"
+#line 851 "compiler/parser.y"
                                                                 {
         ArraySymbol* symbol = findArraySymbol((yyvsp[-5].id));
         if (!symbol) {
@@ -2916,8 +2957,15 @@ yyreduce:
 
         // Gera o índice do array
         LLVMValueRef indices[2] = { LLVMConstInt(LLVMInt32TypeInContext(context), 0, false), index };
-        LLVMValueRef array_ptr = LLVMBuildGEP2(builder, LLVMInt32TypeInContext(context), var, indices, 2, "arrayptr");
-
+        LLVMValueRef array_ptr = LLVMBuildGEP2(
+            builder,
+            LLVMArrayType(LLVMInt32TypeInContext(context), symbol->size),
+            var,
+            indices,
+            2,
+            "arrayptr"
+        );
+        
         // Armazena o valor no array
         if ((yyvsp[0].number).type == TYPE_INT) {
             LLVMBuildStore(builder, value, array_ptr);
@@ -2931,17 +2979,17 @@ yyreduce:
             fprintf(stderr, "Error: type mismatch in assignment at line %d.\n", yylineno);
         }
     }
-#line 2935 "objects/codeIR/parser.tab.c"
+#line 2983 "objects/codeIR/parser.tab.c"
     break;
 
   case 116: /* assignment_notfull: increment  */
-#line 837 "compiler/parser.y"
+#line 885 "compiler/parser.y"
                 {}
-#line 2941 "objects/codeIR/parser.tab.c"
+#line 2989 "objects/codeIR/parser.tab.c"
     break;
 
   case 117: /* increment: ID PLUS RECEIVE expression  */
-#line 842 "compiler/parser.y"
+#line 890 "compiler/parser.y"
                                  {
         Symbol* symbol = findSymbol((yyvsp[-3].id));
         if (!symbol) {
@@ -2990,11 +3038,11 @@ yyreduce:
             fprintf(stderr, "Error: cannot increment variable '%s' of type %d at line %d.\n", (yyvsp[-3].id), symbol->type, yylineno);
         }
     }
-#line 2994 "objects/codeIR/parser.tab.c"
+#line 3042 "objects/codeIR/parser.tab.c"
     break;
 
   case 118: /* increment: ID MIN RECEIVE expression  */
-#line 890 "compiler/parser.y"
+#line 938 "compiler/parser.y"
                                 {
         Symbol* symbol = findSymbol((yyvsp[-3].id));
         if (!symbol) {
@@ -3041,11 +3089,11 @@ yyreduce:
             fprintf(stderr, "Error: cannot decrement variable '%s' of type %d at line %d.\n", (yyvsp[-3].id), symbol->type, yylineno);
         }
     }
-#line 3045 "objects/codeIR/parser.tab.c"
+#line 3093 "objects/codeIR/parser.tab.c"
     break;
 
   case 119: /* increment: ID MULT RECEIVE expression  */
-#line 936 "compiler/parser.y"
+#line 984 "compiler/parser.y"
                                  {
         Symbol* symbol = findSymbol((yyvsp[-3].id));
         if (!symbol) {
@@ -3094,11 +3142,11 @@ yyreduce:
             fprintf(stderr, "Error: cannot multiply variable '%s' of type %d at line %d.\n", (yyvsp[-3].id), symbol->type, yylineno);
         }
     }
-#line 3098 "objects/codeIR/parser.tab.c"
+#line 3146 "objects/codeIR/parser.tab.c"
     break;
 
   case 120: /* increment: ID DIV RECEIVE expression  */
-#line 984 "compiler/parser.y"
+#line 1032 "compiler/parser.y"
                                 {
         Symbol* symbol = findSymbol((yyvsp[-3].id));
         if (!symbol) {
@@ -3148,11 +3196,11 @@ yyreduce:
             fprintf(stderr, "Error: cannot divide variable '%s' of type %d at line %d.\n", (yyvsp[-3].id), symbol->type, yylineno);
         }
     }
-#line 3152 "objects/codeIR/parser.tab.c"
+#line 3200 "objects/codeIR/parser.tab.c"
     break;
 
   case 121: /* increment: ID PLUS PLUS  */
-#line 1033 "compiler/parser.y"
+#line 1081 "compiler/parser.y"
                    {
         Symbol* symbol = findSymbol((yyvsp[-2].id));
         if (!symbol) {
@@ -3189,11 +3237,11 @@ yyreduce:
             fprintf(stderr, "Error: cannot increment variable '%s' of type %d at line %d.\n", (yyvsp[-2].id), symbol->type, yylineno);
         }
     }
-#line 3193 "objects/codeIR/parser.tab.c"
+#line 3241 "objects/codeIR/parser.tab.c"
     break;
 
   case 122: /* increment: ID MIN MIN  */
-#line 1069 "compiler/parser.y"
+#line 1117 "compiler/parser.y"
                  {
         Symbol* symbol = findSymbol((yyvsp[-2].id));
         if (!symbol) {
@@ -3230,11 +3278,11 @@ yyreduce:
             fprintf(stderr, "Error: cannot decrement variable '%s' of type %d at line %d.\n", (yyvsp[-2].id), symbol->type, yylineno);
         }
     }
-#line 3234 "objects/codeIR/parser.tab.c"
+#line 3282 "objects/codeIR/parser.tab.c"
     break;
 
   case 123: /* $@11: %empty  */
-#line 1109 "compiler/parser.y"
+#line 1157 "compiler/parser.y"
                                      {
         if ((yyvsp[-1].number).type != TYPE_BOOL) {
             fprintf(stderr, "Error: condition is not boolean at line %d.\n", yylineno);
@@ -3255,25 +3303,33 @@ yyreduce:
         LLVMPositionBuilderAtEnd(builder, ifBB);
 
         pushScope();
+
+        haveRetAll = 1;
+
+        haveRet = 0;
     }
-#line 3260 "objects/codeIR/parser.tab.c"
+#line 3312 "objects/codeIR/parser.tab.c"
     break;
 
   case 124: /* $@12: %empty  */
-#line 1129 "compiler/parser.y"
+#line 1181 "compiler/parser.y"
                                         {
 
         popScope();
+
+        if(haveRet == 0) {
+            haveRetAll = 0;
+        }
 
         ConditionalContext* current = top_cond_context();
         LLVMBuildBr(builder, current->endBB);
         LLVMPositionBuilderAtEnd(builder, current->nextCondBB);
     }
-#line 3273 "objects/codeIR/parser.tab.c"
+#line 3329 "objects/codeIR/parser.tab.c"
     break;
 
   case 125: /* if_statement: IF LEFTPAR expression RIGHTPAR $@11 LEFTKEYS program_locals RIGHTKEYS $@12 else_if_chain  */
-#line 1136 "compiler/parser.y"
+#line 1192 "compiler/parser.y"
                     {
         // Finaliza este contexto
         ConditionalContext current = pop_cond_context();
@@ -3283,29 +3339,33 @@ yyreduce:
         LLVMBuildBr(builder, endBB);
 
         LLVMPositionBuilderAtEnd(builder, endBB);
+
+        if(haveRetAll == 1) {
+            LLVMBuildUnreachable(builder);
+        }
     }
-#line 3288 "objects/codeIR/parser.tab.c"
+#line 3348 "objects/codeIR/parser.tab.c"
     break;
 
   case 126: /* else_if_chain: %empty  */
-#line 1149 "compiler/parser.y"
+#line 1209 "compiler/parser.y"
                   {
         ConditionalContext* current = top_cond_context();
         LLVMBuildBr(builder, current->endBB);
     }
-#line 3297 "objects/codeIR/parser.tab.c"
+#line 3357 "objects/codeIR/parser.tab.c"
     break;
 
   case 127: /* else_if_chain: ELSE LEFTPAR expression RIGHTPAR  */
-#line 1153 "compiler/parser.y"
+#line 1213 "compiler/parser.y"
                                        {
         fprintf(stderr, "Error: else cannot have a condition at line %d.\n", yylineno);
     }
-#line 3305 "objects/codeIR/parser.tab.c"
+#line 3365 "objects/codeIR/parser.tab.c"
     break;
 
   case 128: /* $@13: %empty  */
-#line 1156 "compiler/parser.y"
+#line 1216 "compiler/parser.y"
            {
 
         pushScope();
@@ -3313,24 +3373,30 @@ yyreduce:
         ConditionalContext* current = top_cond_context();
         // Transforma o nextCondBB em bloco else
         LLVMPositionBuilderAtEnd(builder, current->nextCondBB);
+
+        haveRet = 0;
     }
-#line 3318 "objects/codeIR/parser.tab.c"
+#line 3380 "objects/codeIR/parser.tab.c"
     break;
 
   case 129: /* else_if_chain: ELSE $@13 LEFTKEYS program_locals RIGHTKEYS  */
-#line 1163 "compiler/parser.y"
+#line 1225 "compiler/parser.y"
                                         {
 
         popScope();
 
+        if(haveRet == 0) {
+            haveRetAll = 0;
+        }
+
         ConditionalContext* current = top_cond_context();
         LLVMBuildBr(builder, current->endBB);
     }
-#line 3330 "objects/codeIR/parser.tab.c"
+#line 3396 "objects/codeIR/parser.tab.c"
     break;
 
   case 130: /* $@14: %empty  */
-#line 1170 "compiler/parser.y"
+#line 1236 "compiler/parser.y"
                                          {
         if ((yyvsp[-1].number).type != TYPE_BOOL) {
             fprintf(stderr, "Error: condition is not boolean at line %d.\n", yylineno);
@@ -3352,31 +3418,37 @@ yyreduce:
         LLVMPositionBuilderAtEnd(builder, elseifBB);
 
         pushScope();
+
+        haveRet = 0;
     }
-#line 3357 "objects/codeIR/parser.tab.c"
+#line 3425 "objects/codeIR/parser.tab.c"
     break;
 
   case 131: /* $@15: %empty  */
-#line 1191 "compiler/parser.y"
+#line 1259 "compiler/parser.y"
                                         {
 
         popScope();
+
+        if(haveRet == 0) {
+            haveRetAll = 0;
+        }
 
         ConditionalContext* current = top_cond_context();
         LLVMBuildBr(builder, current->endBB);
         LLVMPositionBuilderAtEnd(builder, current->nextCondBB);
     }
-#line 3370 "objects/codeIR/parser.tab.c"
+#line 3442 "objects/codeIR/parser.tab.c"
     break;
 
   case 132: /* else_if_chain: ELSEIF LEFTPAR expression RIGHTPAR $@14 LEFTKEYS program_locals RIGHTKEYS $@15 else_if_chain  */
-#line 1198 "compiler/parser.y"
+#line 1270 "compiler/parser.y"
                     {}
-#line 3376 "objects/codeIR/parser.tab.c"
+#line 3448 "objects/codeIR/parser.tab.c"
     break;
 
   case 133: /* $@16: %empty  */
-#line 1206 "compiler/parser.y"
+#line 1278 "compiler/parser.y"
                                                   {
         pushScope();
         if ((yyvsp[-1].number).type != TYPE_BOOL) {
@@ -3389,11 +3461,11 @@ yyreduce:
         // Corpo do while
         LLVMPositionBuilderAtEnd(builder, (yyvsp[-3].while_blocks).bodyBB);
     }
-#line 3393 "objects/codeIR/parser.tab.c"
+#line 3465 "objects/codeIR/parser.tab.c"
     break;
 
   case 134: /* while: WHILE while_aux LEFTPAR expression RIGHTPAR $@16 LEFTKEYS program_locals RIGHTKEYS  */
-#line 1217 "compiler/parser.y"
+#line 1289 "compiler/parser.y"
                                         {
         // Ao final do corpo, volta para o condicional
         LLVMBuildBr(builder, (yyvsp[-7].while_blocks).condBB);
@@ -3403,11 +3475,11 @@ yyreduce:
 
         popScope();
     }
-#line 3407 "objects/codeIR/parser.tab.c"
+#line 3479 "objects/codeIR/parser.tab.c"
     break;
 
   case 135: /* while_aux: %empty  */
-#line 1229 "compiler/parser.y"
+#line 1301 "compiler/parser.y"
       {
         // Cria blocos para condicional, corpo e fim do while
         (yyval.while_blocks).condBB = LLVMAppendBasicBlockInContext(context, currentFunc, "while.cond");
@@ -3420,11 +3492,11 @@ yyreduce:
         // Condicional
         LLVMPositionBuilderAtEnd(builder, (yyval.while_blocks).condBB);
     }
-#line 3424 "objects/codeIR/parser.tab.c"
+#line 3496 "objects/codeIR/parser.tab.c"
     break;
 
   case 136: /* $@17: %empty  */
-#line 1245 "compiler/parser.y"
+#line 1317 "compiler/parser.y"
                                             {
         // Pula direto para o bloco de condição após a declaração
         LLVMBuildBr(builder, (yyvsp[-2].for_blocks).condBB);
@@ -3432,11 +3504,11 @@ yyreduce:
         // Posiciona no bloco condicional
         LLVMPositionBuilderAtEnd(builder, (yyvsp[-2].for_blocks).condBB);
     }
-#line 3436 "objects/codeIR/parser.tab.c"
+#line 3508 "objects/codeIR/parser.tab.c"
     break;
 
   case 137: /* $@18: %empty  */
-#line 1251 "compiler/parser.y"
+#line 1323 "compiler/parser.y"
                       {
         pushScope();
         if ((yyvsp[-1].number).type != TYPE_BOOL) {
@@ -3446,28 +3518,30 @@ yyreduce:
         // Condicional
         LLVMBuildCondBr(builder, (yyvsp[-1].number).llvm_value, (yyvsp[-5].for_blocks).bodyBB, (yyvsp[-5].for_blocks).endFORBB);
 
-        // Corpo do for
-        LLVMPositionBuilderAtEnd(builder, (yyvsp[-5].for_blocks).bodyBB);
+        // Incremento do for
+        LLVMPositionBuilderAtEnd(builder, (yyvsp[-5].for_blocks).incBB);
     }
-#line 3453 "objects/codeIR/parser.tab.c"
+#line 3525 "objects/codeIR/parser.tab.c"
     break;
 
   case 138: /* $@19: %empty  */
-#line 1262 "compiler/parser.y"
+#line 1334 "compiler/parser.y"
                          {
-        // Vai para o incremento
-        LLVMBuildBr(builder, (yyvsp[-7].for_blocks).incBB); 
-
-        // Posiciona o builder no bloco de incremento
-        LLVMPositionBuilderAtEnd(builder, (yyvsp[-7].for_blocks).incBB);
+        // Posiciona o builder no bloco de corpo
+        LLVMPositionBuilderAtEnd(builder, (yyvsp[-7].for_blocks).bodyBB);
     }
-#line 3465 "objects/codeIR/parser.tab.c"
+#line 3534 "objects/codeIR/parser.tab.c"
     break;
 
   case 139: /* for: FOR for_aux LEFTPAR declaration_local $@17 expression DONE $@18 assignment_notfull $@19 RIGHTPAR LEFTKEYS program_locals RIGHTKEYS  */
-#line 1269 "compiler/parser.y"
+#line 1338 "compiler/parser.y"
                                                {
-        // Volta para condicional
+        // Ao final do corpo, volta para o incremento
+        LLVMBuildBr(builder, (yyvsp[-12].for_blocks).incBB);
+
+        LLVMPositionBuilderAtEnd(builder, (yyvsp[-12].for_blocks).incBB);
+
+        // Ao final do incremento, volta para a condição
         LLVMBuildBr(builder, (yyvsp[-12].for_blocks).condBB);
 
         // Posiciona no final do for
@@ -3475,11 +3549,11 @@ yyreduce:
 
         popScope();
     }
-#line 3479 "objects/codeIR/parser.tab.c"
+#line 3553 "objects/codeIR/parser.tab.c"
     break;
 
   case 140: /* for_aux: %empty  */
-#line 1281 "compiler/parser.y"
+#line 1355 "compiler/parser.y"
       {
         // Cria os blocos condicional, corpo e final
         (yyval.for_blocks).condBB = LLVMAppendBasicBlockInContext(context, currentFunc, "for.cond");
@@ -3487,22 +3561,22 @@ yyreduce:
         (yyval.for_blocks).incBB = LLVMAppendBasicBlockInContext(context, currentFunc, "for.inc");
         (yyval.for_blocks).endFORBB = LLVMAppendBasicBlockInContext(context, currentFunc, "for.end");
     }
-#line 3491 "objects/codeIR/parser.tab.c"
+#line 3565 "objects/codeIR/parser.tab.c"
     break;
 
   case 141: /* $@20: %empty  */
-#line 1291 "compiler/parser.y"
+#line 1365 "compiler/parser.y"
                       {
         pushScope();
 
         // Posiciona o builder no corpo do do-while
         LLVMPositionBuilderAtEnd(builder, (yyvsp[0].while_blocks).bodyBB);
     }
-#line 3502 "objects/codeIR/parser.tab.c"
+#line 3576 "objects/codeIR/parser.tab.c"
     break;
 
   case 142: /* $@21: %empty  */
-#line 1296 "compiler/parser.y"
+#line 1370 "compiler/parser.y"
                                         {
         // Ao final do corpo, volta para a condição
         LLVMBuildBr(builder, (yyvsp[-4].while_blocks).condBB);
@@ -3510,11 +3584,11 @@ yyreduce:
         // Posiciona o builder no bloco de condição
         LLVMPositionBuilderAtEnd(builder, (yyvsp[-4].while_blocks).condBB);
     }
-#line 3514 "objects/codeIR/parser.tab.c"
+#line 3588 "objects/codeIR/parser.tab.c"
     break;
 
   case 143: /* do_while: DO do_while_aux $@20 LEFTKEYS program_locals RIGHTKEYS $@21 WHILE LEFTPAR expression RIGHTPAR DONE  */
-#line 1302 "compiler/parser.y"
+#line 1376 "compiler/parser.y"
                                              {
         if ((yyvsp[-2].number).type != TYPE_BOOL) {
             fprintf(stderr, "Error: condition is not boolean at line %d.\n", yylineno);
@@ -3527,11 +3601,11 @@ yyreduce:
 
         popScope();
     }
-#line 3531 "objects/codeIR/parser.tab.c"
+#line 3605 "objects/codeIR/parser.tab.c"
     break;
 
   case 144: /* do_while_aux: %empty  */
-#line 1317 "compiler/parser.y"
+#line 1391 "compiler/parser.y"
       {
         // Cria blocos para o corpo e condicional do do-while
         (yyval.while_blocks).bodyBB = LLVMAppendBasicBlockInContext(context, currentFunc, "do.body");
@@ -3541,11 +3615,11 @@ yyreduce:
         // Gera branch para o corpo do do-while
         LLVMBuildBr(builder, (yyval.while_blocks).bodyBB);
     }
-#line 3545 "objects/codeIR/parser.tab.c"
+#line 3619 "objects/codeIR/parser.tab.c"
     break;
 
   case 145: /* printf: PRINTF LEFTPAR STRING printf_args RIGHTPAR DONE  */
-#line 1330 "compiler/parser.y"
+#line 1404 "compiler/parser.y"
                                                       {
         // Cria global para a string de formatação
         LLVMValueRef str_global = LLVMAddGlobal(module, LLVMArrayType(LLVMInt8TypeInContext(context), strlen((yyvsp[-3].id)) + 1), "str_literal");
@@ -3564,28 +3638,28 @@ yyreduce:
         LLVMBuildCall2(builder, printf_type, printf_func, args, (yyvsp[-2].printf).count + 1, "");
         free((yyvsp[-3].id));
     }
-#line 3568 "objects/codeIR/parser.tab.c"
+#line 3642 "objects/codeIR/parser.tab.c"
     break;
 
   case 146: /* printf_args: %empty  */
-#line 1351 "compiler/parser.y"
+#line 1425 "compiler/parser.y"
                   { (yyval.printf).count = 0; }
-#line 3574 "objects/codeIR/parser.tab.c"
+#line 3648 "objects/codeIR/parser.tab.c"
     break;
 
   case 147: /* printf_args: COMMA expression printf_args  */
-#line 1352 "compiler/parser.y"
+#line 1426 "compiler/parser.y"
                                    {
         (yyval.printf).values[0] = (yyvsp[-1].number).llvm_value;
         for (int i = 0; i < (yyvsp[0].printf).count; i++)
             (yyval.printf).values[i+1] = (yyvsp[0].printf).values[i];
         (yyval.printf).count = (yyvsp[0].printf).count + 1;
     }
-#line 3585 "objects/codeIR/parser.tab.c"
+#line 3659 "objects/codeIR/parser.tab.c"
     break;
 
   case 148: /* scanf: SCANF LEFTPAR STRING scanf_args RIGHTPAR DONE  */
-#line 1362 "compiler/parser.y"
+#line 1436 "compiler/parser.y"
                                                     {
         // Cria global para a string de formatação
         LLVMValueRef str_global = LLVMAddGlobal(module, LLVMArrayType(LLVMInt8TypeInContext(context), strlen((yyvsp[-3].id)) + 1), "str_literal_scanf");
@@ -3604,17 +3678,17 @@ yyreduce:
         LLVMBuildCall2(builder, scanf_type, scanf_func, args, (yyvsp[-2].printf).count + 1, "");
         free((yyvsp[-3].id));
     }
-#line 3608 "objects/codeIR/parser.tab.c"
+#line 3682 "objects/codeIR/parser.tab.c"
     break;
 
   case 149: /* scanf_args: %empty  */
-#line 1383 "compiler/parser.y"
+#line 1457 "compiler/parser.y"
                   { (yyval.printf).count = 0; }
-#line 3614 "objects/codeIR/parser.tab.c"
+#line 3688 "objects/codeIR/parser.tab.c"
     break;
 
   case 150: /* scanf_args: COMMA ADDRESS ID scanf_args  */
-#line 1384 "compiler/parser.y"
+#line 1458 "compiler/parser.y"
                                   {
         Symbol* sym = findSymbol((yyvsp[-1].id));
         if (!sym) {
@@ -3627,11 +3701,11 @@ yyreduce:
             (yyval.printf).count = (yyvsp[0].printf).count + 1;
         }
     }
-#line 3631 "objects/codeIR/parser.tab.c"
+#line 3705 "objects/codeIR/parser.tab.c"
     break;
 
   case 151: /* return: RETURN expression DONE  */
-#line 1399 "compiler/parser.y"
+#line 1473 "compiler/parser.y"
                              {
         if(functionList->returnType != TYPE_VOID) {
             if((yyvsp[-1].number).type != functionList->returnType) {
@@ -3642,72 +3716,74 @@ yyreduce:
         } else {
             fprintf(stderr, "Error: cannot return a value in a void function at line %d.\n", yylineno);
         }
+        haveRet = 1;
     }
-#line 3647 "objects/codeIR/parser.tab.c"
+#line 3722 "objects/codeIR/parser.tab.c"
     break;
 
   case 152: /* return: RETURN DONE  */
-#line 1410 "compiler/parser.y"
+#line 1485 "compiler/parser.y"
                   {
         if(functionList->returnType != TYPE_VOID) {
             fprintf(stderr, "Error: function '%s' must return a value at line %d.\n", functionList->id, yylineno);
         } else {
             LLVMBuildRetVoid(builder);
         }
+        haveRet = 1;
 }
-#line 3659 "objects/codeIR/parser.tab.c"
+#line 3735 "objects/codeIR/parser.tab.c"
     break;
 
   case 153: /* expression: soma_sub  */
-#line 1421 "compiler/parser.y"
+#line 1497 "compiler/parser.y"
                { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; }
-#line 3665 "objects/codeIR/parser.tab.c"
+#line 3741 "objects/codeIR/parser.tab.c"
     break;
 
   case 154: /* expression: mult_div  */
-#line 1422 "compiler/parser.y"
+#line 1498 "compiler/parser.y"
                { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; }
-#line 3671 "objects/codeIR/parser.tab.c"
+#line 3747 "objects/codeIR/parser.tab.c"
     break;
 
   case 155: /* expression: LEFTPAR expression RIGHTPAR  */
-#line 1423 "compiler/parser.y"
+#line 1499 "compiler/parser.y"
                                   { (yyval.number).value = (yyvsp[-1].number).value; (yyval.number).type = (yyvsp[-1].number).type; (yyval.number).llvm_value = (yyvsp[-1].number).llvm_value; }
-#line 3677 "objects/codeIR/parser.tab.c"
+#line 3753 "objects/codeIR/parser.tab.c"
     break;
 
   case 156: /* expression: comparison  */
-#line 1424 "compiler/parser.y"
+#line 1500 "compiler/parser.y"
                  { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; }
-#line 3683 "objects/codeIR/parser.tab.c"
+#line 3759 "objects/codeIR/parser.tab.c"
     break;
 
   case 157: /* expression: log_exp  */
-#line 1425 "compiler/parser.y"
+#line 1501 "compiler/parser.y"
               { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; }
-#line 3689 "objects/codeIR/parser.tab.c"
+#line 3765 "objects/codeIR/parser.tab.c"
     break;
 
   case 158: /* expression: cast  */
-#line 1426 "compiler/parser.y"
+#line 1502 "compiler/parser.y"
            { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; }
-#line 3695 "objects/codeIR/parser.tab.c"
+#line 3771 "objects/codeIR/parser.tab.c"
     break;
 
   case 159: /* expression: call_function_notfull  */
-#line 1427 "compiler/parser.y"
+#line 1503 "compiler/parser.y"
                             { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; }
-#line 3701 "objects/codeIR/parser.tab.c"
+#line 3777 "objects/codeIR/parser.tab.c"
     break;
 
   case 160: /* expression: term  */
-#line 1428 "compiler/parser.y"
+#line 1504 "compiler/parser.y"
            { (yyval.number).value = (yyvsp[0].number).value; (yyval.number).type = (yyvsp[0].number).type; (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; }
-#line 3707 "objects/codeIR/parser.tab.c"
+#line 3783 "objects/codeIR/parser.tab.c"
     break;
 
   case 161: /* soma_sub: expression PLUS expression  */
-#line 1432 "compiler/parser.y"
+#line 1508 "compiler/parser.y"
                                  { 
         if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
             (yyval.number).value = (yyvsp[-2].number).value + (yyvsp[0].number).value;
@@ -3730,11 +3806,11 @@ yyreduce:
             (yyval.number).type = TYPE_UNKNOWN;
         }
     }
-#line 3734 "objects/codeIR/parser.tab.c"
+#line 3810 "objects/codeIR/parser.tab.c"
     break;
 
   case 162: /* soma_sub: expression MIN expression  */
-#line 1454 "compiler/parser.y"
+#line 1530 "compiler/parser.y"
                                  {
         if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
             (yyval.number).value = (yyvsp[-2].number).value - (yyvsp[0].number).value;
@@ -3757,11 +3833,11 @@ yyreduce:
             (yyval.number).type = TYPE_UNKNOWN;
         }
     }
-#line 3761 "objects/codeIR/parser.tab.c"
+#line 3837 "objects/codeIR/parser.tab.c"
     break;
 
   case 163: /* mult_div: expression MULT expression  */
-#line 1479 "compiler/parser.y"
+#line 1555 "compiler/parser.y"
                                  {
         if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
             (yyval.number).value = (yyvsp[-2].number).value * (yyvsp[0].number).value;
@@ -3784,11 +3860,11 @@ yyreduce:
             (yyval.number).type = TYPE_UNKNOWN;
         }
     }
-#line 3788 "objects/codeIR/parser.tab.c"
+#line 3864 "objects/codeIR/parser.tab.c"
     break;
 
   case 164: /* mult_div: expression DIV expression  */
-#line 1501 "compiler/parser.y"
+#line 1577 "compiler/parser.y"
                                  { 
         if ((yyvsp[0].number).value == 0.0) {
                 fprintf(stderr, "Error: division by zero at line %d.\n", yylineno);
@@ -3817,11 +3893,11 @@ yyreduce:
             }
         }
     }
-#line 3821 "objects/codeIR/parser.tab.c"
+#line 3897 "objects/codeIR/parser.tab.c"
     break;
 
   case 165: /* comparison: expression LESS expression  */
-#line 1532 "compiler/parser.y"
+#line 1608 "compiler/parser.y"
                                  {
         if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
             (yyval.number).value = (yyvsp[-2].number).value < (yyvsp[0].number).value;
@@ -3844,11 +3920,11 @@ yyreduce:
             (yyval.number).type = TYPE_UNKNOWN;
         }
     }
-#line 3848 "objects/codeIR/parser.tab.c"
+#line 3924 "objects/codeIR/parser.tab.c"
     break;
 
   case 166: /* comparison: expression GREAT expression  */
-#line 1554 "compiler/parser.y"
+#line 1630 "compiler/parser.y"
                                   {
         if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
             (yyval.number).value = (yyvsp[-2].number).value > (yyvsp[0].number).value;
@@ -3871,11 +3947,11 @@ yyreduce:
             (yyval.number).type = TYPE_UNKNOWN;
         }
     }
-#line 3875 "objects/codeIR/parser.tab.c"
+#line 3951 "objects/codeIR/parser.tab.c"
     break;
 
   case 167: /* comparison: expression LEQUAL expression  */
-#line 1576 "compiler/parser.y"
+#line 1652 "compiler/parser.y"
                                    {
         if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
             (yyval.number).value = (yyvsp[-2].number).value <= (yyvsp[0].number).value;
@@ -3898,11 +3974,11 @@ yyreduce:
             (yyval.number).type = TYPE_UNKNOWN;
         }
     }
-#line 3902 "objects/codeIR/parser.tab.c"
+#line 3978 "objects/codeIR/parser.tab.c"
     break;
 
   case 168: /* comparison: expression GEQUAL expression  */
-#line 1598 "compiler/parser.y"
+#line 1674 "compiler/parser.y"
                                    {
         if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
             (yyval.number).value = (yyvsp[-2].number).value >= (yyvsp[0].number).value;
@@ -3925,11 +4001,11 @@ yyreduce:
             (yyval.number).type = TYPE_UNKNOWN;
         }
     }
-#line 3929 "objects/codeIR/parser.tab.c"
+#line 4005 "objects/codeIR/parser.tab.c"
     break;
 
   case 169: /* comparison: expression EQUAL expression  */
-#line 1620 "compiler/parser.y"
+#line 1696 "compiler/parser.y"
                                    { 
         if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
             (yyval.number).value = (yyvsp[-2].number).value == (yyvsp[0].number).value;
@@ -3956,11 +4032,11 @@ yyreduce:
             (yyval.number).type = TYPE_UNKNOWN;
         }
     }
-#line 3960 "objects/codeIR/parser.tab.c"
+#line 4036 "objects/codeIR/parser.tab.c"
     break;
 
   case 170: /* comparison: expression NEQUAL expression  */
-#line 1646 "compiler/parser.y"
+#line 1722 "compiler/parser.y"
                                    {
         if ((yyvsp[-2].number).type == TYPE_INT && (yyvsp[0].number).type == TYPE_INT) {
             (yyval.number).value = (yyvsp[-2].number).value != (yyvsp[0].number).value;
@@ -3986,11 +4062,11 @@ yyreduce:
             (yyval.number).type = TYPE_UNKNOWN;
         }
     }
-#line 3990 "objects/codeIR/parser.tab.c"
+#line 4066 "objects/codeIR/parser.tab.c"
     break;
 
   case 171: /* log_exp: expression AND expression  */
-#line 1674 "compiler/parser.y"
+#line 1750 "compiler/parser.y"
                                 {
         if ((yyvsp[-2].number).type == TYPE_BOOL && (yyvsp[0].number).type == TYPE_BOOL) {
             (yyval.number).value = (yyvsp[-2].number).value && (yyvsp[0].number).value;
@@ -4002,11 +4078,11 @@ yyreduce:
             (yyval.number).type = TYPE_UNKNOWN;
         }
     }
-#line 4006 "objects/codeIR/parser.tab.c"
+#line 4082 "objects/codeIR/parser.tab.c"
     break;
 
   case 172: /* log_exp: expression OR expression  */
-#line 1685 "compiler/parser.y"
+#line 1761 "compiler/parser.y"
                                 {
         if ((yyvsp[-2].number).type == TYPE_BOOL && (yyvsp[0].number).type == TYPE_BOOL) {
             (yyval.number).value = (yyvsp[-2].number).value || (yyvsp[0].number).value;
@@ -4018,11 +4094,11 @@ yyreduce:
             (yyval.number).type = TYPE_UNKNOWN;
         }
     }
-#line 4022 "objects/codeIR/parser.tab.c"
+#line 4098 "objects/codeIR/parser.tab.c"
     break;
 
   case 173: /* log_exp: NOT expression  */
-#line 1696 "compiler/parser.y"
+#line 1772 "compiler/parser.y"
                      {
         if ((yyvsp[0].number).type == TYPE_BOOL) {
             (yyval.number).value = !(yyvsp[0].number).value;
@@ -4034,103 +4110,251 @@ yyreduce:
             (yyval.number).type = TYPE_UNKNOWN;
         }
     }
-#line 4038 "objects/codeIR/parser.tab.c"
+#line 4114 "objects/codeIR/parser.tab.c"
     break;
 
   case 174: /* cast: LEFTPAR INT RIGHTPAR LEFTPAR expression RIGHTPAR  */
-#line 1710 "compiler/parser.y"
+#line 1786 "compiler/parser.y"
                                                        {
         int temp = (int) (yyvsp[-1].number).value;
         (yyval.number).value = (double) temp;
         (yyval.number).type = TYPE_INT;
-        (yyval.number).llvm_value = LLVMBuildFPToSI(builder, (yyvsp[-1].number).llvm_value, LLVMInt32TypeInContext(context), "castint");
+        switch ((yyvsp[-1].number).type) {
+            case TYPE_INT:
+                (yyval.number).llvm_value = (yyvsp[-1].number).llvm_value; // Já é int
+                break;
+            case TYPE_FLOAT:
+                (yyval.number).llvm_value = LLVMBuildFPToSI(builder, (yyvsp[-1].number).llvm_value, LLVMInt32TypeInContext(context), "castint");
+                break;
+            case TYPE_CHAR:
+                (yyval.number).llvm_value = LLVMBuildSExt(builder, (yyvsp[-1].number).llvm_value, LLVMInt32TypeInContext(context), "castint");
+                break;
+            case TYPE_BOOL:
+                (yyval.number).llvm_value = LLVMBuildZExt(builder, (yyvsp[-1].number).llvm_value, LLVMInt32TypeInContext(context), "castint");
+                break;
+            default:
+                fprintf(stderr, "Error: cannot cast type %s to int at line %d.\n", typeToString((yyvsp[-1].number).type), yylineno);
+                (yyval.number).value = -1;
+                (yyval.number).type = TYPE_UNKNOWN;
+                (yyval.number).llvm_value = NULL;
+        }
     }
-#line 4049 "objects/codeIR/parser.tab.c"
+#line 4143 "objects/codeIR/parser.tab.c"
     break;
 
   case 175: /* cast: LEFTPAR INT RIGHTPAR term  */
-#line 1716 "compiler/parser.y"
+#line 1810 "compiler/parser.y"
                                 {
         int temp = (int) (yyvsp[0].number).value;
         (yyval.number).value = (double) temp;
         (yyval.number).type = TYPE_INT;
-        (yyval.number).llvm_value = LLVMBuildFPToSI(builder, (yyvsp[0].number).llvm_value, LLVMInt32TypeInContext(context), "castint");
+        switch ((yyvsp[0].number).type) {
+            case TYPE_INT:
+                (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; // Já é int
+                break;
+            case TYPE_FLOAT:
+                (yyval.number).llvm_value = LLVMBuildFPToSI(builder, (yyvsp[0].number).llvm_value, LLVMInt32TypeInContext(context), "castint");
+                break;
+            case TYPE_CHAR:
+                (yyval.number).llvm_value = LLVMBuildSExt(builder, (yyvsp[0].number).llvm_value, LLVMInt32TypeInContext(context), "castint");
+                break;
+            case TYPE_BOOL:
+                (yyval.number).llvm_value = LLVMBuildZExt(builder, (yyvsp[0].number).llvm_value, LLVMInt32TypeInContext(context), "castint");
+                break;
+            default:
+                fprintf(stderr, "Error: cannot cast type %s to int at line %d.\n", typeToString((yyvsp[0].number).type), yylineno);
+                (yyval.number).value = -1;
+                (yyval.number).type = TYPE_UNKNOWN;
+                (yyval.number).llvm_value = NULL;
+        }
     }
-#line 4060 "objects/codeIR/parser.tab.c"
+#line 4172 "objects/codeIR/parser.tab.c"
     break;
 
   case 176: /* cast: LEFTPAR FLOAT RIGHTPAR LEFTPAR expression RIGHTPAR  */
-#line 1722 "compiler/parser.y"
+#line 1834 "compiler/parser.y"
                                                          {
         (yyval.number).value = (yyvsp[-1].number).value;
         (yyval.number).type = TYPE_FLOAT;
-        (yyval.number).llvm_value = LLVMBuildSIToFP(builder, (yyvsp[-1].number).llvm_value, LLVMDoubleTypeInContext(context), "castfloat");
+        switch ((yyvsp[-1].number).type) {
+            case TYPE_INT:
+                (yyval.number).llvm_value = LLVMBuildSIToFP(builder, (yyvsp[-1].number).llvm_value, LLVMDoubleTypeInContext(context), "castfloat");
+                break;
+            case TYPE_FLOAT:
+                (yyval.number).llvm_value = (yyvsp[-1].number).llvm_value; // Já é float
+                break;
+            case TYPE_CHAR:
+                (yyval.number).llvm_value = LLVMBuildSIToFP(builder, (yyvsp[-1].number).llvm_value, LLVMDoubleTypeInContext(context), "castfloat");
+                break;
+            case TYPE_BOOL:
+                (yyval.number).llvm_value = LLVMBuildSIToFP(builder, (yyvsp[-1].number).llvm_value, LLVMDoubleTypeInContext(context), "castfloat");
+                break;
+            default:
+                fprintf(stderr, "Error: cannot cast type %s to float at line %d.\n", typeToString((yyvsp[-1].number).type), yylineno);
+                (yyval.number).value = -1;
+                (yyval.number).type = TYPE_UNKNOWN;
+                (yyval.number).llvm_value = NULL;
+        }
     }
-#line 4070 "objects/codeIR/parser.tab.c"
+#line 4200 "objects/codeIR/parser.tab.c"
     break;
 
   case 177: /* cast: LEFTPAR FLOAT RIGHTPAR term  */
-#line 1727 "compiler/parser.y"
+#line 1857 "compiler/parser.y"
                                   {
         (yyval.number).value = (yyvsp[0].number).value;
         (yyval.number).type = TYPE_FLOAT;
-        (yyval.number).llvm_value = LLVMBuildSIToFP(builder, (yyvsp[0].number).llvm_value, LLVMDoubleTypeInContext(context), "castfloat");
+        switch ((yyvsp[0].number).type) {
+            case TYPE_INT:
+                (yyval.number).llvm_value = LLVMBuildSIToFP(builder, (yyvsp[0].number).llvm_value, LLVMDoubleTypeInContext(context), "castfloat");
+                break;
+            case TYPE_FLOAT:
+                (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; // Já é float
+                break;
+            case TYPE_CHAR:
+                (yyval.number).llvm_value = LLVMBuildSIToFP(builder, (yyvsp[0].number).llvm_value, LLVMDoubleTypeInContext(context), "castfloat");
+                break;
+            case TYPE_BOOL:
+                (yyval.number).llvm_value = LLVMBuildSIToFP(builder, (yyvsp[0].number).llvm_value, LLVMDoubleTypeInContext(context), "castfloat");
+                break;
+            default:
+                fprintf(stderr, "Error: cannot cast type %s to float at line %d.\n", typeToString((yyvsp[0].number).type), yylineno);
+                (yyval.number).value = -1;
+                (yyval.number).type = TYPE_UNKNOWN;
+                (yyval.number).llvm_value = NULL;
+        }
     }
-#line 4080 "objects/codeIR/parser.tab.c"
+#line 4228 "objects/codeIR/parser.tab.c"
     break;
 
   case 178: /* cast: LEFTPAR CHAR RIGHTPAR LEFTPAR expression RIGHTPAR  */
-#line 1732 "compiler/parser.y"
+#line 1880 "compiler/parser.y"
                                                         {
         (yyval.number).value = (double) ((char) (yyvsp[-1].number).value);
         (yyval.number).type = TYPE_CHAR;
-        (yyval.number).llvm_value = LLVMBuildTrunc(builder, (yyvsp[-1].number).llvm_value, LLVMInt8TypeInContext(context), "castchar");
+        switch ((yyvsp[-1].number).type) {
+            case TYPE_INT:
+                (yyval.number).llvm_value = LLVMBuildTrunc(builder, (yyvsp[-1].number).llvm_value, LLVMInt8TypeInContext(context), "castchar");
+                break;
+            case TYPE_FLOAT:
+                (yyval.number).llvm_value = LLVMBuildFPToSI(builder, (yyvsp[-1].number).llvm_value, LLVMInt8TypeInContext(context), "castchar");
+                break;
+            case TYPE_CHAR:
+                (yyval.number).llvm_value = (yyvsp[-1].number).llvm_value; // Já é char
+                break;
+            case TYPE_BOOL:
+                (yyval.number).llvm_value = LLVMBuildZExt(builder, (yyvsp[-1].number).llvm_value, LLVMInt8TypeInContext(context), "castbool");
+                break;
+            default:
+                fprintf(stderr, "Error: cannot cast type %s to char at line %d.\n", typeToString((yyvsp[-1].number).type), yylineno);
+                (yyval.number).value = -1;
+                (yyval.number).type = TYPE_UNKNOWN;
+                (yyval.number).llvm_value = NULL;
+        }
     }
-#line 4090 "objects/codeIR/parser.tab.c"
+#line 4256 "objects/codeIR/parser.tab.c"
     break;
 
   case 179: /* cast: LEFTPAR CHAR RIGHTPAR term  */
-#line 1737 "compiler/parser.y"
+#line 1903 "compiler/parser.y"
                                  {
         (yyval.number).value = (double) ((char) (yyvsp[0].number).value);
         (yyval.number).type = TYPE_CHAR;
-        (yyval.number).llvm_value = LLVMBuildTrunc(builder, (yyvsp[0].number).llvm_value, LLVMInt8TypeInContext(context), "castchar");
+        switch ((yyvsp[0].number).type) {
+            case TYPE_INT:
+                (yyval.number).llvm_value = LLVMBuildTrunc(builder, (yyvsp[0].number).llvm_value, LLVMInt8TypeInContext(context), "castchar");
+                break;
+            case TYPE_FLOAT:
+                (yyval.number).llvm_value = LLVMBuildFPToSI(builder, (yyvsp[0].number).llvm_value, LLVMInt8TypeInContext(context), "castchar");
+                break;
+            case TYPE_CHAR:
+                (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; // Já é char
+                break;
+            case TYPE_BOOL:
+                (yyval.number).llvm_value = LLVMBuildZExt(builder, (yyvsp[0].number).llvm_value, LLVMInt8TypeInContext(context), "castbool");
+                break;
+            default:
+                fprintf(stderr, "Error: cannot cast type %s to char at line %d.\n", typeToString((yyvsp[0].number).type), yylineno);
+                (yyval.number).value = -1;
+                (yyval.number).type = TYPE_UNKNOWN;
+                (yyval.number).llvm_value = NULL;
+        }
     }
-#line 4100 "objects/codeIR/parser.tab.c"
+#line 4284 "objects/codeIR/parser.tab.c"
     break;
 
   case 180: /* cast: LEFTPAR BOOL RIGHTPAR LEFTPAR expression RIGHTPAR  */
-#line 1742 "compiler/parser.y"
+#line 1926 "compiler/parser.y"
                                                         {
         (yyval.number).value = ((yyvsp[-1].number).value != 0.0) ? 1.0 : 0.0;
         (yyval.number).type = TYPE_BOOL;
-        // Compara com zero para gerar i1
-        LLVMValueRef zero = LLVMConstInt(LLVMTypeOf((yyvsp[-1].number).llvm_value), 0, 0);
-        (yyval.number).llvm_value = LLVMBuildICmp(builder, LLVMIntNE, (yyvsp[-1].number).llvm_value, zero, "castbool");
+        LLVMValueRef zero;
+        switch ((yyvsp[-1].number).type) {
+            case TYPE_INT:
+                zero = LLVMConstInt(LLVMInt32TypeInContext(context), 0, 0);
+                (yyval.number).llvm_value = LLVMBuildICmp(builder, LLVMIntNE, (yyvsp[-1].number).llvm_value, zero, "castbool");
+                break;
+            case TYPE_FLOAT:
+                zero = LLVMConstReal(LLVMDoubleTypeInContext(context), 0.0);
+                (yyval.number).llvm_value = LLVMBuildFCmp(builder, LLVMRealUNE, (yyvsp[-1].number).llvm_value, zero, "castbool");
+                break;
+            case TYPE_CHAR:
+                zero = LLVMConstInt(LLVMInt8TypeInContext(context), 0, 0);
+                (yyval.number).llvm_value = LLVMBuildICmp(builder, LLVMIntNE, (yyvsp[-1].number).llvm_value, zero, "castbool");
+                break;
+            case TYPE_BOOL:
+                (yyval.number).llvm_value = (yyvsp[-1].number).llvm_value; // Já é bool
+                break;
+            default:
+                fprintf(stderr, "Error: cannot cast type %s to bool at line %d.\n", typeToString((yyvsp[-1].number).type), yylineno);
+                (yyval.number).value = -1;
+                (yyval.number).type = TYPE_UNKNOWN;
+                (yyval.number).llvm_value = NULL;
+        }
     }
-#line 4112 "objects/codeIR/parser.tab.c"
+#line 4316 "objects/codeIR/parser.tab.c"
     break;
 
   case 181: /* cast: LEFTPAR BOOL RIGHTPAR term  */
-#line 1749 "compiler/parser.y"
+#line 1953 "compiler/parser.y"
                                  {
         (yyval.number).value = ((yyvsp[0].number).value != 0.0) ? 1.0 : 0.0;
         (yyval.number).type = TYPE_BOOL;
-        // Compara com zero para gerar i1
-        LLVMValueRef zero = LLVMConstInt(LLVMTypeOf((yyvsp[0].number).llvm_value), 0, 0);
-        (yyval.number).llvm_value = LLVMBuildICmp(builder, LLVMIntNE, (yyvsp[0].number).llvm_value, zero, "castbool");
+        LLVMValueRef zero;
+        switch ((yyvsp[0].number).type) {
+            case TYPE_INT:
+                zero = LLVMConstInt(LLVMInt32TypeInContext(context), 0, 0);
+                (yyval.number).llvm_value = LLVMBuildICmp(builder, LLVMIntNE, (yyvsp[0].number).llvm_value, zero, "castbool");
+                break;
+            case TYPE_FLOAT:
+                zero = LLVMConstReal(LLVMDoubleTypeInContext(context), 0.0);
+                (yyval.number).llvm_value = LLVMBuildFCmp(builder, LLVMRealUNE, (yyvsp[0].number).llvm_value, zero, "castbool");
+                break;
+            case TYPE_CHAR:
+                zero = LLVMConstInt(LLVMInt8TypeInContext(context), 0, 0);
+                (yyval.number).llvm_value = LLVMBuildICmp(builder, LLVMIntNE, (yyvsp[0].number).llvm_value, zero, "castbool");
+                break;
+            case TYPE_BOOL:
+                (yyval.number).llvm_value = (yyvsp[0].number).llvm_value; // Já é bool
+                break;
+            default:
+                fprintf(stderr, "Error: cannot cast type %s to bool at line %d.\n", typeToString((yyvsp[0].number).type), yylineno);
+                (yyval.number).value = -1;
+                (yyval.number).type = TYPE_UNKNOWN;
+                (yyval.number).llvm_value = NULL;
+        }
     }
-#line 4124 "objects/codeIR/parser.tab.c"
+#line 4348 "objects/codeIR/parser.tab.c"
     break;
 
   case 182: /* call_function: call_function_notfull DONE  */
-#line 1759 "compiler/parser.y"
+#line 1983 "compiler/parser.y"
                                  {}
-#line 4130 "objects/codeIR/parser.tab.c"
+#line 4354 "objects/codeIR/parser.tab.c"
     break;
 
   case 183: /* call_function_notfull: ID LEFTPAR call_parameters RIGHTPAR  */
-#line 1763 "compiler/parser.y"
+#line 1987 "compiler/parser.y"
                                           {
         FunctionSymbol* func = findFunctionSymbol((yyvsp[-3].id));
         if (func == NULL) {
@@ -4173,43 +4397,43 @@ yyreduce:
         }
         param_call_count = 0; // Limpa para próxima chamada
     }
-#line 4177 "objects/codeIR/parser.tab.c"
+#line 4401 "objects/codeIR/parser.tab.c"
     break;
 
   case 184: /* call_parameters: %empty  */
-#line 1808 "compiler/parser.y"
+#line 2032 "compiler/parser.y"
                   {}
-#line 4183 "objects/codeIR/parser.tab.c"
+#line 4407 "objects/codeIR/parser.tab.c"
     break;
 
   case 185: /* call_parameters: term call_parameter_list  */
-#line 1809 "compiler/parser.y"
+#line 2033 "compiler/parser.y"
                                {
         param_call[param_call_count].value = (yyvsp[-1].number).value;
         param_call[param_call_count].type = (yyvsp[-1].number).type;
         param_call[param_call_count++].llvm_value = (yyvsp[-1].number).llvm_value;
     }
-#line 4193 "objects/codeIR/parser.tab.c"
+#line 4417 "objects/codeIR/parser.tab.c"
     break;
 
   case 186: /* call_parameter_list: %empty  */
-#line 1817 "compiler/parser.y"
+#line 2041 "compiler/parser.y"
                   {}
-#line 4199 "objects/codeIR/parser.tab.c"
+#line 4423 "objects/codeIR/parser.tab.c"
     break;
 
   case 187: /* call_parameter_list: COMMA term call_parameter_list  */
-#line 1818 "compiler/parser.y"
+#line 2042 "compiler/parser.y"
                                      {
         param_call[param_call_count].value = (yyvsp[-1].number).value;
         param_call[param_call_count].type = (yyvsp[-1].number).type;
         param_call[param_call_count++].llvm_value = (yyvsp[-1].number).llvm_value;
     }
-#line 4209 "objects/codeIR/parser.tab.c"
+#line 4433 "objects/codeIR/parser.tab.c"
     break;
 
   case 188: /* term: NUMBER  */
-#line 1826 "compiler/parser.y"
+#line 2050 "compiler/parser.y"
              { 
         (yyval.number).value = (yyvsp[0].number).value; 
         (yyval.number).type = (yyvsp[0].number).type; 
@@ -4220,11 +4444,11 @@ yyreduce:
             default:         (yyval.number).llvm_value = LLVMConstReal(LLVMDoubleTypeInContext(context), (yyvsp[0].number).value); break;
         }
     }
-#line 4224 "objects/codeIR/parser.tab.c"
+#line 4448 "objects/codeIR/parser.tab.c"
     break;
 
   case 189: /* term: ID  */
-#line 1836 "compiler/parser.y"
+#line 2060 "compiler/parser.y"
          {
         Symbol* sym = findSymbol((yyvsp[0].id));
         if (!sym) {
@@ -4252,11 +4476,11 @@ yyreduce:
             }
         }
     }
-#line 4256 "objects/codeIR/parser.tab.c"
+#line 4480 "objects/codeIR/parser.tab.c"
     break;
 
   case 190: /* term: ID LEFTBRACKET expression RIGHTBRACKET  */
-#line 1863 "compiler/parser.y"
+#line 2087 "compiler/parser.y"
                                              {
         ArraySymbol* array_sym = findArraySymbol((yyvsp[-3].id));
         if (!array_sym) {
@@ -4281,29 +4505,41 @@ yyreduce:
                     } else {
                         (yyval.number).value = array_sym->values[(int)(yyvsp[-1].number).value];
                         (yyval.number).type = TYPE_INT;
-                        LLVMValueRef var = getArrayVarLLVM((yyvsp[-3].id), (int)(yyvsp[-1].number).value);
+                        LLVMValueRef var = getVarLLVM((yyvsp[-3].id)); // ponteiro para o array
+                        LLVMValueRef idxs[2] = {
+                            LLVMConstInt(LLVMInt32TypeInContext(context), 0, 0),
+                            (yyvsp[-1].number).llvm_value // índice dinâmico
+                        };
+                        LLVMValueRef elem_ptr = LLVMBuildGEP2(
+                            builder,
+                            LLVMArrayType(LLVMInt32TypeInContext(context), array_sym->size),
+                            var,
+                            idxs,
+                            2,
+                            "arrayelem"
+                        );
                         LLVMTypeRef llvm_type = LLVMInt32TypeInContext(context);
-                        (yyval.number).llvm_value = LLVMBuildLoad2(builder, llvm_type, var, "loadtmp");
+                        (yyval.number).llvm_value = LLVMBuildLoad2(builder, llvm_type, elem_ptr, "loadtmp");
                     }
                 }
             }
         }
     }
-#line 4293 "objects/codeIR/parser.tab.c"
+#line 4529 "objects/codeIR/parser.tab.c"
     break;
 
   case 191: /* term: CARACTERE  */
-#line 1895 "compiler/parser.y"
+#line 2131 "compiler/parser.y"
                 {
         (yyval.number).value = (double) (yyvsp[0].caractere);
         (yyval.number).type = TYPE_CHAR;
         (yyval.number).llvm_value = LLVMConstInt(LLVMInt8TypeInContext(context), (yyvsp[0].caractere), 0);
 }
-#line 4303 "objects/codeIR/parser.tab.c"
+#line 4539 "objects/codeIR/parser.tab.c"
     break;
 
 
-#line 4307 "objects/codeIR/parser.tab.c"
+#line 4543 "objects/codeIR/parser.tab.c"
 
       default: break;
     }
@@ -4527,7 +4763,7 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 1902 "compiler/parser.y"
+#line 2138 "compiler/parser.y"
 
 
 int yywrap( ) {
@@ -4616,6 +4852,33 @@ int main() {
     currentFunc = NULL; // Inicializa o ponteiro da função atual
 
     yyparse( );
+
+    // Adiciona declare void @exit(i32)
+    LLVMTypeRef exit_arg_types[] = { LLVMInt32TypeInContext(context) };
+    LLVMTypeRef exit_type = LLVMFunctionType(LLVMVoidTypeInContext(context), exit_arg_types, 1, 0);
+    LLVMAddFunction(module, "exit", exit_type);
+
+    // Cria a função _start
+    LLVMTypeRef start_type = LLVMFunctionType(LLVMVoidTypeInContext(context), NULL, 0, 0);
+    LLVMValueRef start_func = LLVMAddFunction(module, "_start", start_type);
+    LLVMBasicBlockRef entry = LLVMAppendBasicBlockInContext(context, start_func, "entry");
+    LLVMPositionBuilderAtEnd(builder, entry);
+
+    // Chama main()
+    LLVMValueRef main_func = LLVMGetNamedFunction(module, "main");
+    LLVMTypeRef main_type = LLVMFunctionType(LLVMInt32TypeInContext(context), NULL, 0, 0);
+    if (main_func) {
+        LLVMValueRef *args = NULL; // Ponteiro nulo para argumentos
+        LLVMBuildCall2(builder, main_type, main_func, args, 0, "");
+    }
+
+    // Chama exit(0)
+    LLVMValueRef zero = LLVMConstInt(LLVMInt32TypeInContext(context), 0, 0);
+    LLVMValueRef exit_func = LLVMGetNamedFunction(module, "exit");
+    LLVMValueRef exit_args[] = { zero };
+    LLVMBuildCall2(builder, exit_type, exit_func, exit_args, 1, "");
+
+    LLVMBuildUnreachable(builder);
 
     // Imprime IR
     char *irstr = LLVMPrintModuleToString(module);

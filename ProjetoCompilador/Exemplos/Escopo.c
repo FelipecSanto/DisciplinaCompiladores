@@ -14,4 +14,6 @@ int main() {
         // Erro, c não existe no escopo.
         c = 2;
     }
+
+    return 0;
 }

@@ -1,10 +1,6 @@
 ; ModuleID = 'parser'
 source_filename = "parser"
 
-@str_literal = global [11 x i8] c"\22a = %d\\n\22\00"
-@str_literal.1 = global [11 x i8] c"\22b = %f\\n\22\00"
-@str_literal.2 = global [11 x i8] c"\22c = %d\\n\22\00"
-
 declare i32 @printf(ptr, ...)
 
 declare i32 @scanf(ptr, ...)
@@ -65,11 +61,14 @@ entry:
   %current_value25 = load i32, ptr %c, align 4
   %divided_value26 = udiv i32 %current_value25, 5
   store i32 %divided_value26, ptr %c, align 4
-  %loadtmp27 = load i32, ptr %a, align 4
-  %0 = call i32 (ptr, ...) @printf(ptr @str_literal, i32 %loadtmp27)
-  %loadtmp28 = load double, ptr %b, align 8
-  %1 = call i32 (ptr, ...) @printf(ptr @str_literal.1, double %loadtmp28)
-  %loadtmp29 = load i32, ptr %c, align 4
-  %2 = call i32 (ptr, ...) @printf(ptr @str_literal.2, i32 %loadtmp29)
   ret i32 0
+}
+
+declare void @exit(i32)
+
+define void @_start() {
+entry:
+  %0 = call i32 @main()
+  call void @exit(i32 0)
+  unreachable
 }

@@ -23,8 +23,10 @@ int maior(int x, int y) {
     if (x > y) {
         return x;
     } else {
-        return y;
+        y = y + 1; // Incrementa y se for menor
     }
+
+    return y; // Retorna o maior ou o incrementado
 }
 
 // Função que inverte um booleano
@@ -44,10 +46,7 @@ int calculaTudo(int x, float y) {
     char c = g3;
     bool b = inverte(g4);
 
-    printf(s);
-    printf(m);
-    printf(c);
-    printf(b);
+    printf("Soma: %d, Media: %.2f, Caractere: %c, Invertido: %d\n", s, m, c, b);
 
     return s + (int)m + (int)c + (int)b;
 }
@@ -62,15 +61,15 @@ int main() {
     int resultadoMaior = maior(a, b);
     bool resultadoInverte = inverte(flag);
 
-    printf(resultadoSoma);
-    printf(resultadoMedia);
-    printf(resultadoMaior);
-    printf(resultadoInverte);
+    printf("Resultado da soma: %d\n", resultadoSoma);
+    printf("Resultado da media: %.2f\n", resultadoMedia);
+    printf("Maior valor: %d\n", resultadoMaior);
+    printf("Inverte booleano: %d\n", resultadoInverte);
 
     imprimeMensagem();
 
     int resultadoFinal = calculaTudo(20, 3.5);
-    printf(resultadoFinal);
+    printf("Resultado final do calculaTudo: %d\n", resultadoFinal);
 
     return 0;
 }

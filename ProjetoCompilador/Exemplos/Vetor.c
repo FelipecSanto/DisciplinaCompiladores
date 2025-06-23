@@ -50,4 +50,6 @@ int main() {
     if (v[4] != 0) {
         printf("v[4] diferente de zero");
     }
+
+    return 0;
 }
