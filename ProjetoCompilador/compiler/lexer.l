@@ -14,6 +14,8 @@
 %option noyywrap
 %option yylineno
 
+%x COMMENT
+
 %%
 
 [iI][fF]					{ return IF; }
@@ -68,7 +70,11 @@
 "!"						    { return NOT; }
 
 "//".*                      {}
-"/*"(.|\n)*"*/"             {}
+"/*"                        { BEGIN(COMMENT); }
+<COMMENT>{
+    "*/"                    { BEGIN(INITIAL); }
+    .|\n                    {} 
+}
 
 "+"							{ return PLUS; }
 "-"							{ return MIN; }
