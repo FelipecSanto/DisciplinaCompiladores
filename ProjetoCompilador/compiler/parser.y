@@ -2233,9 +2233,9 @@ int main() {
     yyparse( );
 
     // Adiciona declare void @exit(i32)
-    LLVMTypeRef exit_arg_types[] = { LLVMInt32TypeInContext(context) };
-    LLVMTypeRef exit_type = LLVMFunctionType(LLVMVoidTypeInContext(context), exit_arg_types, 1, 0);
-    LLVMAddFunction(module, "exit", exit_type);
+    //LLVMTypeRef exit_arg_types[] = { LLVMInt32TypeInContext(context) };
+    //LLVMTypeRef exit_type = LLVMFunctionType(LLVMVoidTypeInContext(context), exit_arg_types, 1, 0);
+    //LLVMAddFunction(module, "exit", exit_type);
 
     // Cria a função _start
     LLVMTypeRef start_type = LLVMFunctionType(LLVMVoidTypeInContext(context), NULL, 0, 0);
@@ -2252,10 +2252,10 @@ int main() {
     }
 
     // Chama exit(0)
-    LLVMValueRef zero = LLVMConstInt(LLVMInt32TypeInContext(context), 0, 0);
-    LLVMValueRef exit_func = LLVMGetNamedFunction(module, "exit");
-    LLVMValueRef exit_args[] = { zero };
-    LLVMBuildCall2(builder, exit_type, exit_func, exit_args, 1, "");
+    //LLVMValueRef zero = LLVMConstInt(LLVMInt32TypeInContext(context), 0, 0);
+    //LLVMValueRef exit_func = LLVMGetNamedFunction(module, "exit");
+    //LLVMValueRef exit_args[] = { zero };
+    //LLVMBuildCall2(builder, exit_type, exit_func, exit_args, 1, "");
 
     LLVMBuildUnreachable(builder);
 

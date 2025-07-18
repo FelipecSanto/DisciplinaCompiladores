@@ -77,4 +77,32 @@ Projeto/
 │   └── VarType.c                               # Tipos
 ```
 
+---
+
+## Emulação
+Para emulação foi utilizado o QEMU, um programa open source para emulação e virtualização.
+pré-requisitos:
+- qemu-user
+- qdb-multiarch
+
+### Instruções para emular
+1. Inicie o debug em um terminal com o comando:
+- qemu-riscv32 -g 1234 objects/FinalCode/output.elf
+2. Em outro terminal, acesse dessa forma:
+- gdb-multiarch objects/FinalCode/output.elf
+3. Vai estar dentro do ambiente gdb, a partir disso, conecte-se ao host e use os comandos para debug:
+- target remote localhost:1234                  # Conecta no host
+- info registers                                # Visualiza todos os registradores
+- stepi                                         # Executa uma instrução por vez
+- break _start                                  # Cria breakpoint (nesse caso, no "_start")
+- break *(&_start + 100)                        # Cria breakpoint no endereço do _start + 4 (100 em binário)
+- continue                                      # Continua o programa até uma parada
+- print $a0                                     # Printa um registrador específico
+- print $pc                                     # Printa o PC
+- display $a0                                   # Mostra o registrador a cada passo
+- layout 
+
+### Atalhos
+Ctrl + X + A	                                # Alterna entre modo TUI e console
+Ctrl + L	                                    # Redesenha a tela (refresh)
 

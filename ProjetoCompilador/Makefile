@@ -21,23 +21,39 @@ LEXER_C = $(CODEIR)/lexer.yy.c
 
 TARGET = $(CODEIR)/ccompiler
 OUTPUT_LLVM = $(CODEIR)/output.ll
-OUTPUT_ASM = $(FINALCODE)/output.asm
+OUTPUT_ASM = $(FINALCODE)/output.s
+OUTPUT_OBJ = $(FINALCODE)/output.o
+OUTPUT_ELF = $(FINALCODE)/output.elf
 
-EXEMPLO = Exemplos/WhileFor.c
+EXEMPLO = Exemplos/Simples.c
 
 # Regras principais
-all: clean_always $(OUTPUT_LLVM)
-	@echo "=================================="
-	@echo " Criando arquivo assembly "
-	@echo "=================================="
-	@mkdir -p $(FINALCODE)
-	llc -O0 -march=riscv32 -mattr=+m,+a,+f,+d $(OUTPUT_LLVM) -o $(OUTPUT_ASM)
+all: clean_always $(OUTPUT_ELF)
 
 clean_always:
 	@if [ -d "$(OBJDIR)" ]; then \
 	echo "Removendo diretório $(OBJDIR) antes do build..."; \
 	rm -rf $(OBJDIR); \
 	fi
+
+$(OUTPUT_ELF): $(OUTPUT_OBJ)
+	@echo "=================================="
+	@echo " Linkando arquivo ELF para RISC-V"
+	@echo "=================================="
+	riscv64-unknown-elf-ld -m elf32lriscv -Ttext=0x80000000 -o $(OUTPUT_ELF) $(OUTPUT_OBJ)
+
+$(OUTPUT_OBJ): $(OUTPUT_ASM)
+	@echo "=================================="
+	@echo " Montando arquivo objeto (.o)"
+	@echo "=================================="
+	riscv64-unknown-elf-as -march=rv32im -mabi=ilp32 -o $(OUTPUT_OBJ) $(OUTPUT_ASM)
+
+$(OUTPUT_ASM): $(OUTPUT_LLVM)
+	@echo "=================================="
+	@echo " Criando arquivo assembly com LLC "
+	@echo "=================================="
+	@mkdir -p $(FINALCODE)
+	llc -O0 -march=riscv32 -mattr=+m,+a,+f,+d $(OUTPUT_LLVM) -o $(OUTPUT_ASM)
 
 $(OUTPUT_LLVM): | $(CODEIR) $(FINALCODE) $(TARGET)
 	@echo "=================================="
@@ -113,5 +129,8 @@ incremento: all
 
 semantica: EXEMPLO = Exemplos/Semantica.c
 semantica: all
+
+crivo: EXEMPLO = Exemplos/Crivo.c
+crivo: all
 
 .PHONY: all clean condicional printscan declaracao vetor escopo cast funcoes simples repeticao incremento semantica

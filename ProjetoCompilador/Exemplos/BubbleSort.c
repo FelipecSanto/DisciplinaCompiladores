@@ -19,10 +19,5 @@ int main(){
         }
     }
 
-    printf("Vetor ordenado: ");
-    for (i = 0; i < 5; i++) {
-        printf("%d ", v[i]);
-    }
-
     return 0;
 }
