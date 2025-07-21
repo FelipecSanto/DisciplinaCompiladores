@@ -22,31 +22,17 @@ LEXER_C = $(CODEIR)/lexer.yy.c
 TARGET = $(CODEIR)/ccompiler
 OUTPUT_LLVM = $(CODEIR)/output.ll
 OUTPUT_ASM = $(FINALCODE)/output.s
-OUTPUT_OBJ = $(FINALCODE)/output.o
-OUTPUT_ELF = $(FINALCODE)/output.elf
 
 EXEMPLO = Exemplos/Simples.c
 
 # Regras principais
-all: clean_always $(OUTPUT_ELF)
+all: clean_always $(OUTPUT_ASM)
 
 clean_always:
 	@if [ -d "$(OBJDIR)" ]; then \
 	echo "Removendo diretório $(OBJDIR) antes do build..."; \
 	rm -rf $(OBJDIR); \
 	fi
-
-$(OUTPUT_ELF): $(OUTPUT_OBJ)
-	@echo "=================================="
-	@echo " Linkando arquivo ELF para RISC-V"
-	@echo "=================================="
-	riscv64-unknown-elf-ld -m elf32lriscv -Ttext=0x80000000 -o $(OUTPUT_ELF) $(OUTPUT_OBJ)
-
-$(OUTPUT_OBJ): $(OUTPUT_ASM)
-	@echo "=================================="
-	@echo " Montando arquivo objeto (.o)"
-	@echo "=================================="
-	riscv64-unknown-elf-as -march=rv32im -mabi=ilp32 -o $(OUTPUT_OBJ) $(OUTPUT_ASM)
 
 $(OUTPUT_ASM): $(OUTPUT_LLVM)
 	@echo "=================================="
@@ -133,4 +119,7 @@ semantica: all
 crivo: EXEMPLO = Exemplos/Crivo.c
 crivo: all
 
-.PHONY: all clean condicional printscan declaracao vetor escopo cast funcoes simples repeticao incremento semantica
+bubble: EXEMPLO = Exemplos/BubbleSort.c
+bubble: all
+
+.PHONY: all clean condicional printscan declaracao vetor escopo cast funcoes simples repeticao incremento semantica crivo bubble

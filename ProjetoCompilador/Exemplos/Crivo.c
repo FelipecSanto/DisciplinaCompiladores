@@ -4,7 +4,7 @@
 
 // Implementação de um algoritmo real utilizado para verificação de primos
 
-int TAM = 20;
+int TAM = 5;
 int raiz = 5;
 
 int main(){
@@ -26,7 +26,8 @@ int main(){
     // Limite é a raiz quadrada do número que queremos verificar (arredondado para cima)
     while(n <= raiz){
         // Se o número n for primo, utiliza para retirar do vetor
-        if(primos[1] == 1){
+        int p = primos[n];
+        if(p == 1){
             for(int i = 2 * n; i < TAM; i += n){
                 primos[i] = 0;
             }

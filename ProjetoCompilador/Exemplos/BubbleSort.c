@@ -7,10 +7,10 @@
 int main(){
     // Vetor desordenado de tamanho 5
     int v[5] = {5, 3, 4, 1, 2};
-    int i, j, temp;
+    int temp;
 
-    for (i = 0; i < 5 - 1; i++) {
-        for (j = 0; j < 5 - i - 1; j++) {
+    for (int i = 0; i < 5 - 1; i++) {
+        for (int j = 0; j < 5 - i - 1; j++) {
             if (v[j] > v[j + 1]) {
                 temp = v[j];
                 v[j] = v[j + 1];
