@@ -2104,17 +2104,19 @@ term
                 $$.value = -1;
                 $$.type = TYPE_UNKNOWN;
             } else {
+                /*  Não funciona muito bem, principalmente para inicialização e comparação de arrays com indices dinâmicos
+                    Até porque, em C, o compilador não avalia os valores dentro dos arrays
                 if (array_sym->values[(int)$3.value] == -DBL_MAX) {
                     fprintf(stderr, "Array in position %d is uninitialized at line %d\n", (int)$3.value, yylineno);
                     $$.value = -1;
                     $$.type = TYPE_UNKNOWN;
-                } else {
+                } else {*/
                     if ($3.type != TYPE_INT) {
                         fprintf(stderr, "Array index must be an integer at line %d\n", yylineno);
                         $$.value = -1;
                         $$.type = TYPE_UNKNOWN;
                     } else {
-                        $$.value = array_sym->values[(int)$3.value];
+                        $$.value = 1; //array_sym->values[(int)$3.value]; Pegar o valor não faz sentido aqui
                         $$.type = TYPE_INT;
                         LLVMValueRef var = getVarLLVM($1); // ponteiro para o array
                         LLVMValueRef idxs[2] = {
@@ -2132,7 +2134,7 @@ term
                         LLVMTypeRef llvm_type = LLVMInt32TypeInContext(context);
                         $$.llvm_value = LLVMBuildLoad2(builder, llvm_type, elem_ptr, "loadtmp");
                     }
-                }
+                //}
             }
         }
     }

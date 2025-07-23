@@ -83,9 +83,12 @@ Projeto/
 Para simulação foi utilizado o RARS
 
 ### Instruções
-1 - Faça o make do arquivo desejado, a partir disso vai ser gerado o assembly "output.s" na pasta objects/FinalCode.
-2 - Em um novo arquivo no RARS, copie o código do arquivo assembly e cole no RARS.
-3 - Na conversão do LLVM, ele troca o main por main@plt. Retire o "@plt" e o arquivo pode ser depurado.
+1 - Compile o código-fonte com o comando make. Isso criará um arquivo chamado output.s (código Assembly) na pasta objects/FinalCode.
+2 - Abrir o RARS: Criar um novo arquivo e copiar o conteúdo de output.s para dentro dele.
+3 - O LLVM gera a função principal com o nome main@plt. Para o RARS, substitua por main.
+4 - O LLVM insere um comando "ret" no final do programa, que causa erro no RARS (o comando não necessarimente está no final, mas representa o final do programa).
+5 - O ret não necessariamente é um problema, já que o restante do programa funciona normalmente. Mas para não ter uma mensagem de erro: 
+    substitua o "ret" em um salto "j" para um rótulo "exit" na última linha de código
 
 
 
