@@ -128,6 +128,7 @@ void pushScope() {
     SymbolTable* newScope = malloc(sizeof(SymbolTable));
     for (int i = 0; i < HASH_SIZE; i++) {
         newScope->table[i] = NULL;
+        newScope->arrayTable[i] = NULL;
     }
     newScope->prev = currentScope;
     currentScope = newScope;
