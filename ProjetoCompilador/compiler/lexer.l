@@ -94,7 +94,7 @@
 
 ";"							{ return DONE; }
 
-[\t\f\n ]					{}
+[\t\f\n\r ]					{}
 
 .							{ fprintf(stderr, "Error: invalid character on line %d: '%s'\n", yylineno, yytext); }
 
