@@ -7,7 +7,7 @@
 int TAM = 100;
 
 int main(){
-    // Vetor de primos. Se no final tiver o valor 1, é primo, caso contrário, não é primo
+    // Vetor de primos. Se no final tiver valor 0, não é primo, caso contrário, é primo
     int primos[TAM];
 
     // Inicializa e coloca o vetor como primo
